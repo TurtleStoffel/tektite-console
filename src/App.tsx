@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { GithubRepo } from "./types/github";
 import "./index.css";
 
@@ -6,12 +6,44 @@ export function App() {
     const [activeCell, setActiveCell] = useState<number | null>(null);
     const [repos, setRepos] = useState<GithubRepo[]>([]);
     const [loading, setLoading] = useState(false);
+    const [savingSelection, setSavingSelection] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedRepoUrl, setSelectedRepoUrl] = useState<string | null>(null);
+    const [selectionsByCell, setSelectionsByCell] = useState<Record<number, string>>({});
+
+    useEffect(() => {
+        const fetchSelection = async () => {
+            try {
+                const response = await fetch("/api/github/selection");
+                const payload = await response.json().catch(() => ({} as any));
+                if (response.ok && payload.selection && typeof payload.selection === "object") {
+                    const selectionMap: Record<number, string> = {};
+                    Object.entries(payload.selection).forEach(([cellKey, url]: [string, unknown]) => {
+                        const cellNum = Number(cellKey);
+                        if (Number.isInteger(cellNum) && typeof url === "string") {
+                            selectionMap[cellNum] = url;
+                        }
+                    });
+                    setSelectionsByCell(selectionMap);
+                    if (activeCell && selectionMap[activeCell]) {
+                        setSelectedRepoUrl(selectionMap[activeCell]);
+                    }
+                }
+            } catch (err) {
+                const message =
+                    err instanceof Error ? err.message : "Unable to read your saved repository selection.";
+                setError(message);
+            }
+        };
+
+        fetchSelection();
+    }, [activeCell]);
 
     const handleCellClick = async (cell: number) => {
         setActiveCell(cell);
         setLoading(true);
         setError(null);
+        setSelectedRepoUrl(selectionsByCell[cell] ?? null);
 
         try {
             const response = await fetch("/api/github/repos");
@@ -30,6 +62,36 @@ export function App() {
             setRepos([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRepoSelect = async (repoUrl: string) => {
+        if (!activeCell) return;
+
+        setSelectedRepoUrl(repoUrl);
+        setSelectionsByCell((prev) => ({ ...prev, [activeCell]: repoUrl }));
+        setSavingSelection(true);
+        setError(null);
+
+        try {
+            const response = await fetch("/api/github/selection", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cell: activeCell, url: repoUrl }),
+            });
+
+            const payload = await response.json().catch(() => {
+                throw new Error("Server returned an unreadable response.");
+            });
+
+            if (!response.ok) {
+                throw new Error(payload.error || "Failed to save repository selection.");
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Unable to store your repository selection.";
+            setError(message);
+        } finally {
+            setSavingSelection(false);
         }
     };
 
@@ -65,9 +127,23 @@ export function App() {
                                 <span className="text-base-content/60">Ready</span>
                             </div>
                             <h2 className="card-title">Grid Item {cell}</h2>
-                            <p className="text-sm text-base-content/70">
-                                Placeholder for upcoming instructions and content.
-                            </p>
+                            {selectionsByCell[cell] ? (
+                                <div className="space-y-2">
+                                    <p className="text-sm text-base-content/60">Selected repository</p>
+                                    <a
+                                        href={selectionsByCell[cell]}
+                                        className="link link-hover break-all"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        {selectionsByCell[cell]}
+                                    </a>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-base-content/70">
+                                    Click to load repos, then choose one to pin here.
+                                </p>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -83,6 +159,23 @@ export function App() {
                         <div className="badge badge-outline">
                             {activeCell ? `Loaded from cell ${activeCell}` : "Click a cell"}
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-sm text-base-content/70">
+                        <span className="font-semibold">Selected URL (active cell):</span>
+                        {selectedRepoUrl ? (
+                            <a
+                                href={selectedRepoUrl}
+                                className="link link-hover break-all"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                {selectedRepoUrl}
+                            </a>
+                        ) : (
+                            <span className="text-base-content/60">None selected for this cell.</span>
+                        )}
+                        {savingSelection && <span className="loading loading-spinner loading-xs" />}
                     </div>
 
                     {loading && (
@@ -109,10 +202,15 @@ export function App() {
                         <div className="space-y-3 max-h-96 overflow-y-auto">
                             {repos.map((repo) => {
                                 const label = repo.owner?.login ? `${repo.owner.login}/${repo.name}` : repo.name;
+                                const isSelected = selectedRepoUrl === repo.url;
                                 return (
                                     <div
                                         key={repo.url}
-                                        className="p-3 border border-base-300 rounded-xl bg-base-100/60 space-y-2"
+                                        className={`p-3 border rounded-xl space-y-2 transition-colors ${
+                                            isSelected
+                                                ? "border-primary bg-primary/10"
+                                                : "border-base-300 bg-base-100/60"
+                                        }`}
                                     >
                                         <div className="flex items-center justify-between gap-4">
                                             <a
@@ -123,9 +221,18 @@ export function App() {
                                             >
                                                 {label}
                                             </a>
-                                            <span className="badge badge-outline capitalize">
-                                                {repo.visibility || "unknown"}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="badge badge-outline capitalize">
+                                                    {repo.visibility || "unknown"}
+                                                </span>
+                                                <button
+                                                    className="btn btn-sm btn-outline"
+                                                    onClick={() => handleRepoSelect(repo.url)}
+                                                    disabled={savingSelection}
+                                                >
+                                                    {isSelected ? "Selected" : "Select"}
+                                                </button>
+                                            </div>
                                         </div>
                                         {repo.description && (
                                             <p className="text-sm text-base-content/70">{repo.description}</p>
