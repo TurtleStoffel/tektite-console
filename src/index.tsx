@@ -25,6 +25,10 @@ const { db } = await initStorage(dataDir);
 
 const server = serve({
     port: PORT,
+
+    // Disable timeout for long-running Codex requests
+    idleTimeout: 0,
+
     routes: {
         ...createGithubRoutes({ dataDir, selectionFilePath }),
         ...createFlowRoutes({ db }),
