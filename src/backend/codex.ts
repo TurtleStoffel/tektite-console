@@ -266,12 +266,20 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
     const mappedThreadId = threadId ?? threadMap[workingDirectory]?.threadId ?? null;
     const thread = startThread(workingDirectory, mappedThreadId);
 
+    let cancelled = false;
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+
     const stream = new ReadableStream({
         start: async (controller) => {
-            let cancelled = false;
+            controllerRef = controller;
 
             const send = (chunk: StreamChunk) => {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                if (cancelled) return;
+                try {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                } catch {
+                    cancelled = true;
+                }
             };
 
             const latest = { text: "", usage: null as Usage | null };
@@ -327,9 +335,12 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
                 send({ type: "error", error: message });
             } finally {
                 closeStream();
+                controllerRef = null;
             }
         },
         cancel: () => {
+            cancelled = true;
+            controllerRef = null;
             // eslint-disable-next-line no-console
             console.log("[codex] stream cancelled by client");
         },

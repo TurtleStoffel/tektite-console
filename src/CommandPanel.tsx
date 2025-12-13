@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { subscribeSelectedRepo } from "./events";
 
 type StreamMessage =
@@ -14,9 +14,16 @@ export function CommandPanel() {
     const [executionMessage, setExecutionMessage] = useState<string | null>(null);
     const [isExecuting, setIsExecuting] = useState(false);
     const [selectedRepoUrl, setSelectedRepoUrl] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
         return subscribeSelectedRepo(({ url }) => setSelectedRepoUrl(url));
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            abortControllerRef.current?.abort();
+        };
     }, []);
 
     const handleExecute = async () => {
@@ -34,6 +41,10 @@ export function CommandPanel() {
         setIsExecuting(true);
         setExecutionMessage("Preparing workspace and starting Codex…");
 
+        abortControllerRef.current?.abort();
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
         try {
             const res = await fetch("/api/execute", {
                 method: "POST",
@@ -45,6 +56,7 @@ export function CommandPanel() {
                     prompt: trimmedCommand,
                     repository: { type: "git", url: selectedRepoUrl },
                 }),
+                signal: abortController.signal,
             });
 
             if (!res.ok) {
@@ -61,6 +73,7 @@ export function CommandPanel() {
             const decoder = new TextDecoder();
             let buffer = "";
             let latestMessage = "";
+            let sawDone = false;
 
             const processEvent = (rawEvent: string) => {
                 const dataLines = rawEvent
@@ -85,6 +98,7 @@ export function CommandPanel() {
 
                 if (payload.type === "done" && typeof payload.response === "string") {
                     latestMessage = payload.response;
+                    sawDone = true;
                 }
             };
 
@@ -103,16 +117,33 @@ export function CommandPanel() {
                 }
             }
 
-            if (buffer.trim()) {
-                processEvent(buffer.trim());
+            buffer += decoder.decode();
+            let boundaryIndex = buffer.indexOf("\n\n");
+            while (boundaryIndex !== -1) {
+                const rawEvent = buffer.slice(0, boundaryIndex);
+                buffer = buffer.slice(boundaryIndex + 2);
+                processEvent(rawEvent);
+                boundaryIndex = buffer.indexOf("\n\n");
+            }
+
+            if (!abortController.signal.aborted && !sawDone && buffer.trim()) {
+                setExecutionMessage(latestMessage || "Connection closed before Codex finished.");
+                return;
             }
 
             setExecutionMessage(latestMessage || "Codex run completed.");
         } catch (error) {
+            if (abortController.signal.aborted) {
+                setExecutionMessage("Execution cancelled.");
+                return;
+            }
             const message = error instanceof Error ? error.message : "Unexpected error while executing.";
             setExecutionMessage(`Error: ${message}`);
         } finally {
             setIsExecuting(false);
+            if (abortControllerRef.current === abortController) {
+                abortControllerRef.current = null;
+            }
         }
     };
 
@@ -141,9 +172,23 @@ export function CommandPanel() {
                     value={commandInput}
                     onChange={(event) => setCommandInput(event.target.value)}
                 />
-                <button className="btn btn-primary mt-2" onClick={handleExecute} disabled={isExecuting}>
-                    {isExecuting ? "Executing…" : "Execute"}
-                </button>
+                <div className="flex flex-wrap gap-2 mt-2">
+                    <button className="btn btn-primary" onClick={handleExecute} disabled={isExecuting}>
+                        {isExecuting ? "Executing…" : "Execute"}
+                    </button>
+                    {isExecuting && (
+                        <button
+                            className="btn btn-ghost"
+                            type="button"
+                            onClick={() => {
+                                abortControllerRef.current?.abort();
+                                setExecutionMessage("Cancelling…");
+                            }}
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
                 {executionMessage && <p className="text-sm text-base-content/70">{executionMessage}</p>}
             </div>
         </>
