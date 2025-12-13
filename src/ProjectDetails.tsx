@@ -11,7 +11,13 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
-    clones?: Array<{ path: string; location: "clonesDir" | "codingFolder"; port?: number | null }>;
+    clones?: Array<{
+        path: string;
+        location: "clonesDir" | "codingFolder";
+        port?: number | null;
+        commitHash?: string | null;
+        commitDescription?: string | null;
+    }>;
 };
 
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
@@ -140,7 +146,16 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             key={`${clone.location}:${clone.path}`}
                                             className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
                                         >
-                                            <div className="font-mono text-xs break-all">{clone.path}</div>
+                                            <div className="space-y-1 min-w-0">
+                                                <div className="font-mono text-xs break-all">{clone.path}</div>
+                                                {clone.commitHash && clone.commitDescription && (
+                                                    <div className="text-xs text-base-content/70 break-all">
+                                                        <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>
+                                                        <span className="mx-2">—</span>
+                                                        <span>{clone.commitDescription}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-2">
                                                 {typeof clone.port === "number" && (
                                                     <div className="badge badge-success badge-outline">port {clone.port}</div>
