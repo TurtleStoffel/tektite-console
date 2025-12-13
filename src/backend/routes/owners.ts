@@ -15,6 +15,7 @@ export function createOwnerRoutes(options: { db: Database }) {
                             o.id AS id,
                             o.owner_type AS owner_type,
                             p.name AS project_name,
+                            p.url AS project_url,
                             i.description AS idea_description
                         FROM owners o
                         LEFT JOIN projects p ON p.id = o.id
@@ -26,6 +27,7 @@ export function createOwnerRoutes(options: { db: Database }) {
                     id: string;
                     owner_type: "project" | "idea";
                     project_name: string | null;
+                    project_url: string | null;
                     idea_description: string | null;
                 }>;
 
@@ -33,6 +35,7 @@ export function createOwnerRoutes(options: { db: Database }) {
                     id: owner.id,
                     ownerType: owner.owner_type,
                     name: owner.owner_type === "project" ? owner.project_name : null,
+                    url: owner.owner_type === "project" ? owner.project_url : null,
                     description: owner.owner_type === "idea" ? owner.idea_description : null,
                 }));
 
@@ -60,10 +63,30 @@ export function createOwnerRoutes(options: { db: Database }) {
                     });
                 }
 
+                const url = typeof body?.url === "string" ? body.url.trim() : "";
+                if (!url) {
+                    return new Response(JSON.stringify({ error: "Project URL is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                try {
+                    const parsed = new URL(url);
+                    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+                        throw new Error("Invalid protocol.");
+                    }
+                } catch {
+                    return new Response(JSON.stringify({ error: "Project URL must be a valid http(s) URL." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
                 const ownerId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'project')").run(ownerId);
-                db.query("INSERT INTO projects (id, name) VALUES (?, ?)").run(ownerId, name);
-                return Response.json({ id: ownerId, ownerType: "project", name });
+                db.query("INSERT INTO projects (id, name, url) VALUES (?, ?, ?)").run(ownerId, name, url);
+                return Response.json({ id: ownerId, ownerType: "project", name, url });
             },
         },
 

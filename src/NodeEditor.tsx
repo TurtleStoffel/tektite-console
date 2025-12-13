@@ -12,6 +12,8 @@ import ReactFlow, {
     type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import type { GithubRepo } from "./types/github";
+import { OwnedNode } from "./OwnedNode";
 
 type NodeEditorProps = {
     drawerToggleId: string;
@@ -21,6 +23,7 @@ type OwnerSummary = {
     id: string;
     ownerType: "project" | "idea";
     name: string | null;
+    url?: string | null;
     description: string | null;
 };
 
@@ -60,7 +63,11 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const [ownersError, setOwnersError] = useState<string | null>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [newProjectName, setNewProjectName] = useState("");
+    const [newProjectUrl, setNewProjectUrl] = useState("");
     const [newIdeaDescription, setNewIdeaDescription] = useState("");
+    const [repos, setRepos] = useState<GithubRepo[]>([]);
+    const [reposLoading, setReposLoading] = useState(false);
+    const [reposError, setReposError] = useState<string | null>(null);
 
     const onConnect = useCallback(
         (connection: Connection) => {
@@ -91,6 +98,45 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
         const data = selectedNode?.data as any;
         return typeof data?.ownerId === "string" ? data.ownerId : "";
     }, [selectedNode]);
+
+    const ownersById = useMemo(() => new Map(owners.map((owner) => [owner.id, owner])), [owners]);
+
+    const renderNodes = useMemo(() => {
+        const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+        return nodes.map((node) => {
+            const data = node.data as any;
+            const ownerId = typeof data?.ownerId === "string" ? data.ownerId : "";
+            const owner = ownerId ? ownersById.get(ownerId) : undefined;
+            const displayOwnerType = owner?.ownerType ?? null;
+            const displayOwnerName =
+                displayOwnerType === "project" ? (owner?.name ?? null) : displayOwnerType === "idea" ? owner?.description ?? null : null;
+            const displayOwnerUrl = displayOwnerType === "project" ? (owner?.url ?? null) : null;
+
+            const label = typeof data?.label === "string" ? data.label : "Node";
+            const widthHint = Math.max(
+                label.length,
+                (displayOwnerName ?? "").length,
+                Math.min((displayOwnerUrl ?? "").length, 80),
+            );
+            const widthCh = clamp(Math.ceil(widthHint * 0.75) + 12, 28, 64);
+
+            return {
+                ...node,
+                type: node.type ?? "default",
+                style: {
+                    ...(node.style ?? {}),
+                    width: `${widthCh}ch`,
+                },
+                data: {
+                    ...(node.data as any),
+                    displayOwnerType,
+                    displayOwnerName,
+                    displayOwnerUrl,
+                },
+            } satisfies Node;
+        });
+    }, [nodes, ownersById]);
 
     const handleOwnerChange = useCallback(
         (ownerId: string) => {
@@ -130,24 +176,26 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
     const handleCreateProject = useCallback(async () => {
         const name = newProjectName.trim();
-        if (!name) return;
+        const url = newProjectUrl.trim();
+        if (!name || !url) return;
         try {
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, url }),
             });
             if (!res.ok) {
                 const payload = await res.json().catch(() => ({}));
                 throw new Error(payload?.error || "Failed to create project.");
             }
             setNewProjectName("");
+            setNewProjectUrl("");
             await refreshOwners();
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to create project.";
             setOwnersError(message);
         }
-    }, [newProjectName, refreshOwners]);
+    }, [newProjectName, newProjectUrl, refreshOwners]);
 
     const handleCreateIdea = useCallback(async () => {
         const description = newIdeaDescription.trim();
@@ -249,6 +297,44 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     }, [isLoading, nodes, owners, setNodes]);
 
     const miniMapStyle = useMemo(() => ({ height: 120 }), []);
+    const nodeTypes = useMemo(
+        () => ({
+            default: OwnedNode,
+            input: OwnedNode,
+            output: OwnedNode,
+        }),
+        [],
+    );
+
+    const fetchRepos = useCallback(async () => {
+        setReposLoading(true);
+        setReposError(null);
+        try {
+            const res = await fetch("/api/github/repos");
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load repositories.");
+            }
+            setRepos(Array.isArray(payload?.repos) ? (payload.repos as GithubRepo[]) : []);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to load repositories.";
+            setReposError(message);
+            setRepos([]);
+        } finally {
+            setReposLoading(false);
+        }
+    }, []);
+
+    const handleRepoSelect = useCallback(
+        (repo: GithubRepo) => {
+            setNewProjectUrl(repo.url);
+            setNewProjectName((current) => {
+                if (current.trim()) return current;
+                return repo.owner?.login ? `${repo.owner.login}/${repo.name}` : repo.name;
+            });
+        },
+        [setNewProjectName],
+    );
 
     return (
         <div className="w-full min-h-screen flex flex-col">
@@ -288,13 +374,14 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                 </div>
                             ) : (
                                 <ReactFlow
-                                    nodes={nodes}
+                                    nodes={renderNodes}
                                     edges={edges}
                                     onNodesChange={onNodesChange}
                                     onEdgesChange={onEdgesChange}
                                     onConnect={onConnect}
                                     onNodeClick={(_, node) => setSelectedNodeId(node.id)}
                                     onPaneClick={() => setSelectedNodeId(null)}
+                                    nodeTypes={nodeTypes}
                                     fitView
                                 >
                                     <MiniMap style={miniMapStyle} zoomable pannable />
@@ -369,11 +456,85 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         value={newProjectName}
                                         onChange={(event) => setNewProjectName(event.target.value)}
                                     />
+                                    <input
+                                        className="input input-bordered w-full"
+                                        placeholder="Repository URL"
+                                        value={newProjectUrl}
+                                        onChange={(event) => setNewProjectUrl(event.target.value)}
+                                    />
+                                    <div className="flex items-center justify-between gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline btn-sm"
+                                            onClick={fetchRepos}
+                                            disabled={reposLoading}
+                                        >
+                                            {reposLoading ? "Loading repos…" : "Load repos"}
+                                        </button>
+                                        {newProjectUrl.trim() && (
+                                            <a
+                                                href={newProjectUrl.trim()}
+                                                className="link link-hover text-sm break-all"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                {newProjectUrl.trim()}
+                                            </a>
+                                        )}
+                                    </div>
+                                    {reposError && (
+                                        <div className="alert alert-error">
+                                            <span>{reposError}</span>
+                                        </div>
+                                    )}
+                                    {!reposLoading && !reposError && repos.length > 0 && (
+                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                            {repos.map((repo) => {
+                                                const label = repo.owner?.login
+                                                    ? `${repo.owner.login}/${repo.name}`
+                                                    : repo.name;
+                                                const isSelected = newProjectUrl.trim() === repo.url;
+                                                return (
+                                                    <div
+                                                        key={repo.url}
+                                                        className={`p-3 border rounded-xl transition-colors ${
+                                                            isSelected
+                                                                ? "border-primary bg-primary/10"
+                                                                : "border-base-300 bg-base-100/60"
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <a
+                                                                href={repo.url}
+                                                                className="font-semibold link link-hover"
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                            >
+                                                                {label}
+                                                            </a>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline"
+                                                                onClick={() => handleRepoSelect(repo)}
+                                                            >
+                                                                {isSelected ? "Selected" : "Select"}
+                                                            </button>
+                                                        </div>
+                                                        {repo.description && (
+                                                            <p className="text-sm text-base-content/70 mt-2">
+                                                                {repo.description}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                     <button
                                         type="button"
                                         className="btn btn-primary btn-sm"
                                         onClick={handleCreateProject}
-                                        disabled={!newProjectName.trim()}
+                                        disabled={!newProjectName.trim() || !newProjectUrl.trim()}
                                     >
                                         Create project
                                     </button>
