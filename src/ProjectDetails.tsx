@@ -11,7 +11,7 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
-    clones?: Array<{ path: string; location: "clonesDir" | "codingFolder" }>;
+    clones?: Array<{ path: string; location: "clonesDir" | "codingFolder"; port?: number | null }>;
 };
 
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
@@ -119,7 +119,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
                                         >
                                             <div className="font-mono text-xs break-all">{clone.path}</div>
-                                            <div className="badge badge-outline">{clone.location}</div>
+                                            <div className="flex items-center gap-2">
+                                                {typeof clone.port === "number" && (
+                                                    <div className="badge badge-success badge-outline">port {clone.port}</div>
+                                                )}
+                                                <div className="badge badge-outline">{clone.location}</div>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

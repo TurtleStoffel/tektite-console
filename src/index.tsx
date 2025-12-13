@@ -8,10 +8,11 @@ import { createFlowRoutes } from "./backend/routes/flow";
 import { createGithubRoutes } from "./backend/routes/github";
 import { helloRoutes } from "./backend/routes/hello";
 import { createOwnerRoutes } from "./backend/routes/owners";
+import { TEKTITE_PORT_FILE } from "./constants";
 
 const portEnv = process.env.PORT ? Number(process.env.PORT) : undefined;
 const PORT = Number.isFinite(portEnv) ? portEnv : 3000;
-const portFilePath = ".tektite.port";
+const portFilePath = TEKTITE_PORT_FILE;
 
 const dataDir = "./data";
 const selectionFilePath = `${dataDir}/selected-repo.json`;

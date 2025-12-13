@@ -129,13 +129,15 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; co
                     .query("SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?")
                     .get(ownerId) as { count: number } | null;
 
+                const clones = await findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder });
+
                 return Response.json({
                     id: row.id,
                     name: row.name,
                     url: row.url,
                     nodeCount: nodeCountRow?.count ?? 0,
                     flowCount: flowCountRow?.count ?? 0,
-                    clones: await findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder }),
+                    clones,
                 });
             },
         },

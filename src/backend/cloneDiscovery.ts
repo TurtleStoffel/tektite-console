@@ -2,12 +2,14 @@ import fs from "fs";
 import path from "path";
 import { execAsync } from "./exec";
 import { cleanRepositoryUrl, sanitizeRepoName } from "./git";
+import { TEKTITE_PORT_FILE } from "../constants";
 
 export type CloneLocation = "clonesDir" | "codingFolder";
 
 export type CloneInfo = {
     path: string;
     location: CloneLocation;
+    port?: number | null;
 };
 
 function canonicalRepoId(repoUrl: string): string | null {
@@ -146,6 +148,21 @@ export async function findRepositoryClones(options: {
     }
 
     results.sort((a, b) => a.path.localeCompare(b.path));
-    return results;
-}
 
+    return results.map((clone) => {
+        const portPath = path.join(clone.path, TEKTITE_PORT_FILE);
+        try {
+            if (!fs.existsSync(portPath)) return { ...clone, port: null };
+            const portText = fs.readFileSync(portPath, "utf8").trim();
+            const port = Number.parseInt(portText, 10);
+            if (!Number.isFinite(port)) {
+                console.warn(`Invalid ${TEKTITE_PORT_FILE} contents at ${portPath}: ${portText}`);
+                return { ...clone, port: null };
+            }
+            return { ...clone, port };
+        } catch (error) {
+            console.warn(`Failed reading ${TEKTITE_PORT_FILE} at ${portPath}`, error);
+            return { ...clone, port: null };
+        }
+    });
+}
