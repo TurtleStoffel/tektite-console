@@ -3,9 +3,10 @@ import type { GithubRepo } from "./types/github";
 
 type MainContentProps = {
     drawerToggleId: string;
+    onRepoSelected?: (url: string | null) => void;
 };
 
-export function MainContent({ drawerToggleId }: MainContentProps) {
+export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps) {
     const [activeCell, setActiveCell] = useState<number | null>(null);
     const [repos, setRepos] = useState<GithubRepo[]>([]);
     const [loading, setLoading] = useState(false);
@@ -30,6 +31,10 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     setSelectionsByCell(selectionMap);
                     if (activeCell && selectionMap[activeCell]) {
                         setSelectedRepoUrl(selectionMap[activeCell]);
+                        onRepoSelected?.(selectionMap[activeCell]);
+                    } else if (activeCell) {
+                        setSelectedRepoUrl(null);
+                        onRepoSelected?.(null);
                     }
                 }
             } catch (err) {
@@ -40,13 +45,14 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
         };
 
         fetchSelection();
-    }, [activeCell]);
+    }, [activeCell, onRepoSelected]);
 
     const handleCellClick = async (cell: number) => {
         setActiveCell(cell);
         setLoading(true);
         setError(null);
         setSelectedRepoUrl(selectionsByCell[cell] ?? null);
+        onRepoSelected?.(selectionsByCell[cell] ?? null);
 
         try {
             const response = await fetch("/api/github/repos");
@@ -73,6 +79,7 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
 
         setSelectedRepoUrl(repoUrl);
         setSelectionsByCell((prev) => ({ ...prev, [activeCell]: repoUrl }));
+        onRepoSelected?.(repoUrl);
         setSavingSelection(true);
         setError(null);
 

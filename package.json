@@ -10,6 +10,7 @@
         "fmt": "biome format --write ."
     },
     "dependencies": {
+        "@openai/codex-sdk": "^0.65.0",
         "bun-plugin-tailwind": "^0.1.2",
         "daisyui": "^5.5.8",
         "react": "^19",

@@ -2,9 +2,14 @@ import { mkdir } from "fs/promises";
 import { serve } from "bun";
 import index from "./index.html";
 import type { GithubRepo } from "./types/github";
+import { ensureClonesDir, prepareWorktree } from "./backend/git";
+import { streamCodexRun } from "./backend/codex";
 
 const dataDir = "./data";
 const selectionFilePath = `${dataDir}/selected-repo.json`;
+const clonesDir = "/Users/stefan/coding/tmp/clones";
+
+void ensureClonesDir(clonesDir);
 
 type SelectionMap = Record<string, string>;
 
@@ -150,6 +155,56 @@ const server = serve({
             return Response.json({
                 message: `Hello, ${name}!`,
             });
+        },
+
+        "/api/execute": {
+            async POST(req) {
+                let payload: any;
+                try {
+                    payload = await req.json();
+                } catch {
+                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const basePrompt =
+                    typeof payload?.command === "string"
+                        ? payload.command.trim()
+                        : typeof payload?.prompt === "string"
+                          ? payload.prompt.trim()
+                          : "";
+                const repositoryUrl =
+                    typeof payload?.repository?.url === "string" ? payload.repository.url.trim() : "";
+
+                if (!basePrompt) {
+                    return new Response(JSON.stringify({ error: "Command text is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                if (!repositoryUrl) {
+                    return new Response(JSON.stringify({ error: "Select a repository before executing." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                try {
+                    await ensureClonesDir(clonesDir);
+                    const { worktreePath } = await prepareWorktree(repositoryUrl, clonesDir);
+                    return streamCodexRun({ prompt: basePrompt, workingDirectory: worktreePath, clonesDir });
+                } catch (error) {
+                    const message =
+                        error instanceof Error ? error.message : "Failed to prepare repository for execution.";
+                    return new Response(JSON.stringify({ error: message }), {
+                        status: 500,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+            },
         },
     },
 

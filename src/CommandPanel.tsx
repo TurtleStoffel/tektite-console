@@ -1,11 +1,20 @@
 type CommandPanelProps = {
     commandInput: string;
     executionMessage: string | null;
+    isExecuting?: boolean;
+    selectedRepoUrl?: string | null;
     onChange: (value: string) => void;
     onExecute: () => void;
 };
 
-export function CommandPanel({ commandInput, executionMessage, onChange, onExecute }: CommandPanelProps) {
+export function CommandPanel({
+    commandInput,
+    executionMessage,
+    isExecuting = false,
+    selectedRepoUrl,
+    onChange,
+    onExecute,
+}: CommandPanelProps) {
     return (
         <>
             <div className="space-y-2">
@@ -13,6 +22,16 @@ export function CommandPanel({ commandInput, executionMessage, onChange, onExecu
                 <p className="text-sm text-base-content/70">
                     Enter a command to execute or store alongside your selected repositories.
                 </p>
+                <div className="text-sm text-base-content/70">
+                    <span className="font-semibold">Active repository:</span>{" "}
+                    {selectedRepoUrl ? (
+                        <a href={selectedRepoUrl} className="link link-hover break-all" target="_blank" rel="noreferrer">
+                            {selectedRepoUrl}
+                        </a>
+                    ) : (
+                        <span className="text-base-content/60">Pick a repository from the grid to run Codex.</span>
+                    )}
+                </div>
             </div>
             <div className="form-control gap-2">
                 <textarea
@@ -21,8 +40,8 @@ export function CommandPanel({ commandInput, executionMessage, onChange, onExecu
                     value={commandInput}
                     onChange={(event) => onChange(event.target.value)}
                 />
-                <button className="btn btn-primary mt-2" onClick={onExecute}>
-                    Execute
+                <button className="btn btn-primary mt-2" onClick={onExecute} disabled={isExecuting}>
+                    {isExecuting ? "Executing…" : "Execute"}
                 </button>
                 {executionMessage && <p className="text-sm text-base-content/70">{executionMessage}</p>}
             </div>
