@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { execAsync } from "./exec";
-import { cleanRepositoryUrl, sanitizeRepoName } from "./git";
+import { cleanRepositoryUrl, detectRepoChanges, getPullRequestStatus, isWorktreeDir, sanitizeRepoName } from "./git";
 import { TEKTITE_PORT_FILE } from "../constants";
 
 export type CloneLocation = "clonesDir" | "codingFolder";
@@ -12,6 +12,9 @@ export type CloneInfo = {
     port?: number | null;
     commitHash?: string | null;
     commitDescription?: string | null;
+    isWorktree?: boolean;
+    hasChanges?: boolean;
+    prStatus?: Awaited<ReturnType<typeof getPullRequestStatus>>;
 };
 
 function canonicalRepoId(repoUrl: string): string | null {
@@ -169,6 +172,7 @@ export async function findRepositoryClones(options: {
     results.sort((a, b) => a.path.localeCompare(b.path));
     const enriched = await Promise.all(
         results.map(async (clone) => {
+            const isWorktree = isWorktreeDir(clone.path);
             const portPath = path.join(clone.path, TEKTITE_PORT_FILE);
             let port: number | null = null;
             try {
@@ -186,7 +190,20 @@ export async function findRepositoryClones(options: {
             }
 
             const { hash, description } = await readHeadCommitSummary(clone.path);
-            return { ...clone, port, commitHash: hash, commitDescription: description };
+            const [hasChanges, prStatus] = await Promise.all([
+                detectRepoChanges(clone.path),
+                isWorktree ? getPullRequestStatus(clone.path) : Promise.resolve(null),
+            ]);
+
+            return {
+                ...clone,
+                port,
+                commitHash: hash,
+                commitDescription: description,
+                isWorktree,
+                hasChanges,
+                prStatus,
+            };
         }),
     );
 

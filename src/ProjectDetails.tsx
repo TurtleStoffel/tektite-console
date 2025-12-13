@@ -18,6 +18,16 @@ type ProjectDetailsPayload = {
         port?: number | null;
         commitHash?: string | null;
         commitDescription?: string | null;
+        isWorktree?: boolean;
+        hasChanges?: boolean;
+        prStatus?:
+            | {
+                  state: "open" | "closed" | "merged" | "draft" | "none" | "unknown";
+                  number?: number;
+                  title?: string;
+                  url?: string;
+              }
+            | null;
     }>;
 };
 
@@ -85,6 +95,44 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const previewProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
     const previewHost = typeof window !== "undefined" && window.location.hostname ? window.location.hostname : "localhost";
     const previewUrl = typeof previewPort === "number" ? `${previewProtocol}://${previewHost}:${previewPort}/` : null;
+
+    const prBadgeClass = (state: NonNullable<NonNullable<ProjectDetailsPayload["clones"]>[number]["prStatus"]>["state"]) => {
+        switch (state) {
+            case "open":
+                return "badge-success";
+            case "draft":
+                return "badge-warning";
+            case "merged":
+                return "badge-secondary";
+            case "closed":
+                return "badge-error";
+            case "none":
+                return "badge-ghost";
+            case "unknown":
+            default:
+                return "badge-outline";
+        }
+    };
+
+    const prBadgeLabel = (
+        prStatus: NonNullable<NonNullable<ProjectDetailsPayload["clones"]>[number]["prStatus"]>,
+    ) => {
+        switch (prStatus.state) {
+            case "open":
+                return "PR open";
+            case "draft":
+                return "PR draft";
+            case "merged":
+                return "PR merged";
+            case "closed":
+                return "PR closed";
+            case "none":
+                return "No PR";
+            case "unknown":
+            default:
+                return "PR ?";
+        }
+    };
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -154,6 +202,20 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         >
                                             <div className="space-y-1 min-w-0">
                                                 <div className="font-mono text-xs break-all">{clone.path}</div>
+                                                {clone.isWorktree && clone.prStatus?.url && (
+                                                    <a
+                                                        className="link link-hover text-xs break-all"
+                                                        href={clone.prStatus.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        PR{" "}
+                                                        {typeof clone.prStatus.number === "number"
+                                                            ? `#${clone.prStatus.number}`
+                                                            : ""}
+                                                        {clone.prStatus.title ? ` — ${clone.prStatus.title}` : ""}
+                                                    </a>
+                                                )}
                                                 {clone.commitHash && clone.commitDescription && (
                                                     <div className="text-xs text-base-content/70 break-all">
                                                         <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>
@@ -163,6 +225,25 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {clone.isWorktree && <div className="badge badge-outline">worktree</div>}
+                                                {typeof clone.hasChanges === "boolean" && (
+                                                    <div
+                                                        className={`badge badge-outline ${
+                                                            clone.hasChanges ? "badge-warning" : "badge-success"
+                                                        }`}
+                                                    >
+                                                        {clone.hasChanges ? "changes" : "clean"}
+                                                    </div>
+                                                )}
+                                                {clone.isWorktree && clone.prStatus && (
+                                                    <div
+                                                        className={`badge badge-outline whitespace-nowrap ${prBadgeClass(
+                                                            clone.prStatus.state,
+                                                        )}`}
+                                                    >
+                                                        {prBadgeLabel(clone.prStatus)}
+                                                    </div>
+                                                )}
                                                 {typeof clone.port === "number" && (
                                                     <div className="badge badge-success badge-outline">port {clone.port}</div>
                                                 )}

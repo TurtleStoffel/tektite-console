@@ -17,6 +17,76 @@ export function sanitizeRepoName(name: string) {
     return name.replace(/[^a-zA-Z0-9-_]/g, "-");
 }
 
+export async function detectRepoChanges(dir: string): Promise<boolean> {
+    try {
+        const { stdout } = await execAsync("git status --porcelain", {
+            cwd: dir,
+            timeout: 2500,
+            maxBuffer: 1024 * 1024,
+        });
+        return stdout.trim().length > 0;
+    } catch {
+        return false;
+    }
+}
+
+export async function getPullRequestStatus(dir: string): Promise<PullRequestStatus | null> {
+    const branchStatus = await getBranchStatus(dir);
+    if (!branchStatus) {
+        return null;
+    }
+
+    const branch = branchStatus.branch;
+    if (!branch || branch === "HEAD") {
+        return null;
+    }
+
+    try {
+        const { stdout } = await execAsync(
+            `gh pr list --state all --head ${branch} --json number,state,title,url,mergedAt,isDraft --limit 1`,
+            {
+                cwd: dir,
+                timeout: 5000,
+                maxBuffer: 1024 * 1024,
+            },
+        );
+        const parsed = JSON.parse(stdout);
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            return { state: "none" };
+        }
+
+        const [pr] = parsed as Array<{
+            number?: number;
+            state?: string;
+            title?: string;
+            url?: string;
+            mergedAt?: string | null;
+            isDraft?: boolean;
+        }>;
+
+        const state = typeof pr.state === "string" ? pr.state.toLowerCase() : "unknown";
+        let mappedState: PullRequestState = "unknown";
+
+        if (state === "open") {
+            mappedState = pr.isDraft ? "draft" : "open";
+        } else if (state === "closed") {
+            mappedState = pr.mergedAt ? "merged" : "closed";
+        } else if (state === "merged") {
+            mappedState = "merged";
+        }
+
+        return {
+            state: mappedState,
+            number: typeof pr.number === "number" ? pr.number : undefined,
+            title: typeof pr.title === "string" ? pr.title : undefined,
+            url: typeof pr.url === "string" ? pr.url : undefined,
+        };
+    } catch (error) {
+        console.warn(`Failed to read PR status for branch ${branch}`, error);
+        return { state: "unknown" };
+    }
+}
+
 async function resolveDefaultBranch(baseDir: string): Promise<string> {
     try {
         const { stdout } = await execAsync("git symbolic-ref refs/remotes/origin/HEAD", { cwd: baseDir });
