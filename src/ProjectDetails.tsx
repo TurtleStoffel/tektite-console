@@ -11,6 +11,7 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
+    clones?: Array<{ path: string; location: "clonesDir" | "codingFolder" }>;
 };
 
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
@@ -99,6 +100,30 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                         <div className="flex items-center gap-3">
                             <div className="badge badge-outline">{project.nodeCount} nodes</div>
                             <div className="badge badge-outline">{project.flowCount} flows</div>
+                        </div>
+
+                        <div className="divider my-0" />
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold">Local clones</div>
+                                <span className="text-xs text-base-content/60">{project.clones?.length ?? 0}</span>
+                            </div>
+                            {!project.clones || project.clones.length === 0 ? (
+                                <div className="text-sm text-base-content/70">No clones found in configured folders.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {project.clones.map((clone) => (
+                                        <div
+                                            key={`${clone.location}:${clone.path}`}
+                                            className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
+                                        >
+                                            <div className="font-mono text-xs break-all">{clone.path}</div>
+                                            <div className="badge badge-outline">{clone.location}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

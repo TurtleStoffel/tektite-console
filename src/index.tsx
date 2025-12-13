@@ -11,6 +11,7 @@ import { createOwnerRoutes } from "./backend/routes/owners";
 const dataDir = "./data";
 const selectionFilePath = `${dataDir}/selected-repo.json`;
 const clonesDir = "/Users/stefan/coding/tmp/clones";
+const codingFolder = "/Users/stefan/coding";
 
 void ensureClonesDir(clonesDir);
 const { db } = await initStorage(dataDir);
@@ -19,7 +20,7 @@ const server = serve({
     routes: {
         ...createGithubRoutes({ dataDir, selectionFilePath }),
         ...createFlowRoutes({ db }),
-        ...createOwnerRoutes({ db }),
+        ...createOwnerRoutes({ db, clonesDir, codingFolder }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),
 

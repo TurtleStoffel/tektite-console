@@ -1,9 +1,10 @@
 import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
+import { findRepositoryClones } from "../cloneDiscovery";
 
-export function createOwnerRoutes(options: { db: Database }) {
-    const { db } = options;
+export function createOwnerRoutes(options: { db: Database; clonesDir: string; codingFolder: string }) {
+    const { db, clonesDir, codingFolder } = options;
 
     return {
         "/api/owners": {
@@ -134,6 +135,7 @@ export function createOwnerRoutes(options: { db: Database }) {
                     url: row.url,
                     nodeCount: nodeCountRow?.count ?? 0,
                     flowCount: flowCountRow?.count ?? 0,
+                    clones: await findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder }),
                 });
             },
         },
