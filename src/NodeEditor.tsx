@@ -444,31 +444,45 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                     <span>Loading editor…</span>
                                 </div>
                             ) : (
-                                <ReactFlow
-                                    nodes={renderNodes}
-                                    edges={edges}
-                                    onNodesChange={onNodesChange}
-                                    onEdgesChange={onEdgesChange}
-                                    onConnect={onConnect}
-                                    onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                                    onNodeContextMenu={(event, node) => {
+                                <div
+                                    className="h-full"
+                                    onContextMenuCapture={(event) => {
+                                        const target = event.target;
+                                        if (!(target instanceof HTMLElement)) return;
+                                        if (target.closest("[data-project-context-menu]")) return;
+
+                                        const nodeEl = target.closest(".react-flow__node") as HTMLElement | null;
+                                        const nodeId = nodeEl?.dataset?.id;
+                                        if (!nodeId) return;
+
+                                        const node = nodes.find((entry) => entry.id === nodeId);
                                         const ownerId =
                                             typeof (node as any)?.data?.ownerId === "string" ? (node as any).data.ownerId : "";
                                         const owner = ownerId ? ownersById.get(ownerId) : undefined;
                                         if (!ownerId || owner?.ownerType !== "project") return;
+
                                         event.preventDefault();
                                         event.stopPropagation();
-                                        setSelectedNodeId(node.id);
+                                        setSelectedNodeId(nodeId);
                                         setProjectMenu({ projectId: ownerId, x: event.clientX, y: event.clientY });
                                     }}
-                                    onPaneClick={() => setSelectedNodeId(null)}
-                                    nodeTypes={nodeTypes}
-                                    fitView
                                 >
-                                    <MiniMap style={miniMapStyle} zoomable pannable />
-                                    <Controls />
-                                    <Background />
-                                </ReactFlow>
+                                    <ReactFlow
+                                        nodes={renderNodes}
+                                        edges={edges}
+                                        onNodesChange={onNodesChange}
+                                        onEdgesChange={onEdgesChange}
+                                        onConnect={onConnect}
+                                        onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                                        onPaneClick={() => setSelectedNodeId(null)}
+                                        nodeTypes={nodeTypes}
+                                        fitView
+                                    >
+                                        <MiniMap style={miniMapStyle} zoomable pannable />
+                                        <Controls />
+                                        <Background />
+                                    </ReactFlow>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -579,7 +593,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                             <div
                                                 key={project.id}
                                                 className="p-3 border border-base-300 rounded-xl bg-base-100/60"
-                                                onContextMenu={(event) => {
+                                                onContextMenuCapture={(event) => {
                                                     event.preventDefault();
                                                     event.stopPropagation();
                                                     setProjectMenu({
@@ -727,6 +741,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             </div>
             {projectMenu && (
                 <div
+                    data-project-context-menu
                     style={{
                         position: "fixed",
                         left: projectMenu.x,
