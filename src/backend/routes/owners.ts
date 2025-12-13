@@ -17,8 +17,8 @@ export function createOwnerRoutes(options: { db: Database }) {
                             p.name AS project_name,
                             i.description AS idea_description
                         FROM owners o
-                        LEFT JOIN projects p ON p.owner_id = o.id
-                        LEFT JOIN ideas i ON i.owner_id = o.id
+                        LEFT JOIN projects p ON p.id = o.id
+                        LEFT JOIN ideas i ON i.id = o.id
                         ORDER BY o.owner_type ASC
                         `,
                     )
@@ -61,9 +61,8 @@ export function createOwnerRoutes(options: { db: Database }) {
                 }
 
                 const ownerId = randomUUID();
-                const projectId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'project')").run(ownerId);
-                db.query("INSERT INTO projects (id, owner_id, name) VALUES (?, ?, ?)").run(projectId, ownerId, name);
+                db.query("INSERT INTO projects (id, name) VALUES (?, ?)").run(ownerId, name);
                 return Response.json({ id: ownerId, ownerType: "project", name });
             },
         },
@@ -89,16 +88,10 @@ export function createOwnerRoutes(options: { db: Database }) {
                 }
 
                 const ownerId = randomUUID();
-                const ideaId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'idea')").run(ownerId);
-                db.query("INSERT INTO ideas (id, owner_id, description) VALUES (?, ?, ?)").run(
-                    ideaId,
-                    ownerId,
-                    description,
-                );
+                db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(ownerId, description);
                 return Response.json({ id: ownerId, ownerType: "idea", description });
             },
         },
     } as const;
 }
-

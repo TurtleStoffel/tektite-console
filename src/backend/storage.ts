@@ -28,15 +28,15 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     db.run(`
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
-            owner_id TEXT NOT NULL UNIQUE REFERENCES owners(id) ON DELETE CASCADE,
-            name TEXT NOT NULL
+            name TEXT NOT NULL,
+            FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
         )
     `);
     db.run(`
         CREATE TABLE IF NOT EXISTS ideas (
             id TEXT PRIMARY KEY,
-            owner_id TEXT NOT NULL UNIQUE REFERENCES owners(id) ON DELETE CASCADE,
-            description TEXT NOT NULL
+            description TEXT NOT NULL,
+            FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
         )
     `);
     db.run(`
@@ -77,14 +77,8 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     }
 
     const ownerId = randomUUID();
-    const ideaId = randomUUID();
     db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'idea')").run(ownerId);
-    db.query("INSERT INTO ideas (id, owner_id, description) VALUES (?, ?, ?)").run(
-        ideaId,
-        ownerId,
-        "Unassigned",
-    );
+    db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(ownerId, "Unassigned");
 
     return { db, defaultOwnerId: ownerId };
 }
-
