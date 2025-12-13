@@ -1,4 +1,4 @@
-# bun-react-tailwind-template
+# tektite-console
 
 To install dependencies:
 
