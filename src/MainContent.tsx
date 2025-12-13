@@ -137,11 +137,7 @@ export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps
                         className="card bg-base-200 border border-base-300 shadow-md hover:shadow-xl transition-shadow duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/60"
                     >
                         <div className="card-body text-left space-y-2">
-                            <div className="flex items-center justify-between text-xs">
-                                <span className="badge badge-outline">Cell {cell}</span>
-                                <span className="text-base-content/60">Ready</span>
-                            </div>
-                            <h2 className="card-title">Grid Item {cell}</h2>
+                            <h2 className="card-title">Cell {cell}</h2>
                             {selectionsByCell[cell] ? (
                                 <div className="space-y-2">
                                     <p className="text-sm text-base-content/60">Selected repository</p>
