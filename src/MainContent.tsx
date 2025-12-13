@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { GithubRepo } from "./types/github";
+import { emitSelectedRepo } from "./events";
 
 type MainContentProps = {
     drawerToggleId: string;
-    onRepoSelected?: (url: string | null) => void;
 };
 
-export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps) {
+export function MainContent({ drawerToggleId }: MainContentProps) {
     const [activeCell, setActiveCell] = useState<number | null>(null);
     const [repos, setRepos] = useState<GithubRepo[]>([]);
     const [loading, setLoading] = useState(false);
@@ -32,10 +32,10 @@ export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps
                     setSelectionsByCell(selectionMap);
                     if (activeCell && selectionMap[activeCell]) {
                         setSelectedRepoUrl(selectionMap[activeCell]);
-                        onRepoSelected?.(selectionMap[activeCell]);
+                        emitSelectedRepo({ url: selectionMap[activeCell], source: "grid" });
                     } else if (activeCell) {
                         setSelectedRepoUrl(null);
-                        onRepoSelected?.(null);
+                        emitSelectedRepo({ url: null, source: "grid" });
                     }
                 }
             } catch (err) {
@@ -46,14 +46,14 @@ export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps
         };
 
         fetchSelection();
-    }, [activeCell, onRepoSelected]);
+    }, [activeCell]);
 
     const handleCellClick = async (cell: number) => {
         setActiveCell(cell);
         setLoading(true);
         setError(null);
         setSelectedRepoUrl(selectionsByCell[cell] ?? null);
-        onRepoSelected?.(selectionsByCell[cell] ?? null);
+        emitSelectedRepo({ url: selectionsByCell[cell] ?? null, source: "grid" });
 
         try {
             const response = await fetch("/api/github/repos");
@@ -80,7 +80,7 @@ export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps
 
         setSelectedRepoUrl(repoUrl);
         setSelectionsByCell((prev) => ({ ...prev, [activeCell]: repoUrl }));
-        onRepoSelected?.(repoUrl);
+        emitSelectedRepo({ url: repoUrl, source: "grid" });
         setSavingSelection(true);
         setError(null);
 

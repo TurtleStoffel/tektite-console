@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { emitSelectedRepo } from "./events";
 
 type ProjectDetailsProps = {
     drawerToggleId: string;
@@ -61,6 +62,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             active = false;
         };
     }, [id]);
+
+    useEffect(() => {
+        if (!project?.url) return;
+        emitSelectedRepo({ url: project.url, source: "project-details" });
+    }, [project?.url]);
 
     useEffect(() => {
         if (runningClones.length === 0) {

@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
+import { subscribeSelectedRepo } from "./events";
+
 type CommandPanelProps = {
     commandInput: string;
     executionMessage: string | null;
     isExecuting?: boolean;
-    selectedRepoUrl?: string | null;
     onChange: (value: string) => void;
     onExecute: () => void;
 };
@@ -11,10 +13,15 @@ export function CommandPanel({
     commandInput,
     executionMessage,
     isExecuting = false,
-    selectedRepoUrl,
     onChange,
     onExecute,
 }: CommandPanelProps) {
+    const [selectedRepoUrl, setSelectedRepoUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        return subscribeSelectedRepo(({ url }) => setSelectedRepoUrl(url));
+    }, []);
+
     return (
         <>
             <div className="space-y-2">

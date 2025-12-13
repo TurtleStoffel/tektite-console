@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Drawer from "./Drawer";
 import CommandPanel from "./CommandPanel";
@@ -6,6 +6,7 @@ import MainContent from "./MainContent";
 import NodeEditor from "./NodeEditor";
 import ProjectDetails from "./ProjectDetails";
 import "./index.css";
+import { subscribeSelectedRepo } from "./events";
 
 export function App() {
     const [commandInput, setCommandInput] = useState("");
@@ -118,6 +119,10 @@ export function App() {
         }
     };
 
+    useEffect(() => {
+        return subscribeSelectedRepo(({ url }) => setSelectedRepoUrl(url));
+    }, []);
+
     return (
         <Drawer
             side={
@@ -125,7 +130,6 @@ export function App() {
                     commandInput={commandInput}
                     executionMessage={executionMessage}
                     isExecuting={isExecuting}
-                    selectedRepoUrl={selectedRepoUrl}
                     onChange={(value) => setCommandInput(value)}
                     onExecute={handleExecute}
                 />
@@ -133,12 +137,7 @@ export function App() {
         >
             {(drawerToggleId) => (
                 <Routes>
-                    <Route
-                        path="/"
-                        element={
-                            <MainContent drawerToggleId={drawerToggleId} onRepoSelected={setSelectedRepoUrl} />
-                        }
-                    />
+                    <Route path="/" element={<MainContent drawerToggleId={drawerToggleId} />} />
                     <Route path="/editor" element={<NodeEditor drawerToggleId={drawerToggleId} />} />
                     <Route path="/projects/:id" element={<ProjectDetails drawerToggleId={drawerToggleId} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
