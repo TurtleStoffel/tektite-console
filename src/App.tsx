@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Drawer from "./Drawer";
 import CommandPanel from "./CommandPanel";
 import MainContent from "./MainContent";
+import NodeEditor from "./NodeEditor";
 import "./index.css";
 
 export function App() {
@@ -129,7 +131,16 @@ export function App() {
             }
         >
             {(drawerToggleId) => (
-                <MainContent drawerToggleId={drawerToggleId} onRepoSelected={setSelectedRepoUrl} />
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <MainContent drawerToggleId={drawerToggleId} onRepoSelected={setSelectedRepoUrl} />
+                        }
+                    />
+                    <Route path="/editor" element={<NodeEditor drawerToggleId={drawerToggleId} />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
             )}
         </Drawer>
     );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { GithubRepo } from "./types/github";
 
 type MainContentProps = {
@@ -116,9 +117,14 @@ export function MainContent({ drawerToggleId, onRepoSelected }: MainContentProps
                         A 3 × 4 grid of cards, ready for whatever content you want to drop in.
                     </p>
                 </header>
-                <label htmlFor={drawerToggleId} className="btn btn-outline lg:hidden">
-                    Menu
-                </label>
+                <div className="flex items-center gap-2">
+                    <Link to="/editor" className="btn btn-primary btn-sm">
+                        Node editor
+                    </Link>
+                    <label htmlFor={drawerToggleId} className="btn btn-outline btn-sm lg:hidden">
+                        Menu
+                    </label>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
