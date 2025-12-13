@@ -19,6 +19,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [project, setProject] = useState<ProjectDetailsPayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
+
+    const runningClones =
+        project?.clones?.filter((clone) => typeof clone.port === "number" && Number.isFinite(clone.port)) ?? [];
 
     useEffect(() => {
         if (!id) return;
@@ -51,6 +55,24 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             active = false;
         };
     }, [id]);
+
+    useEffect(() => {
+        if (runningClones.length === 0) {
+            setActivePreviewKey(null);
+            return;
+        }
+
+        const firstKey = `${runningClones[0].location}:${runningClones[0].path}`;
+        setActivePreviewKey((prev) => prev ?? firstKey);
+    }, [runningClones]);
+
+    const activePreviewClone = runningClones.find(
+        (clone) => `${clone.location}:${clone.path}` === activePreviewKey,
+    );
+    const previewPort = activePreviewClone?.port ?? null;
+    const previewProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
+    const previewHost = typeof window !== "undefined" && window.location.hostname ? window.location.hostname : "localhost";
+    const previewUrl = typeof previewPort === "number" ? `${previewProtocol}://${previewHost}:${previewPort}/` : null;
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -130,6 +152,50 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 </div>
                             )}
                         </div>
+
+                        {runningClones.length > 0 && previewUrl && (
+                            <>
+                                <div className="divider my-0" />
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                                        <div className="space-y-1">
+                                            <div className="text-sm font-semibold">Live preview</div>
+                                            <div className="text-xs text-base-content/60 break-all">{previewUrl}</div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                className="select select-bordered select-sm"
+                                                value={activePreviewKey ?? ""}
+                                                onChange={(event) => setActivePreviewKey(event.target.value)}
+                                            >
+                                                {runningClones.map((clone) => {
+                                                    const key = `${clone.location}:${clone.path}`;
+                                                    return (
+                                                        <option key={key} value={key}>
+                                                            {clone.location} · {clone.port}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <a
+                                                className="btn btn-outline btn-sm"
+                                                href={previewUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                Open
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full h-[70vh] border border-base-300 rounded-xl overflow-hidden bg-base-100">
+                                        <iframe title="Project preview" src={previewUrl} className="w-full h-full" />
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
