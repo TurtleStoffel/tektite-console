@@ -90,6 +90,54 @@ export function createOwnerRoutes(options: { db: Database }) {
             },
         },
 
+        "/api/projects/:id": {
+            async GET(req: Server.Request) {
+                const ownerId = req.params.id;
+                const row = db
+                    .query(
+                        `
+                        SELECT
+                            o.id AS id,
+                            p.name AS name,
+                            p.url AS url
+                        FROM owners o
+                        JOIN projects p ON p.id = o.id
+                        WHERE o.id = ? AND o.owner_type = 'project'
+                        `,
+                    )
+                    .get(ownerId) as
+                    | {
+                          id: string;
+                          name: string;
+                          url: string;
+                      }
+                    | null
+                    | undefined;
+
+                if (!row) {
+                    return new Response(JSON.stringify({ error: "Project not found." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const nodeCountRow = db
+                    .query("SELECT COUNT(1) AS count FROM flow_nodes WHERE owner_id = ?")
+                    .get(ownerId) as { count: number } | null;
+                const flowCountRow = db
+                    .query("SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?")
+                    .get(ownerId) as { count: number } | null;
+
+                return Response.json({
+                    id: row.id,
+                    name: row.name,
+                    url: row.url,
+                    nodeCount: nodeCountRow?.count ?? 0,
+                    flowCount: flowCountRow?.count ?? 0,
+                });
+            },
+        },
+
         "/api/ideas": {
             async POST(req: Server.Request) {
                 let body: any;
@@ -113,6 +161,43 @@ export function createOwnerRoutes(options: { db: Database }) {
                 const ownerId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'idea')").run(ownerId);
                 db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(ownerId, description);
+                return Response.json({ id: ownerId, ownerType: "idea", description });
+            },
+        },
+
+        "/api/ideas/:id": {
+            async PUT(req: Server.Request) {
+                const ownerId = req.params.id;
+                const ownerRow = db.query("SELECT owner_type FROM owners WHERE id = ?").get(ownerId) as
+                    | { owner_type: "project" | "idea" }
+                    | null
+                    | undefined;
+                if (!ownerRow || ownerRow.owner_type !== "idea") {
+                    return new Response(JSON.stringify({ error: "Idea not found." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                let body: any;
+                try {
+                    body = await req.json();
+                } catch {
+                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const description = typeof body?.description === "string" ? body.description.trim() : "";
+                if (!description) {
+                    return new Response(JSON.stringify({ error: "Idea description is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                db.query("UPDATE ideas SET description = ? WHERE id = ?").run(description, ownerId);
                 return Response.json({ id: ownerId, ownerType: "idea", description });
             },
         },

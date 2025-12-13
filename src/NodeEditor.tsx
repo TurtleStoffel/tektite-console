@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ReactFlow, {
     Background,
     Controls,
@@ -14,6 +14,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import type { GithubRepo } from "./types/github";
 import { OwnedNode } from "./OwnedNode";
+import { Markdown } from "./Markdown";
 
 type NodeEditorProps = {
     drawerToggleId: string;
@@ -53,6 +54,7 @@ const initialEdges: Edge[] = [
 ];
 
 export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
+    const navigate = useNavigate();
     const flowId = "default";
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -68,6 +70,26 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const [repos, setRepos] = useState<GithubRepo[]>([]);
     const [reposLoading, setReposLoading] = useState(false);
     const [reposError, setReposError] = useState<string | null>(null);
+    const [ideaDraftOwnerId, setIdeaDraftOwnerId] = useState<string | null>(null);
+    const [ideaDraftMarkdown, setIdeaDraftMarkdown] = useState("");
+    const [ideaSaveStatus, setIdeaSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+    const [projectMenu, setProjectMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
+
+    useEffect(() => {
+        if (!projectMenu) return;
+
+        const handlePointerDown = () => setProjectMenu(null);
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setProjectMenu(null);
+        };
+
+        window.addEventListener("pointerdown", handlePointerDown);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("pointerdown", handlePointerDown);
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [projectMenu]);
 
     const onConnect = useCallback(
         (connection: Connection) => {
@@ -101,6 +123,13 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
     const ownersById = useMemo(() => new Map(owners.map((owner) => [owner.id, owner])), [owners]);
 
+    const selectedOwner = useMemo(() => (selectedOwnerId ? ownersById.get(selectedOwnerId) : undefined), [
+        ownersById,
+        selectedOwnerId,
+    ]);
+
+    const projects = useMemo(() => owners.filter((owner) => owner.ownerType === "project"), [owners]);
+
     const renderNodes = useMemo(() => {
         const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -109,14 +138,15 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             const ownerId = typeof data?.ownerId === "string" ? data.ownerId : "";
             const owner = ownerId ? ownersById.get(ownerId) : undefined;
             const displayOwnerType = owner?.ownerType ?? null;
-            const displayOwnerName =
-                displayOwnerType === "project" ? (owner?.name ?? null) : displayOwnerType === "idea" ? owner?.description ?? null : null;
             const displayOwnerUrl = displayOwnerType === "project" ? (owner?.url ?? null) : null;
+            const displayProjectName = displayOwnerType === "project" ? (owner?.name ?? null) : null;
+            const displayIdeaMarkdown = displayOwnerType === "idea" ? (owner?.description ?? null) : null;
 
             const label = typeof data?.label === "string" ? data.label : "Node";
             const widthHint = Math.max(
                 label.length,
-                (displayOwnerName ?? "").length,
+                (displayProjectName ?? "").length,
+                (displayIdeaMarkdown ?? "").length,
                 Math.min((displayOwnerUrl ?? "").length, 80),
             );
             const widthCh = clamp(Math.ceil(widthHint * 0.75) + 12, 28, 64);
@@ -131,12 +161,69 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                 data: {
                     ...(node.data as any),
                     displayOwnerType,
-                    displayOwnerName,
                     displayOwnerUrl,
+                    displayProjectName,
+                    displayIdeaMarkdown,
                 },
             } satisfies Node;
         });
     }, [nodes, ownersById]);
+
+    const refreshOwners = useCallback(async () => {
+        setOwnersError(null);
+        try {
+            const res = await fetch("/api/owners");
+            const payload = await res.json().catch(() => ({}));
+            const list = Array.isArray(payload?.owners) ? (payload.owners as OwnerSummary[]) : [];
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load owners.");
+            }
+            setOwners(list);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to load owners.";
+            setOwnersError(message);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!selectedOwnerId || selectedOwner?.ownerType !== "idea") {
+            setIdeaDraftOwnerId(null);
+            setIdeaDraftMarkdown("");
+            setIdeaSaveStatus("idle");
+            return;
+        }
+
+        const nextMarkdown = selectedOwner.description ?? "";
+        setIdeaDraftOwnerId(selectedOwnerId);
+        setIdeaDraftMarkdown(nextMarkdown);
+        setIdeaSaveStatus("idle");
+    }, [selectedOwner?.description, selectedOwner?.ownerType, selectedOwnerId]);
+
+    const handleSaveIdea = useCallback(async () => {
+        if (!ideaDraftOwnerId) return;
+        const description = ideaDraftMarkdown.trim();
+        if (!description) return;
+
+        setIdeaSaveStatus("saving");
+        setOwnersError(null);
+        try {
+            const res = await fetch(`/api/ideas/${ideaDraftOwnerId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ description }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update idea.");
+            }
+            setIdeaSaveStatus("saved");
+            await refreshOwners();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to update idea.";
+            setIdeaSaveStatus("error");
+            setOwnersError(message);
+        }
+    }, [ideaDraftMarkdown, ideaDraftOwnerId, refreshOwners]);
 
     const handleOwnerChange = useCallback(
         (ownerId: string) => {
@@ -157,22 +244,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
         },
         [selectedNodeId, setNodes],
     );
-
-    const refreshOwners = useCallback(async () => {
-        setOwnersError(null);
-        try {
-            const res = await fetch("/api/owners");
-            const payload = await res.json().catch(() => ({}));
-            const list = Array.isArray(payload?.owners) ? (payload.owners as OwnerSummary[]) : [];
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load owners.");
-            }
-            setOwners(list);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load owners.";
-            setOwnersError(message);
-        }
-    }, []);
 
     const handleCreateProject = useCallback(async () => {
         const name = newProjectName.trim();
@@ -380,6 +451,16 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                     onEdgesChange={onEdgesChange}
                                     onConnect={onConnect}
                                     onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                                    onNodeContextMenu={(event, node) => {
+                                        const ownerId =
+                                            typeof (node as any)?.data?.ownerId === "string" ? (node as any).data.ownerId : "";
+                                        const owner = ownerId ? ownersById.get(ownerId) : undefined;
+                                        if (!ownerId || owner?.ownerType !== "project") return;
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setSelectedNodeId(node.id);
+                                        setProjectMenu({ projectId: ownerId, x: event.clientX, y: event.clientY });
+                                    }}
                                     onPaneClick={() => setSelectedNodeId(null)}
                                     nodeTypes={nodeTypes}
                                     fitView
@@ -442,8 +523,90 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                             })}
                                         </select>
                                     </label>
+                                    {selectedOwner?.ownerType === "idea" && (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="text-sm font-semibold">Idea description</div>
+                                                <span className="text-xs text-base-content/60">
+                                                    {ideaSaveStatus === "saving" && "Saving…"}
+                                                    {ideaSaveStatus === "saved" && "Saved"}
+                                                    {ideaSaveStatus === "error" && "Save failed"}
+                                                </span>
+                                            </div>
+                                            <textarea
+                                                className="textarea textarea-bordered w-full min-h-28 font-mono text-xs"
+                                                value={ideaDraftMarkdown}
+                                                onChange={(event) => setIdeaDraftMarkdown(event.target.value)}
+                                            />
+                                            <div className="flex items-center justify-between gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-primary btn-sm"
+                                                    onClick={handleSaveIdea}
+                                                    disabled={
+                                                        !ideaDraftOwnerId ||
+                                                        !ideaDraftMarkdown.trim() ||
+                                                        ideaSaveStatus === "saving"
+                                                    }
+                                                >
+                                                    Save idea
+                                                </button>
+                                                <div className="text-xs text-base-content/60">Preview</div>
+                                            </div>
+                                            <div className="p-3 border border-base-300 rounded-xl bg-base-100/60">
+                                                <Markdown
+                                                    markdown={ideaDraftMarkdown.trim() || "_(empty)_"}
+                                                    className="text-sm space-y-2"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
+
+                            <div className="divider my-0" />
+
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">Projects</div>
+                                    <span className="text-xs text-base-content/60">{projects.length}</span>
+                                </div>
+                                {projects.length === 0 ? (
+                                    <div className="text-sm text-base-content/70">No projects yet.</div>
+                                ) : (
+                                    <div className="space-y-2 max-h-44 overflow-y-auto">
+                                        {projects.map((project) => (
+                                            <div
+                                                key={project.id}
+                                                className="p-3 border border-base-300 rounded-xl bg-base-100/60"
+                                                onContextMenu={(event) => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    setProjectMenu({
+                                                        projectId: project.id,
+                                                        x: event.clientX,
+                                                        y: event.clientY,
+                                                    });
+                                                }}
+                                            >
+                                                <div className="font-semibold text-sm">
+                                                    {project.name?.trim() || "Untitled"}
+                                                </div>
+                                                {project.url && (
+                                                    <a
+                                                        href={project.url}
+                                                        className="link link-hover text-xs break-all"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        {project.url}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="divider my-0" />
 
@@ -562,6 +725,34 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                     </div>
                 </div>
             </div>
+            {projectMenu && (
+                <div
+                    style={{
+                        position: "fixed",
+                        left: projectMenu.x,
+                        top: projectMenu.y,
+                        zIndex: 1000,
+                    }}
+                    className="card bg-base-100 border border-base-300 shadow-xl min-w-44"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                >
+                    <ul className="menu menu-sm p-2">
+                        <li>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const targetProjectId = projectMenu.projectId;
+                                    setProjectMenu(null);
+                                    navigate(`/projects/${targetProjectId}`);
+                                }}
+                            >
+                                View details
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }
