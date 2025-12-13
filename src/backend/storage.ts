@@ -1,10 +1,8 @@
 import { mkdir } from "fs/promises";
 import { Database } from "bun:sqlite";
-import { randomUUID } from "node:crypto";
 
 export type Storage = {
     db: Database;
-    defaultOwnerId: string;
 };
 
 export async function initStorage(dataDir: string): Promise<Storage> {
@@ -13,7 +11,7 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     const db = new Database(`${dataDir}/tektite-console.sqlite`, { create: true });
     db.run("PRAGMA foreign_keys = ON");
 
-    const desiredSchemaVersion = 2;
+    const desiredSchemaVersion = 3;
     const currentSchemaVersionRow = db.query("PRAGMA user_version").get() as { user_version: number } | null;
     const currentSchemaVersion = currentSchemaVersionRow?.user_version ?? 0;
     if (currentSchemaVersion !== desiredSchemaVersion) {
@@ -57,7 +55,7 @@ export async function initStorage(dataDir: string): Promise<Storage> {
             id TEXT PRIMARY KEY,
             flow_id TEXT NOT NULL,
             key TEXT NOT NULL,
-            owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+            owner_id TEXT REFERENCES owners(id) ON DELETE SET NULL,
             node_json TEXT NOT NULL,
             FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE CASCADE
         )
@@ -88,14 +86,5 @@ export async function initStorage(dataDir: string): Promise<Storage> {
         db.run(`PRAGMA user_version = ${desiredSchemaVersion}`);
     }
 
-    const existingOwner = db.query("SELECT id FROM owners LIMIT 1").get() as { id: string } | null;
-    if (existingOwner?.id) {
-        return { db, defaultOwnerId: existingOwner.id };
-    }
-
-    const ownerId = randomUUID();
-    db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'idea')").run(ownerId);
-    db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(ownerId, "Unassigned");
-
-    return { db, defaultOwnerId: ownerId };
+    return { db };
 }

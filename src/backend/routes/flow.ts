@@ -2,8 +2,8 @@ import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
 
-export function createFlowRoutes(options: { db: Database; defaultOwnerId: string }) {
-    const { db, defaultOwnerId } = options;
+export function createFlowRoutes(options: { db: Database }) {
+    const { db } = options;
 
     return {
         "/api/flow/:id": {
@@ -19,7 +19,7 @@ export function createFlowRoutes(options: { db: Database; defaultOwnerId: string
 
                 const nodeRows = db
                     .query("SELECT node_json, owner_id FROM flow_nodes WHERE flow_id = ?")
-                    .all(flowRow.id) as Array<{ node_json: string; owner_id: string }>;
+                    .all(flowRow.id) as Array<{ node_json: string; owner_id: string | null }>;
                 const edgeRows = db
                     .query(
                         `
@@ -51,11 +51,12 @@ export function createFlowRoutes(options: { db: Database; defaultOwnerId: string
                             const node = JSON.parse(row.node_json) as any;
                             if (!node || typeof node !== "object") return null;
                             const data = node.data && typeof node.data === "object" ? node.data : {};
+                            const ownerId = typeof row.owner_id === "string" && row.owner_id ? row.owner_id : undefined;
                             return {
                                 ...node,
                                 data: {
                                     ...data,
-                                    ownerId: row.owner_id,
+                                    ownerId,
                                 },
                             };
                         })
@@ -120,10 +121,9 @@ export function createFlowRoutes(options: { db: Database; defaultOwnerId: string
                         if (!node || typeof node !== "object") continue;
                         const nodeKey = (node as any).id;
                         if (typeof nodeKey !== "string" || !nodeKey) continue;
+                        const rawOwnerId = (node as any)?.data?.ownerId;
                         const ownerId =
-                            typeof (node as any)?.data?.ownerId === "string"
-                                ? (node as any).data.ownerId
-                                : defaultOwnerId;
+                            typeof rawOwnerId === "string" && rawOwnerId.trim().length > 0 ? rawOwnerId.trim() : null;
                         const nodeUuid = randomUUID();
                         nodeUuidByKey.set(nodeKey, nodeUuid);
                         insertNode.run(nodeUuid, flowId, nodeKey, ownerId, JSON.stringify(node));
@@ -193,4 +193,3 @@ export function createFlowRoutes(options: { db: Database; defaultOwnerId: string
         },
     } as const;
 }
-

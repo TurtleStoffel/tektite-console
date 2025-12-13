@@ -13,12 +13,12 @@ const selectionFilePath = `${dataDir}/selected-repo.json`;
 const clonesDir = "/Users/stefan/coding/tmp/clones";
 
 void ensureClonesDir(clonesDir);
-const { db, defaultOwnerId } = await initStorage(dataDir);
+const { db } = await initStorage(dataDir);
 
 const server = serve({
     routes: {
         ...createGithubRoutes({ dataDir, selectionFilePath }),
-        ...createFlowRoutes({ db, defaultOwnerId }),
+        ...createFlowRoutes({ db }),
         ...createOwnerRoutes({ db }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),

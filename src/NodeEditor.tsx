@@ -232,11 +232,16 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                 current.map((node) => {
                     if (node.id !== selectedNodeId) return node;
                     const data = node.data && typeof node.data === "object" ? node.data : {};
+                    const nextData = { ...(data as any) };
+                    if (!ownerId) {
+                        delete nextData.ownerId;
+                    } else {
+                        nextData.ownerId = ownerId;
+                    }
                     return {
                         ...node,
                         data: {
-                            ...(data as any),
-                            ownerId,
+                            ...nextData,
                         },
                     };
                 }),
@@ -339,33 +344,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
         return () => window.clearTimeout(timer);
     }, [edges, isLoading, nodes]);
-
-    useEffect(() => {
-        if (isLoading) return;
-        const fallbackOwnerId = owners[0]?.id;
-        if (!fallbackOwnerId) return;
-
-        const hasMissingOwner = nodes.some((node) => {
-            const data = node.data as any;
-            return typeof data?.ownerId !== "string" || !data.ownerId;
-        });
-        if (!hasMissingOwner) return;
-
-        setNodes((current) =>
-            current.map((node) => {
-                const data = node.data as any;
-                if (typeof data?.ownerId === "string" && data.ownerId) return node;
-                const nextData = node.data && typeof node.data === "object" ? node.data : {};
-                return {
-                    ...node,
-                    data: {
-                        ...(nextData as any),
-                        ownerId: fallbackOwnerId,
-                    },
-                };
-            }),
-        );
-    }, [isLoading, nodes, owners, setNodes]);
 
     const miniMapStyle = useMemo(() => ({ height: 120 }), []);
     const nodeTypes = useMemo(
@@ -524,6 +502,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                             value={selectedOwnerId}
                                             onChange={(event) => handleOwnerChange(event.target.value)}
                                         >
+                                            <option value="">No owner</option>
                                             {owners.map((owner) => {
                                                 const label =
                                                     owner.ownerType === "project"
