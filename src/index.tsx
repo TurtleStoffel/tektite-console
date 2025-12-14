@@ -9,9 +9,11 @@ import { createGithubRoutes } from "./backend/routes/github";
 import { helloRoutes } from "./backend/routes/hello";
 import { createOwnerRoutes } from "./backend/routes/owners";
 import { createDevServerRoutes } from "./backend/routes/devServer";
+import { createProductionServerRoutes } from "./backend/routes/productionServer";
 import { TEKTITE_PORT_FILE } from "./constants";
 import { findFirstFreePort } from "./backend/port";
 import { startPullRequestCleanup } from "./backend/worktreeCleanup";
+import path from "node:path";
 
 const portEnv = process.env.PORT ? Number(process.env.PORT) : undefined;
 const PORT = Number.isFinite(portEnv) ? portEnv : findFirstFreePort(3000);
@@ -20,9 +22,11 @@ const portFilePath = TEKTITE_PORT_FILE;
 const dataDir = "./data";
 const selectionFilePath = `${dataDir}/selected-repo.json`;
 const clonesDir = "/Users/stefan/coding/tmp/clones";
+const productionDir = path.join(path.dirname(clonesDir), "production");
 const codingFolder = "/Users/stefan/coding";
 
 void ensureClonesDir(clonesDir);
+void ensureClonesDir(productionDir);
 const { db } = await initStorage(dataDir);
 
 startPullRequestCleanup({ clonesDir });
@@ -36,10 +40,11 @@ const server = serve({
     routes: {
         ...createGithubRoutes({ dataDir, selectionFilePath }),
         ...createFlowRoutes({ db }),
-        ...createOwnerRoutes({ db, clonesDir, codingFolder }),
+        ...createOwnerRoutes({ db, clonesDir, codingFolder, productionDir }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),
         ...createDevServerRoutes({ clonesDir, codingFolder }),
+        ...createProductionServerRoutes({ productionDir }),
 
         // Serve index.html for all unmatched routes.
         "/*": index,

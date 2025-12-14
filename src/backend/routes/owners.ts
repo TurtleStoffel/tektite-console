@@ -2,9 +2,10 @@ import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
 import { findRepositoryClones } from "../cloneDiscovery";
+import { getProductionCloneInfo } from "../productionClone";
 
-export function createOwnerRoutes(options: { db: Database; clonesDir: string; codingFolder: string }) {
-    const { db, clonesDir, codingFolder } = options;
+export function createOwnerRoutes(options: { db: Database; clonesDir: string; codingFolder: string; productionDir: string }) {
+    const { db, clonesDir, codingFolder, productionDir } = options;
 
     return {
         "/api/owners": {
@@ -129,7 +130,10 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; co
                     .query("SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?")
                     .get(ownerId) as { count: number } | null;
 
-                const clones = await findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder });
+                const [clones, productionClone] = await Promise.all([
+                    findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder }),
+                    getProductionCloneInfo({ repositoryUrl: row.url, productionDir }),
+                ]);
 
                 return Response.json({
                     id: row.id,
@@ -138,6 +142,7 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; co
                     nodeCount: nodeCountRow?.count ?? 0,
                     flowCount: flowCountRow?.count ?? 0,
                     clones,
+                    productionClone,
                 });
             },
         },

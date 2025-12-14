@@ -12,6 +12,15 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
+    productionClone?: {
+        path: string;
+        exists: boolean;
+        port: number | null;
+        commitHash: string | null;
+        commitDescription: string | null;
+        hasChanges: boolean | null;
+        inUse: boolean;
+    };
     clones?: Array<{
         path: string;
         location: "clonesDir" | "codingFolder";
@@ -39,6 +48,15 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [error, setError] = useState<string | null>(null);
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
+    const [startingProduction, setStartingProduction] = useState(false);
+    const [productionLogsOpen, setProductionLogsOpen] = useState(false);
+    const [productionLogs, setProductionLogs] = useState<string[] | null>(null);
+    const [productionLogsMeta, setProductionLogsMeta] = useState<{
+        path: string | null;
+        exists: boolean;
+        running: boolean;
+        installing: boolean;
+    } | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
     const runningClones =
@@ -179,6 +197,71 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setStartingDevKey(null);
         }
     };
+
+    const startProductionServer = async () => {
+        if (!project?.url) return;
+        setActionError(null);
+        setStartingProduction(true);
+        try {
+            const res = await fetch("/api/production/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ repositoryUrl: project.url }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to start production server.");
+            }
+            setProductionLogsOpen(true);
+            await refreshProject();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to start production server.";
+            setActionError(message);
+        } finally {
+            setStartingProduction(false);
+        }
+    };
+
+    const refreshProductionLogs = async () => {
+        if (!project?.url) return;
+        try {
+            const res = await fetch(`/api/production/logs?repositoryUrl=${encodeURIComponent(project.url)}`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load production logs.");
+            }
+            const lines = Array.isArray(payload?.lines) ? (payload.lines as string[]) : [];
+            const partial = payload?.partial;
+            const partialLines: string[] = [];
+            if (partial && typeof partial === "object") {
+                const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
+                const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
+                if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
+                if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
+            }
+            setProductionLogs([...lines, ...partialLines]);
+            setProductionLogsMeta({
+                path: typeof payload?.path === "string" ? payload.path : null,
+                exists: Boolean(payload?.exists),
+                running: Boolean(payload?.running),
+                installing: Boolean(payload?.installing),
+            });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load production logs.";
+            setActionError(message);
+        }
+    };
+
+    useEffect(() => {
+        if (!productionLogsOpen) return;
+        void refreshProductionLogs();
+
+        const interval = window.setInterval(() => {
+            void refreshProductionLogs();
+        }, 1500);
+
+        return () => window.clearInterval(interval);
+    }, [productionLogsOpen, project?.url]);
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -345,6 +428,139 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 </div>
                             )}
                         </div>
+
+                        <div className="divider my-0" />
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold">Production clone</div>
+                                <span className="text-xs text-base-content/60">
+                                    {project.productionClone?.exists ? "ready" : "not cloned"}
+                                </span>
+                            </div>
+
+                            <div className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3">
+                                <div className="space-y-1 min-w-0">
+                                    {project.productionClone ? (
+                                        <>
+                                            <div className="font-mono text-xs break-all">{project.productionClone.path}</div>
+                                            {project.productionClone.commitHash && project.productionClone.commitDescription && (
+                                                <div className="text-xs text-base-content/70 break-all">
+                                                    <span className="font-mono">
+                                                        {project.productionClone.commitHash.slice(0, 12)}
+                                                    </span>
+                                                    <span className="mx-2">—</span>
+                                                    <span>{project.productionClone.commitDescription}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="text-sm text-base-content/70">
+                                            Production clone path will be created next to the clones folder.
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {project.productionClone && (
+                                        <div
+                                            className={`badge badge-outline whitespace-nowrap ${
+                                                project.productionClone.inUse ? "badge-error" : "badge-ghost"
+                                            }`}
+                                        >
+                                            {project.productionClone.inUse ? "in use" : "idle"}
+                                        </div>
+                                    )}
+                                    {project.productionClone && typeof project.productionClone.hasChanges === "boolean" && (
+                                        <div
+                                            className={`badge badge-outline ${
+                                                project.productionClone.hasChanges ? "badge-warning" : "badge-success"
+                                            }`}
+                                        >
+                                            {project.productionClone.hasChanges ? "changes" : "clean"}
+                                        </div>
+                                    )}
+                                    {project.productionClone && (
+                                        <div className="badge badge-outline">
+                                            {project.productionClone.exists ? "production" : "missing"}
+                                        </div>
+                                    )}
+                                    {typeof project.productionClone?.port === "number" && (
+                                        <div className="badge badge-success badge-outline">
+                                            port {project.productionClone.port}
+                                        </div>
+                                    )}
+                                    {typeof project.productionClone?.port === "number" && (
+                                        <a
+                                            className="btn btn-outline btn-sm"
+                                            href={`${previewProtocol}://${previewHost}:${project.productionClone.port}/`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Open
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        disabled={Boolean(startingDevKey) || startingProduction}
+                                        onClick={() => void startProductionServer()}
+                                    >
+                                        {startingProduction && <span className="loading loading-spinner loading-xs" />}
+                                        {startingProduction ? "Starting" : "Run production"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline btn-sm"
+                                        onClick={() => {
+                                            setProductionLogsOpen((prev) => !prev);
+                                        }}
+                                    >
+                                        {productionLogsOpen ? "Hide logs" : "Show logs"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {productionLogsOpen && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-semibold">Production logs</div>
+                                        {productionLogsMeta && (
+                                            <>
+                                                <div className="badge badge-outline">
+                                                    {productionLogsMeta.exists ? "cloned" : "missing"}
+                                                </div>
+                                                {productionLogsMeta.installing && (
+                                                    <div className="badge badge-warning badge-outline">installing</div>
+                                                )}
+                                                {productionLogsMeta.running && (
+                                                    <div className="badge badge-success badge-outline">running</div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-xs"
+                                        onClick={() => void refreshProductionLogs()}
+                                    >
+                                        Refresh
+                                    </button>
+                                </div>
+                                <div className="border border-base-300 rounded-xl bg-base-100 p-3 max-h-80 overflow-auto">
+                                    {productionLogs && productionLogs.length > 0 ? (
+                                        <pre className="text-xs whitespace-pre-wrap break-words">
+                                            {productionLogs.join("\n")}
+                                        </pre>
+                                    ) : (
+                                        <div className="text-sm text-base-content/70">
+                                            No logs yet. Click “Run production” to start and clone if needed.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {runningClones.length > 0 && previewUrl && (
                             <>
