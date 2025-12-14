@@ -19,6 +19,7 @@ type ProjectDetailsPayload = {
         commitHash?: string | null;
         commitDescription?: string | null;
         isWorktree?: boolean;
+        inUse: boolean;
         hasChanges?: boolean;
         prStatus?:
             | {
@@ -45,10 +46,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         if (!id) return;
 
         let active = true;
-        const load = async () => {
-            setLoading(true);
-            setError(null);
-            setProject(null);
+        const load = async (options?: { reset?: boolean }) => {
+            const reset = options?.reset ?? false;
+            setLoading((prev) => (reset ? true : prev));
+            setError((prev) => (reset ? null : prev));
+            setProject((prev) => (reset ? null : prev));
             try {
                 const res = await fetch(`/api/projects/${id}`);
                 const payload = await res.json().catch(() => ({}));
@@ -67,9 +69,14 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             }
         };
 
-        void load();
+        void load({ reset: true });
+        const interval = window.setInterval(() => {
+            void load();
+        }, 15000);
+
         return () => {
             active = false;
+            window.clearInterval(interval);
         };
     }, [id]);
 
@@ -201,15 +208,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
                                         >
                                             <div className="space-y-1 min-w-0">
-                                                <div className="font-mono text-xs break-all">{clone.path}</div>
-                                                {clone.isWorktree && clone.prStatus?.url && (
+                                        <div className="font-mono text-xs break-all">{clone.path}</div>
+                                                {clone.isWorktree &&
+                                                    (clone.prStatus?.state === "open" || clone.prStatus?.state === "draft") &&
+                                                    clone.prStatus.url && (
                                                     <a
                                                         className="link link-hover text-xs break-all"
                                                         href={clone.prStatus.url}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
-                                                        PR{" "}
+                                                        View PR{" "}
                                                         {typeof clone.prStatus.number === "number"
                                                             ? `#${clone.prStatus.number}`
                                                             : ""}
@@ -226,6 +235,15 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {clone.isWorktree && <div className="badge badge-outline">worktree</div>}
+                                                {clone.isWorktree && (
+                                                    <div
+                                                        className={`badge badge-outline whitespace-nowrap ${
+                                                            clone.inUse ? "badge-error" : "badge-ghost"
+                                                        }`}
+                                                    >
+                                                        {clone.inUse ? "in use" : "idle"}
+                                                    </div>
+                                                )}
                                                 {typeof clone.hasChanges === "boolean" && (
                                                     <div
                                                         className={`badge badge-outline ${

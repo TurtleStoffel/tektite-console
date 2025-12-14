@@ -3,6 +3,7 @@ import path from "path";
 import { execAsync } from "./exec";
 import { cleanRepositoryUrl, detectRepoChanges, getPullRequestStatus, isWorktreeDir, sanitizeRepoName } from "./git";
 import { TEKTITE_PORT_FILE } from "../constants";
+import { isWorkspaceActive } from "./workspaceActivity";
 
 export type CloneLocation = "clonesDir" | "codingFolder";
 
@@ -13,6 +14,7 @@ export type CloneInfo = {
     commitHash?: string | null;
     commitDescription?: string | null;
     isWorktree?: boolean;
+    inUse: boolean;
     hasChanges?: boolean;
     prStatus?: Awaited<ReturnType<typeof getPullRequestStatus>>;
 };
@@ -102,7 +104,7 @@ async function findMatchingReposInRoot(options: {
         if (!origin) continue;
         const originId = canonicalRepoId(origin);
         if (originId !== repoId) continue;
-        matches.push({ path: dir, location });
+        matches.push({ path: dir, location, inUse: false });
     }
 
     return matches;
@@ -146,19 +148,19 @@ export async function findRepositoryClones(options: {
     };
 
     if (fs.existsSync(expectedBaseClone)) {
-        record({ path: expectedBaseClone, location: "clonesDir" });
+        record({ path: expectedBaseClone, location: "clonesDir", inUse: false });
     }
 
     for (const dir of listImmediateDirectories(options.clonesDir, 500)) {
         const base = path.basename(dir);
         if (base === repoName || !base.startsWith(`${repoName}-`)) continue;
         if (!fs.existsSync(dir)) continue;
-        record({ path: dir, location: "clonesDir" });
+        record({ path: dir, location: "clonesDir", inUse: false });
     }
 
     const directCodingCandidate = path.join(options.codingFolder, rawRepoName);
     if (fs.existsSync(directCodingCandidate)) {
-        record({ path: directCodingCandidate, location: "codingFolder" });
+        record({ path: directCodingCandidate, location: "codingFolder", inUse: false });
     }
 
     const scanned = await Promise.all([
@@ -201,6 +203,7 @@ export async function findRepositoryClones(options: {
                 commitHash: hash,
                 commitDescription: description,
                 isWorktree,
+                inUse: isWorktree ? isWorkspaceActive(clone.path) : false,
                 hasChanges,
                 prStatus,
             };

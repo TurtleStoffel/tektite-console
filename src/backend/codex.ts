@@ -2,6 +2,7 @@ import { Codex, type Thread, type ThreadEvent, type ThreadItem, type Usage } fro
 import fs from "fs";
 import path from "path";
 import { finalizeGitState } from "./git";
+import { markWorkspaceActive, markWorkspaceInactive } from "./workspaceActivity";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }
@@ -272,6 +273,7 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
     const stream = new ReadableStream({
         start: async (controller) => {
             controllerRef = controller;
+            markWorkspaceActive(workingDirectory);
 
             const send = (chunk: StreamChunk) => {
                 if (cancelled) return;
@@ -336,6 +338,7 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
             } finally {
                 closeStream();
                 controllerRef = null;
+                markWorkspaceInactive(workingDirectory);
             }
         },
         cancel: () => {
@@ -343,6 +346,7 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
             controllerRef = null;
             // eslint-disable-next-line no-console
             console.log("[codex] stream cancelled by client");
+            markWorkspaceInactive(workingDirectory);
         },
     });
 
