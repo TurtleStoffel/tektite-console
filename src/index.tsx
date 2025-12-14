@@ -10,6 +10,7 @@ import { helloRoutes } from "./backend/routes/hello";
 import { createOwnerRoutes } from "./backend/routes/owners";
 import { createDevServerRoutes } from "./backend/routes/devServer";
 import { createProductionServerRoutes } from "./backend/routes/productionServer";
+import { envRoutes } from "./backend/routes/env";
 import { TEKTITE_PORT_FILE } from "./constants";
 import { findFirstFreePort } from "./backend/port";
 import { startPullRequestCleanup } from "./backend/worktreeCleanup";
@@ -41,6 +42,7 @@ const server = serve({
     idleTimeout: 0,
 
     routes: {
+        ...envRoutes,
         ...createGithubRoutes(),
         ...createFlowRoutes({ db }),
         ...createOwnerRoutes({ db, clonesDir, productionDir }),
