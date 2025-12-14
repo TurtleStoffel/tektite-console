@@ -82,7 +82,7 @@ function reconcileProcesses(clonePath: string) {
     const install = productionInstalls.get(clonePath);
     if (install && !isPidAlive(install.pid)) {
         productionInstalls.delete(clonePath);
-        appendLogLine(clonePath, "[system] npm install process no longer running");
+        appendLogLine(clonePath, "[system] bun install process no longer running");
         if (!productionServers.has(clonePath)) {
             markWorkspaceInactive(clonePath);
         }
@@ -108,7 +108,7 @@ export function getProductionServerLogs(clonePath: string) {
     };
 }
 
-function needsNpmInstall(clonePath: string) {
+function needsBunInstall(clonePath: string) {
     try {
         const packageJsonPath = path.join(clonePath, "package.json");
         if (!fs.existsSync(packageJsonPath)) return false;
@@ -120,7 +120,7 @@ function needsNpmInstall(clonePath: string) {
 }
 
 function spawnInstallThenStart(clonePath: string) {
-    const install = Bun.spawn(["npm", "install"], {
+    const install = Bun.spawn(["bun", "install"], {
         cwd: clonePath,
         stdin: "ignore",
         stdout: "pipe",
@@ -133,7 +133,7 @@ function spawnInstallThenStart(clonePath: string) {
 
     productionInstalls.set(clonePath, install);
     markWorkspaceActive(clonePath);
-    appendLogLine(clonePath, "[system] running npm install");
+    appendLogLine(clonePath, "[system] running bun install");
     if (install.stdout) void consumeStream({ clonePath, stream: install.stdout, streamName: "stdout" });
     if (install.stderr) void consumeStream({ clonePath, stream: install.stderr, streamName: "stderr" });
 
@@ -143,12 +143,12 @@ function spawnInstallThenStart(clonePath: string) {
         productionInstalls.delete(clonePath);
 
         if (code !== 0) {
-            appendLogLine(clonePath, `[system] npm install failed (exit ${code ?? "unknown"})`);
+            appendLogLine(clonePath, `[system] bun install failed (exit ${code ?? "unknown"})`);
             markWorkspaceInactive(clonePath);
             return;
         }
 
-        appendLogLine(clonePath, "[system] npm install complete");
+        appendLogLine(clonePath, "[system] bun install complete");
         void startProductionServer(clonePath);
     });
 
@@ -166,7 +166,7 @@ export function startProductionServer(clonePath: string) {
         return { status: "already-installing" as const, pid: existingInstall.pid };
     }
 
-    if (needsNpmInstall(clonePath)) {
+    if (needsBunInstall(clonePath)) {
         return spawnInstallThenStart(clonePath);
     }
 
