@@ -38,6 +38,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
+    const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const runningClones =
         project?.clones?.filter((clone) => typeof clone.port === "number" && Number.isFinite(clone.port)) ?? [];
@@ -141,6 +143,43 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const refreshProject = async () => {
+        if (!id) return;
+        try {
+            const res = await fetch(`/api/projects/${id}`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Project not found.");
+            }
+            setProject(payload as ProjectDetailsPayload);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to refresh project.";
+            setActionError(message);
+        }
+    };
+
+    const startDevServer = async (worktreePath: string, key: string) => {
+        setActionError(null);
+        setStartingDevKey(key);
+        try {
+            const res = await fetch("/api/worktrees/dev-server", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: worktreePath }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to start dev server.");
+            }
+            await refreshProject();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to start dev server.";
+            setActionError(message);
+        } finally {
+            setStartingDevKey(null);
+        }
+    };
+
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
             <div className="flex items-center justify-between gap-4">
@@ -198,17 +237,37 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 <div className="text-sm font-semibold">Local clones</div>
                                 <span className="text-xs text-base-content/60">{project.clones?.length ?? 0}</span>
                             </div>
+                            {actionError && (
+                                <div className="alert alert-error py-2">
+                                    <div className="flex items-center justify-between gap-3 w-full">
+                                        <span className="text-sm">{actionError}</span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-xs"
+                                            onClick={() => setActionError(null)}
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             {!project.clones || project.clones.length === 0 ? (
                                 <div className="text-sm text-base-content/70">No clones found in configured folders.</div>
                             ) : (
                                 <div className="space-y-2">
-                                    {project.clones.map((clone) => (
-                                        <div
-                                            key={`${clone.location}:${clone.path}`}
-                                            className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
-                                        >
-                                            <div className="space-y-1 min-w-0">
-                                        <div className="font-mono text-xs break-all">{clone.path}</div>
+                                    {project.clones.map((clone) => {
+                                        const key = `${clone.location}:${clone.path}`;
+                                        const showRunDev =
+                                            Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
+                                        const isStarting = startingDevKey === key;
+
+                                        return (
+                                            <div
+                                                key={key}
+                                                className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
+                                            >
+                                                <div className="space-y-1 min-w-0">
+                                                    <div className="font-mono text-xs break-all">{clone.path}</div>
                                                 {clone.isWorktree &&
                                                     (clone.prStatus?.state === "open" || clone.prStatus?.state === "draft") &&
                                                     clone.prStatus.url && (
@@ -266,9 +325,23 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                     <div className="badge badge-success badge-outline">port {clone.port}</div>
                                                 )}
                                                 <div className="badge badge-outline">{clone.location}</div>
+                                                {showRunDev && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary btn-sm"
+                                                        disabled={Boolean(startingDevKey)}
+                                                        onClick={() => void startDevServer(clone.path, key)}
+                                                    >
+                                                        {isStarting && (
+                                                            <span className="loading loading-spinner loading-xs" />
+                                                        )}
+                                                        {isStarting ? "Starting" : "Run dev"}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
