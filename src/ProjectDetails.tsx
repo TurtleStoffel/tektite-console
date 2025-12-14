@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { emitSelectedRepo } from "./events";
 
@@ -59,8 +59,34 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     } | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
-    const runningClones =
-        project?.clones?.filter((clone) => typeof clone.port === "number" && Number.isFinite(clone.port)) ?? [];
+    type PreviewTarget = {
+        key: string;
+        label: string;
+        port: number;
+    };
+
+    const previewTargets = useMemo<PreviewTarget[]>(() => {
+        const targets: PreviewTarget[] = [];
+
+        for (const clone of project?.clones ?? []) {
+            if (typeof clone.port !== "number" || !Number.isFinite(clone.port)) continue;
+            targets.push({
+                key: `${clone.location}:${clone.path}`,
+                label: `${clone.location} · ${clone.port}`,
+                port: clone.port,
+            });
+        }
+
+        if (typeof project?.productionClone?.port === "number" && Number.isFinite(project.productionClone.port)) {
+            targets.push({
+                key: `production:${project.productionClone.path}`,
+                label: `production · ${project.productionClone.port}`,
+                port: project.productionClone.port,
+            });
+        }
+
+        return targets;
+    }, [project?.clones, project?.productionClone?.path, project?.productionClone?.port]);
 
     useEffect(() => {
         if (!id) return;
@@ -106,19 +132,20 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [project?.url]);
 
     useEffect(() => {
-        if (runningClones.length === 0) {
+        if (previewTargets.length === 0) {
             setActivePreviewKey(null);
             return;
         }
 
-        const firstKey = `${runningClones[0].location}:${runningClones[0].path}`;
-        setActivePreviewKey((prev) => prev ?? firstKey);
-    }, [runningClones]);
+        const firstKey = previewTargets[0]?.key ?? null;
+        setActivePreviewKey((prev) => {
+            if (prev && previewTargets.some((target) => target.key === prev)) return prev;
+            return firstKey;
+        });
+    }, [previewTargets]);
 
-    const activePreviewClone = runningClones.find(
-        (clone) => `${clone.location}:${clone.path}` === activePreviewKey,
-    );
-    const previewPort = activePreviewClone?.port ?? null;
+    const activePreviewTarget = previewTargets.find((target) => target.key === activePreviewKey);
+    const previewPort = activePreviewTarget?.port ?? null;
     const previewProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
     const previewHost = typeof window !== "undefined" && window.location.hostname ? window.location.hostname : "localhost";
     const previewUrl = typeof previewPort === "number" ? `${previewProtocol}://${previewHost}:${previewPort}/` : null;
@@ -562,7 +589,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             </div>
                         )}
 
-                        {runningClones.length > 0 && previewUrl && (
+                        {previewTargets.length > 0 && previewUrl && (
                             <>
                                 <div className="divider my-0" />
 
@@ -579,11 +606,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 value={activePreviewKey ?? ""}
                                                 onChange={(event) => setActivePreviewKey(event.target.value)}
                                             >
-                                                {runningClones.map((clone) => {
-                                                    const key = `${clone.location}:${clone.path}`;
+                                                {previewTargets.map((target) => {
+                                                    const key = target.key;
                                                     return (
                                                         <option key={key} value={key}>
-                                                            {clone.location} · {clone.port}
+                                                            {target.label}
                                                         </option>
                                                     );
                                                 })}
