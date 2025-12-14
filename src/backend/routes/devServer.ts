@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isWorktreeDir } from "../git";
 import { isWorkspaceActive } from "../workspaceActivity";
-import { startDevServer } from "../devServer";
+import { getDevServerLogs, startDevServer } from "../devServer";
 
 function isWithinRoot(candidate: string, root: string) {
     const resolvedCandidate = path.resolve(candidate);
@@ -15,6 +15,52 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;
 
     return {
+        "/api/worktrees/dev-logs": {
+            async GET(req: Server.Request) {
+                const url = new URL(req.url);
+                const rawPath = url.searchParams.get("path")?.trim() ?? "";
+                if (!rawPath) {
+                    return new Response(JSON.stringify({ error: "Worktree path is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const worktreePath = path.resolve(rawPath);
+                const allowed = isWithinRoot(worktreePath, clonesDir);
+                if (!allowed) {
+                    return new Response(JSON.stringify({ error: "Worktree path is outside configured folders." }), {
+                        status: 403,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const exists = fs.existsSync(worktreePath);
+                if (!exists) {
+                    return new Response(JSON.stringify({ error: "Worktree path does not exist." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                if (!isWorktreeDir(worktreePath)) {
+                    return new Response(JSON.stringify({ error: "Path is not a git worktree." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const logs = getDevServerLogs(worktreePath);
+                return Response.json({
+                    path: worktreePath,
+                    exists,
+                    running: logs.running,
+                    lines: logs.lines,
+                    partial: logs.partial,
+                });
+            },
+        },
+
         "/api/worktrees/dev-server": {
             async POST(req: Server.Request) {
                 let body: any;

@@ -57,6 +57,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         running: boolean;
         installing: boolean;
     } | null>(null);
+    const [devLogsTarget, setDevLogsTarget] = useState<{ key: string; path: string } | null>(null);
+    const [devLogs, setDevLogs] = useState<string[] | null>(null);
+    const [devLogsMeta, setDevLogsMeta] = useState<{ path: string | null; exists: boolean; running: boolean } | null>(
+        null,
+    );
     const [actionError, setActionError] = useState<string | null>(null);
 
     type PreviewTarget = {
@@ -206,6 +211,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const startDevServer = async (worktreePath: string, key: string) => {
         setActionError(null);
         setStartingDevKey(key);
+        setDevLogsTarget({ key, path: worktreePath });
+        setDevLogs(null);
+        setDevLogsMeta(null);
         try {
             const res = await fetch("/api/worktrees/dev-server", {
                 method: "POST",
@@ -222,6 +230,34 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         } finally {
             setStartingDevKey(null);
+        }
+    };
+
+    const refreshDevLogs = async (worktreePath: string) => {
+        try {
+            const res = await fetch(`/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load dev logs.");
+            }
+            const lines = Array.isArray(payload?.lines) ? (payload.lines as string[]) : [];
+            const partial = payload?.partial;
+            const partialLines: string[] = [];
+            if (partial && typeof partial === "object") {
+                const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
+                const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
+                if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
+                if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
+            }
+            setDevLogs([...lines, ...partialLines]);
+            setDevLogsMeta({
+                path: typeof payload?.path === "string" ? payload.path : null,
+                exists: Boolean(payload?.exists),
+                running: Boolean(payload?.running),
+            });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load dev logs.";
+            setActionError(message);
         }
     };
 
@@ -289,6 +325,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
         return () => window.clearInterval(interval);
     }, [productionLogsOpen, project?.url]);
+
+    useEffect(() => {
+        if (!devLogsTarget?.path) return;
+        void refreshDevLogs(devLogsTarget.path);
+
+        const interval = window.setInterval(() => {
+            void refreshDevLogs(devLogsTarget.path);
+        }, 1500);
+
+        return () => window.clearInterval(interval);
+    }, [devLogsTarget?.path]);
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -370,85 +417,151 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         const showRunDev =
                                             Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
                                         const isStarting = startingDevKey === key;
+                                        const devLogsOpen = devLogsTarget?.key === key;
 
                                         return (
-                                            <div
-                                                key={key}
-                                                className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3"
-                                            >
-                                                <div className="space-y-1 min-w-0">
-                                                    <div className="font-mono text-xs break-all">{clone.path}</div>
-                                                {clone.isWorktree &&
-                                                    (clone.prStatus?.state === "open" || clone.prStatus?.state === "draft") &&
-                                                    clone.prStatus.url && (
-                                                    <a
-                                                        className="link link-hover text-xs break-all"
-                                                        href={clone.prStatus.url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        View PR{" "}
-                                                        {typeof clone.prStatus.number === "number"
-                                                            ? `#${clone.prStatus.number}`
-                                                            : ""}
-                                                        {clone.prStatus.title ? ` — ${clone.prStatus.title}` : ""}
-                                                    </a>
-                                                )}
-                                                {clone.commitHash && clone.commitDescription && (
-                                                    <div className="text-xs text-base-content/70 break-all">
-                                                        <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>
-                                                        <span className="mx-2">—</span>
-                                                        <span>{clone.commitDescription}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {clone.isWorktree && <div className="badge badge-outline">worktree</div>}
-                                                {clone.isWorktree && (
-                                                    <div
-                                                        className={`badge badge-outline whitespace-nowrap ${
-                                                            clone.inUse ? "badge-error" : "badge-ghost"
-                                                        }`}
-                                                    >
-                                                        {clone.inUse ? "in use" : "idle"}
-                                                    </div>
-                                                )}
-                                                {typeof clone.hasChanges === "boolean" && (
-                                                    <div
-                                                        className={`badge badge-outline ${
-                                                            clone.hasChanges ? "badge-warning" : "badge-success"
-                                                        }`}
-                                                    >
-                                                        {clone.hasChanges ? "changes" : "clean"}
-                                                    </div>
-                                                )}
-                                                {clone.isWorktree && clone.prStatus && (
-                                                    <div
-                                                        className={`badge badge-outline whitespace-nowrap ${prBadgeClass(
-                                                            clone.prStatus.state,
-                                                        )}`}
-                                                    >
-                                                        {prBadgeLabel(clone.prStatus)}
-                                                    </div>
-                                                )}
-                                                {typeof clone.port === "number" && (
-                                                    <div className="badge badge-success badge-outline">port {clone.port}</div>
-                                                )}
-                                                {showRunDev && (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-primary btn-sm"
-                                                        disabled={Boolean(startingDevKey)}
-                                                        onClick={() => void startDevServer(clone.path, key)}
-                                                    >
-                                                        {isStarting && (
-                                                            <span className="loading loading-spinner loading-xs" />
+                                            <div key={key} className="space-y-2">
+                                                <div className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3">
+                                                    <div className="space-y-1 min-w-0">
+                                                        <div className="font-mono text-xs break-all">{clone.path}</div>
+                                                        {clone.isWorktree &&
+                                                            (clone.prStatus?.state === "open" ||
+                                                                clone.prStatus?.state === "draft") &&
+                                                            clone.prStatus.url && (
+                                                                <a
+                                                                    className="link link-hover text-xs break-all"
+                                                                    href={clone.prStatus.url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                >
+                                                                    View PR{" "}
+                                                                    {typeof clone.prStatus.number === "number"
+                                                                        ? `#${clone.prStatus.number}`
+                                                                        : ""}
+                                                                    {clone.prStatus.title ? ` — ${clone.prStatus.title}` : ""}
+                                                                </a>
+                                                            )}
+                                                        {clone.commitHash && clone.commitDescription && (
+                                                            <div className="text-xs text-base-content/70 break-all">
+                                                                <span className="font-mono">
+                                                                    {clone.commitHash.slice(0, 12)}
+                                                                </span>
+                                                                <span className="mx-2">—</span>
+                                                                <span>{clone.commitDescription}</span>
+                                                            </div>
                                                         )}
-                                                        {isStarting ? "Starting" : "Run dev"}
-                                                    </button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {clone.isWorktree && (
+                                                            <div className="badge badge-outline">worktree</div>
+                                                        )}
+                                                        {clone.isWorktree && (
+                                                            <div
+                                                                className={`badge badge-outline whitespace-nowrap ${
+                                                                    clone.inUse ? "badge-error" : "badge-ghost"
+                                                                }`}
+                                                            >
+                                                                {clone.inUse ? "in use" : "idle"}
+                                                            </div>
+                                                        )}
+                                                        {typeof clone.hasChanges === "boolean" && (
+                                                            <div
+                                                                className={`badge badge-outline ${
+                                                                    clone.hasChanges ? "badge-warning" : "badge-success"
+                                                                }`}
+                                                            >
+                                                                {clone.hasChanges ? "changes" : "clean"}
+                                                            </div>
+                                                        )}
+                                                        {clone.isWorktree && clone.prStatus && (
+                                                            <div
+                                                                className={`badge badge-outline whitespace-nowrap ${prBadgeClass(
+                                                                    clone.prStatus.state,
+                                                                )}`}
+                                                            >
+                                                                {prBadgeLabel(clone.prStatus)}
+                                                            </div>
+                                                        )}
+                                                        {typeof clone.port === "number" && (
+                                                            <div className="badge badge-success badge-outline">
+                                                                port {clone.port}
+                                                            </div>
+                                                        )}
+                                                        {clone.isWorktree && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline btn-sm"
+                                                                onClick={() => {
+                                                                    if (devLogsOpen) {
+                                                                        setDevLogsTarget(null);
+                                                                        return;
+                                                                    }
+                                                                    setDevLogsTarget({ key, path: clone.path });
+                                                                    setDevLogs(null);
+                                                                    setDevLogsMeta(null);
+                                                                }}
+                                                            >
+                                                                {devLogsOpen ? "Hide logs" : "Show logs"}
+                                                            </button>
+                                                        )}
+                                                        {showRunDev && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-primary btn-sm"
+                                                                disabled={Boolean(startingDevKey)}
+                                                                onClick={() => void startDevServer(clone.path, key)}
+                                                            >
+                                                                {isStarting && (
+                                                                    <span className="loading loading-spinner loading-xs" />
+                                                                )}
+                                                                {isStarting ? "Starting" : "Run dev"}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {devLogsOpen && (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="text-sm font-semibold">Dev logs</div>
+                                                                {devLogsMeta && (
+                                                                    <>
+                                                                        <div className="badge badge-outline">
+                                                                            {devLogsMeta.exists ? "worktree" : "missing"}
+                                                                        </div>
+                                                                        {devLogsMeta.running && (
+                                                                            <div className="badge badge-success badge-outline">
+                                                                                running
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-ghost btn-xs"
+                                                                onClick={() => void refreshDevLogs(clone.path)}
+                                                            >
+                                                                Refresh
+                                                            </button>
+                                                        </div>
+                                                        <div className="border border-base-300 rounded-xl bg-base-100 p-3 max-h-80 overflow-auto">
+                                                            {devLogs && devLogs.length > 0 ? (
+                                                                <pre className="text-xs whitespace-pre-wrap break-words">
+                                                                    {devLogs.join("\n")}
+                                                                </pre>
+                                                            ) : (
+                                                                <div className="text-sm text-base-content/70">
+                                                                    {devLogs === null
+                                                                        ? "Loading logs…"
+                                                                        : "No logs yet. Click “Run dev” to start."}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
-                                        </div>
                                         );
                                     })}
                                 </div>
