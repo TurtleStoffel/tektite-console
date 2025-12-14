@@ -21,9 +21,19 @@ const portFilePath = TEKTITE_PORT_FILE;
 
 const dataDir = "./data";
 const selectionFilePath = `${dataDir}/selected-repo.json`;
-const clonesDir = "/Users/stefan/coding/tmp/clones";
+
+const clonesDirValue = process.env.CLONES_DIR;
+if (!clonesDirValue) {
+    throw new Error("Missing required env var: CLONES_DIR.");
+}
+const clonesDir = path.resolve(clonesDirValue);
 const productionDir = path.join(path.dirname(clonesDir), "production");
-const codingFolder = "/Users/stefan/coding";
+
+const codingFolderValue = process.env.CODING_FOLDER;
+if (!codingFolderValue) {
+    throw new Error("Missing required env var: CODING_FOLDER.");
+}
+const codingFolder = path.resolve(codingFolderValue);
 
 void ensureClonesDir(clonesDir);
 void ensureClonesDir(productionDir);
