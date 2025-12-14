@@ -5,12 +5,7 @@ import { ensureProductionClone, getProductionClonePath } from "../productionClon
 import { isProductionInstallRunning, isProductionServerRunning, startProductionServer } from "../productionServer";
 import { getProductionServerLogs } from "../productionServer";
 import { isWorkspaceActive } from "../workspaceActivity";
-
-function isWithinRoot(candidate: string, root: string) {
-    const resolvedCandidate = path.resolve(candidate);
-    const resolvedRoot = path.resolve(root);
-    return resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`);
-}
+import { isWithinRoot } from "./pathUtils";
 
 export function createProductionServerRoutes(options: { productionDir: string }) {
     const { productionDir } = options;
@@ -94,12 +89,7 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     });
                 }
 
-                if (isProductionServerRunning(clonePath)) {
-                    const result = startProductionServer(clonePath);
-                    return Response.json({ ...result, path: clonePath });
-                }
-
-                if (isProductionInstallRunning(clonePath)) {
+                if (isProductionServerRunning(clonePath) || isProductionInstallRunning(clonePath)) {
                     const result = startProductionServer(clonePath);
                     return Response.json({ ...result, path: clonePath });
                 }

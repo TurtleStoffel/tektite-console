@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { emitSelectedRepo } from "./events";
+import { LogsPanel } from "./LogsPanel";
 
 type ProjectDetailsProps = {
     drawerToggleId: string;
@@ -59,10 +60,35 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     } | null>(null);
     const [devLogsTarget, setDevLogsTarget] = useState<{ key: string; path: string } | null>(null);
     const [devLogs, setDevLogs] = useState<string[] | null>(null);
-    const [devLogsMeta, setDevLogsMeta] = useState<{ path: string | null; exists: boolean; running: boolean } | null>(
-        null,
-    );
+    const [devLogsMeta, setDevLogsMeta] = useState<{
+        path: string | null;
+        exists: boolean;
+        running: boolean;
+        installing: boolean;
+    } | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
+
+    const parseLogPayload = (payload: any) => {
+        const lines = Array.isArray(payload?.lines) ? (payload.lines as unknown[]).filter((line) => typeof line === "string") : [];
+        const partial = payload?.partial;
+        const partialLines: string[] = [];
+        if (partial && typeof partial === "object") {
+            const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
+            const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
+            if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
+            if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
+        }
+
+        return {
+            lines: [...lines, ...partialLines],
+            meta: {
+                path: typeof payload?.path === "string" ? payload.path : null,
+                exists: Boolean(payload?.exists),
+                running: Boolean(payload?.running),
+                installing: Boolean(payload?.installing),
+            },
+        };
+    };
 
     type PreviewTarget = {
         key: string;
@@ -240,21 +266,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load dev logs.");
             }
-            const lines = Array.isArray(payload?.lines) ? (payload.lines as string[]) : [];
-            const partial = payload?.partial;
-            const partialLines: string[] = [];
-            if (partial && typeof partial === "object") {
-                const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
-                const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
-                if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
-                if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
-            }
-            setDevLogs([...lines, ...partialLines]);
-            setDevLogsMeta({
-                path: typeof payload?.path === "string" ? payload.path : null,
-                exists: Boolean(payload?.exists),
-                running: Boolean(payload?.running),
-            });
+            const parsed = parseLogPayload(payload);
+            setDevLogs(parsed.lines);
+            setDevLogsMeta(parsed.meta);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load dev logs.";
             setActionError(message);
@@ -293,22 +307,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load production logs.");
             }
-            const lines = Array.isArray(payload?.lines) ? (payload.lines as string[]) : [];
-            const partial = payload?.partial;
-            const partialLines: string[] = [];
-            if (partial && typeof partial === "object") {
-                const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
-                const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
-                if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
-                if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
-            }
-            setProductionLogs([...lines, ...partialLines]);
-            setProductionLogsMeta({
-                path: typeof payload?.path === "string" ? payload.path : null,
-                exists: Boolean(payload?.exists),
-                running: Boolean(payload?.running),
-                installing: Boolean(payload?.installing),
-            });
+            const parsed = parseLogPayload(payload);
+            setProductionLogs(parsed.lines);
+            setProductionLogsMeta(parsed.meta);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load production logs.";
             setActionError(message);
@@ -521,45 +522,31 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 </div>
 
                                                 {devLogsOpen && (
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="text-sm font-semibold">Dev logs</div>
-                                                                {devLogsMeta && (
-                                                                    <>
-                                                                        <div className="badge badge-outline">
-                                                                            {devLogsMeta.exists ? "worktree" : "missing"}
+                                                    <LogsPanel
+                                                        title="Dev logs"
+                                                        logs={devLogs}
+                                                        emptyText="No logs yet. Click “Run dev” to start."
+                                                        onRefresh={() => void refreshDevLogs(clone.path)}
+                                                        badges={
+                                                            devLogsMeta ? (
+                                                                <>
+                                                                    <div className="badge badge-outline">
+                                                                        {devLogsMeta.exists ? "worktree" : "missing"}
+                                                                    </div>
+                                                                    {devLogsMeta.installing && (
+                                                                        <div className="badge badge-warning badge-outline">
+                                                                            installing
                                                                         </div>
-                                                                        {devLogsMeta.running && (
-                                                                            <div className="badge badge-success badge-outline">
-                                                                                running
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-ghost btn-xs"
-                                                                onClick={() => void refreshDevLogs(clone.path)}
-                                                            >
-                                                                Refresh
-                                                            </button>
-                                                        </div>
-                                                        <div className="border border-base-300 rounded-xl bg-base-100 p-3 max-h-80 overflow-auto">
-                                                            {devLogs && devLogs.length > 0 ? (
-                                                                <pre className="text-xs whitespace-pre-wrap break-words">
-                                                                    {devLogs.join("\n")}
-                                                                </pre>
-                                                            ) : (
-                                                                <div className="text-sm text-base-content/70">
-                                                                    {devLogs === null
-                                                                        ? "Loading logs…"
-                                                                        : "No logs yet. Click “Run dev” to start."}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                                                    )}
+                                                                    {devLogsMeta.running && (
+                                                                        <div className="badge badge-success badge-outline">
+                                                                            running
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            ) : null
+                                                        }
+                                                    />
                                                 )}
                                             </div>
                                         );
@@ -661,44 +648,27 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                         </div>
 
                         {productionLogsOpen && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-sm font-semibold">Production logs</div>
-                                        {productionLogsMeta && (
-                                            <>
-                                                <div className="badge badge-outline">
-                                                    {productionLogsMeta.exists ? "cloned" : "missing"}
-                                                </div>
-                                                {productionLogsMeta.installing && (
-                                                    <div className="badge badge-warning badge-outline">installing</div>
-                                                )}
-                                                {productionLogsMeta.running && (
-                                                    <div className="badge badge-success badge-outline">running</div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost btn-xs"
-                                        onClick={() => void refreshProductionLogs()}
-                                    >
-                                        Refresh
-                                    </button>
-                                </div>
-                                <div className="border border-base-300 rounded-xl bg-base-100 p-3 max-h-80 overflow-auto">
-                                    {productionLogs && productionLogs.length > 0 ? (
-                                        <pre className="text-xs whitespace-pre-wrap break-words">
-                                            {productionLogs.join("\n")}
-                                        </pre>
-                                    ) : (
-                                        <div className="text-sm text-base-content/70">
-                                            No logs yet. Click “Run production” to start and clone if needed.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <LogsPanel
+                                title="Production logs"
+                                logs={productionLogs}
+                                emptyText="No logs yet. Click “Run production” to start and clone if needed."
+                                onRefresh={() => void refreshProductionLogs()}
+                                badges={
+                                    productionLogsMeta ? (
+                                        <>
+                                            <div className="badge badge-outline">
+                                                {productionLogsMeta.exists ? "cloned" : "missing"}
+                                            </div>
+                                            {productionLogsMeta.installing && (
+                                                <div className="badge badge-warning badge-outline">installing</div>
+                                            )}
+                                            {productionLogsMeta.running && (
+                                                <div className="badge badge-success badge-outline">running</div>
+                                            )}
+                                        </>
+                                    ) : null
+                                }
+                            />
                         )}
 
                         {previewTargets.length > 0 && previewUrl && (

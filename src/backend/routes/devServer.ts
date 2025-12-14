@@ -3,13 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { isWorktreeDir } from "../git";
 import { isWorkspaceActive } from "../workspaceActivity";
-import { getDevServerLogs, startDevServer } from "../devServer";
-
-function isWithinRoot(candidate: string, root: string) {
-    const resolvedCandidate = path.resolve(candidate);
-    const resolvedRoot = path.resolve(root);
-    return resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`);
-}
+import { getDevServerLogs, isDevInstallRunning, isDevServerRunning, startDevServer } from "../devServer";
+import { isWithinRoot } from "./pathUtils";
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;
@@ -55,6 +50,7 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                     path: worktreePath,
                     exists,
                     running: logs.running,
+                    installing: logs.installing,
                     lines: logs.lines,
                     partial: logs.partial,
                 });
@@ -102,6 +98,11 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                         status: 400,
                         headers: { "Content-Type": "application/json" },
                     });
+                }
+
+                if (isDevServerRunning(worktreePath) || isDevInstallRunning(worktreePath)) {
+                    const result = startDevServer(worktreePath);
+                    return Response.json(result);
                 }
 
                 if (isWorkspaceActive(worktreePath)) {
