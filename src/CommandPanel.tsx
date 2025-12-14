@@ -161,7 +161,7 @@ export function CommandPanel() {
                             {selectedRepoUrl}
                         </a>
                     ) : (
-                        <span className="text-base-content/60">Pick a repository from the grid to run Codex.</span>
+                        <span className="text-base-content/60">Open a project to select a repository to run Codex.</span>
                     )}
                 </div>
             </div>

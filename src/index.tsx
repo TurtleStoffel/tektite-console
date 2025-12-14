@@ -20,7 +20,6 @@ const PORT = Number.isFinite(portEnv) ? portEnv : findFirstFreePort(3000);
 const portFilePath = TEKTITE_PORT_FILE;
 
 const dataDir = "./data";
-const selectionFilePath = `${dataDir}/selected-repo.json`;
 
 const clonesDirValue = process.env.CLONES_DIR;
 if (!clonesDirValue) {
@@ -48,7 +47,7 @@ const server = serve({
     idleTimeout: 0,
 
     routes: {
-        ...createGithubRoutes({ dataDir, selectionFilePath }),
+        ...createGithubRoutes(),
         ...createFlowRoutes({ db }),
         ...createOwnerRoutes({ db, clonesDir, codingFolder, productionDir }),
         ...helloRoutes,
