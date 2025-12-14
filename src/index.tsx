@@ -28,12 +28,6 @@ if (!clonesDirValue) {
 const clonesDir = path.resolve(clonesDirValue);
 const productionDir = path.join(path.dirname(clonesDir), "production");
 
-const codingFolderValue = process.env.CODING_FOLDER;
-if (!codingFolderValue) {
-    throw new Error("Missing required env var: CODING_FOLDER.");
-}
-const codingFolder = path.resolve(codingFolderValue);
-
 void ensureClonesDir(clonesDir);
 void ensureClonesDir(productionDir);
 const { db } = await initStorage(dataDir);
@@ -49,10 +43,10 @@ const server = serve({
     routes: {
         ...createGithubRoutes(),
         ...createFlowRoutes({ db }),
-        ...createOwnerRoutes({ db, clonesDir, codingFolder, productionDir }),
+        ...createOwnerRoutes({ db, clonesDir, productionDir }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),
-        ...createDevServerRoutes({ clonesDir, codingFolder }),
+        ...createDevServerRoutes({ clonesDir }),
         ...createProductionServerRoutes({ productionDir }),
 
         // Serve index.html for all unmatched routes.

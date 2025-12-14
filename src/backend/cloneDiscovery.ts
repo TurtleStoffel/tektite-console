@@ -5,7 +5,7 @@ import { cleanRepositoryUrl, detectRepoChanges, getPullRequestStatus, isWorktree
 import { TEKTITE_PORT_FILE } from "../constants";
 import { isWorkspaceActive } from "./workspaceActivity";
 
-export type CloneLocation = "clonesDir" | "codingFolder";
+export type CloneLocation = "clonesDir";
 
 export type CloneInfo = {
     path: string;
@@ -130,7 +130,6 @@ async function readHeadCommitSummary(dir: string): Promise<{ hash: string | null
 export async function findRepositoryClones(options: {
     repositoryUrl: string;
     clonesDir: string;
-    codingFolder: string;
 }): Promise<CloneInfo[]> {
     const repoId = canonicalRepoId(options.repositoryUrl);
     if (!repoId) return [];
@@ -158,14 +157,8 @@ export async function findRepositoryClones(options: {
         record({ path: dir, location: "clonesDir", inUse: false });
     }
 
-    const directCodingCandidate = path.join(options.codingFolder, rawRepoName);
-    if (fs.existsSync(directCodingCandidate)) {
-        record({ path: directCodingCandidate, location: "codingFolder", inUse: false });
-    }
-
     const scanned = await Promise.all([
         findMatchingReposInRoot({ rootDir: options.clonesDir, location: "clonesDir", repoId, maxDirs: 200 }),
-        findMatchingReposInRoot({ rootDir: options.codingFolder, location: "codingFolder", repoId, maxDirs: 200 }),
     ]);
     for (const list of scanned) {
         for (const clone of list) record(clone);

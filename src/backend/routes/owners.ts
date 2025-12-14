@@ -4,8 +4,8 @@ import { randomUUID } from "node:crypto";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getProductionCloneInfo } from "../productionClone";
 
-export function createOwnerRoutes(options: { db: Database; clonesDir: string; codingFolder: string; productionDir: string }) {
-    const { db, clonesDir, codingFolder, productionDir } = options;
+export function createOwnerRoutes(options: { db: Database; clonesDir: string; productionDir: string }) {
+    const { db, clonesDir, productionDir } = options;
 
     return {
         "/api/owners": {
@@ -131,7 +131,7 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; co
                     .get(ownerId) as { count: number } | null;
 
                 const [clones, productionClone] = await Promise.all([
-                    findRepositoryClones({ repositoryUrl: row.url, clonesDir, codingFolder }),
+                    findRepositoryClones({ repositoryUrl: row.url, clonesDir }),
                     getProductionCloneInfo({ repositoryUrl: row.url, productionDir }),
                 ]);
 

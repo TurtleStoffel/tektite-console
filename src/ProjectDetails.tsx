@@ -23,7 +23,7 @@ type ProjectDetailsPayload = {
     };
     clones?: Array<{
         path: string;
-        location: "clonesDir" | "codingFolder";
+        location: "clonesDir";
         port?: number | null;
         commitHash?: string | null;
         commitDescription?: string | null;
@@ -71,8 +71,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         for (const clone of project?.clones ?? []) {
             if (typeof clone.port !== "number" || !Number.isFinite(clone.port)) continue;
             targets.push({
-                key: `${clone.location}:${clone.path}`,
-                label: `${clone.location} · ${clone.port}`,
+                key: `clone:${clone.path}`,
+                label: `clone · ${clone.port}`,
                 port: clone.port,
             });
         }
@@ -366,7 +366,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             ) : (
                                 <div className="space-y-2">
                                     {project.clones.map((clone) => {
-                                        const key = `${clone.location}:${clone.path}`;
+                                        const key = `clone:${clone.path}`;
                                         const showRunDev =
                                             Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
                                         const isStarting = startingDevKey === key;
@@ -434,7 +434,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 {typeof clone.port === "number" && (
                                                     <div className="badge badge-success badge-outline">port {clone.port}</div>
                                                 )}
-                                                <div className="badge badge-outline">{clone.location}</div>
                                                 {showRunDev && (
                                                     <button
                                                         type="button"

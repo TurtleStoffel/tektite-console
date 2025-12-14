@@ -11,8 +11,8 @@ function isWithinRoot(candidate: string, root: string) {
     return resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`);
 }
 
-export function createDevServerRoutes(options: { clonesDir: string; codingFolder: string }) {
-    const { clonesDir, codingFolder } = options;
+export function createDevServerRoutes(options: { clonesDir: string }) {
+    const { clonesDir } = options;
 
     return {
         "/api/worktrees/dev-server": {
@@ -36,7 +36,7 @@ export function createDevServerRoutes(options: { clonesDir: string; codingFolder
                 }
 
                 const worktreePath = path.resolve(rawPath);
-                const allowed = isWithinRoot(worktreePath, clonesDir) || isWithinRoot(worktreePath, codingFolder);
+                const allowed = isWithinRoot(worktreePath, clonesDir);
                 if (!allowed) {
                     return new Response(JSON.stringify({ error: "Worktree path is outside configured folders." }), {
                         status: 403,
@@ -79,4 +79,3 @@ export function createDevServerRoutes(options: { clonesDir: string; codingFolder
         },
     } as const;
 }
-
