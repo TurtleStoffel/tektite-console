@@ -10,6 +10,7 @@ import { helloRoutes } from "./backend/routes/hello";
 import { createOwnerRoutes } from "./backend/routes/owners";
 import { TEKTITE_PORT_FILE } from "./constants";
 import { findFirstFreePort } from "./backend/port";
+import { startPullRequestCleanup } from "./backend/worktreeCleanup";
 
 const portEnv = process.env.PORT ? Number(process.env.PORT) : undefined;
 const PORT = Number.isFinite(portEnv) ? portEnv : findFirstFreePort(3000);
@@ -22,6 +23,8 @@ const codingFolder = "/Users/stefan/coding";
 
 void ensureClonesDir(clonesDir);
 const { db } = await initStorage(dataDir);
+
+startPullRequestCleanup({ clonesDir });
 
 const server = serve({
     port: PORT,

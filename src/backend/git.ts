@@ -137,6 +137,21 @@ export async function createWorktree(baseDir: string, repoName: string, clonesDi
     return { worktreePath, branchName };
 }
 
+export async function removeWorktree(worktreePath: string, repoRoot: string, branchName?: string) {
+    const quotedPath = JSON.stringify(worktreePath);
+    await execAsync(`git worktree remove --force ${quotedPath}`, { cwd: repoRoot });
+
+    if (!branchName) {
+        return;
+    }
+
+    try {
+        await execAsync(`git branch -D ${JSON.stringify(branchName)}`, { cwd: repoRoot });
+    } catch {
+        // Best-effort branch cleanup.
+    }
+}
+
 export function cleanRepositoryUrl(repoUrl: string) {
     return repoUrl.replace(/^git\+/, "");
 }
