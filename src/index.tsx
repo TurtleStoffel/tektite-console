@@ -20,13 +20,27 @@ const portEnv = process.env.PORT ? Number(process.env.PORT) : undefined;
 const PORT = Number.isFinite(portEnv) ? portEnv : findFirstFreePort(3000);
 const portFilePath = TEKTITE_PORT_FILE;
 
-const dataDir = "./data";
+function expandHome(p: string): string {
+    const home = Bun.env.HOME;
+    if (!home) return p;
+    return p.startsWith("~") ? p.replace(/^~(?=$|[\\/])/, home) : p;
+}
+
+function resolvePathFromEnv(raw: string): string {
+    return path.resolve(expandHome(raw.trim()));
+}
+
+const dataDirValue = process.env.DATA_DIR;
+if (!dataDirValue) {
+    throw new Error("Missing required env var: DATA_DIR.");
+}
+const dataDir = resolvePathFromEnv(dataDirValue);
 
 const clonesDirValue = process.env.CLONES_DIR;
 if (!clonesDirValue) {
     throw new Error("Missing required env var: CLONES_DIR.");
 }
-const clonesDir = path.resolve(clonesDirValue);
+const clonesDir = resolvePathFromEnv(clonesDirValue);
 const productionDir = path.join(path.dirname(clonesDir), "production");
 
 void ensureClonesDir(clonesDir);
