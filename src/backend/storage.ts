@@ -11,18 +11,6 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     const db = new Database(`${dataDir}/tektite-console.sqlite`, { create: true });
     db.run("PRAGMA foreign_keys = ON");
 
-    const desiredSchemaVersion = 3;
-    const currentSchemaVersionRow = db.query("PRAGMA user_version").get() as { user_version: number } | null;
-    const currentSchemaVersion = currentSchemaVersionRow?.user_version ?? 0;
-    if (currentSchemaVersion !== desiredSchemaVersion) {
-        db.run("DROP TABLE IF EXISTS flow_edges");
-        db.run("DROP TABLE IF EXISTS flow_nodes");
-        db.run("DROP TABLE IF EXISTS projects");
-        db.run("DROP TABLE IF EXISTS ideas");
-        db.run("DROP TABLE IF EXISTS owners");
-        db.run("DROP TABLE IF EXISTS flows");
-    }
-
     db.run(`
         CREATE TABLE IF NOT EXISTS flows (
             id TEXT PRIMARY KEY,
@@ -81,10 +69,6 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     db.run(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_flow_edges_unique_key ON flow_edges(flow_id, key)
     `);
-
-    if (currentSchemaVersion !== desiredSchemaVersion) {
-        db.run(`PRAGMA user_version = ${desiredSchemaVersion}`);
-    }
 
     return { db };
 }
