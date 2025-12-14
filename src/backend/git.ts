@@ -2,7 +2,7 @@ import { mkdir } from "fs/promises";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { execAsync } from "./exec";
+import { execAsync, execFileAsync, isExecTimeoutError, type ExecError } from "./exec";
 
 export type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
 
@@ -42,11 +42,23 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
     }
 
     try {
-        const { stdout } = await execAsync(
-            `gh pr list --state all --head ${branch} --json number,state,title,url,mergedAt,isDraft --limit 1`,
+        const { stdout } = await execFileAsync(
+            "gh",
+            [
+                "pr",
+                "list",
+                "--state",
+                "all",
+                "--head",
+                branch,
+                "--json",
+                "number,state,title,url,mergedAt,isDraft",
+                "--limit",
+                "1",
+            ],
             {
                 cwd: dir,
-                timeout: 5000,
+                timeout: 15_000,
                 maxBuffer: 1024 * 1024,
             },
         );
@@ -82,6 +94,16 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
             url: typeof pr.url === "string" ? pr.url : undefined,
         };
     } catch (error) {
+        if (isExecTimeoutError(error)) {
+            return { state: "unknown" };
+        }
+
+        const execError = error as ExecError;
+        if (execError.code === "ENOENT") {
+            console.warn(`Failed to read PR status for branch ${branch}; GitHub CLI (gh) not found.`);
+            return { state: "unknown" };
+        }
+
         console.warn(`Failed to read PR status for branch ${branch}`, error);
         return { state: "unknown" };
     }
@@ -238,12 +260,17 @@ async function ensurePushed(dir: string, branch: string, upstream: string | null
 
 async function prExists(dir: string, branch: string) {
     try {
-        const { stdout } = await execAsync(`gh pr list --state all --head ${branch} --json number --limit 1`, {
-            cwd: dir,
-        });
+        const { stdout } = await execFileAsync(
+            "gh",
+            ["pr", "list", "--state", "all", "--head", branch, "--json", "number", "--limit", "1"],
+            { cwd: dir, timeout: 15_000, maxBuffer: 1024 * 1024 },
+        );
         const parsed = JSON.parse(stdout);
         return Array.isArray(parsed) && parsed.length > 0;
     } catch (error) {
+        if (isExecTimeoutError(error)) {
+            return true;
+        }
         console.warn("Failed to check PR existence", error);
         return true;
     }
@@ -256,7 +283,11 @@ async function ensurePullRequest(dir: string, branch: string) {
     }
 
     console.log(`[codex] creating pull request for branch ${branch}`);
-    await execAsync(`gh pr create --fill --head ${branch}`, { cwd: dir });
+    await execFileAsync("gh", ["pr", "create", "--fill", "--head", branch], {
+        cwd: dir,
+        timeout: 30_000,
+        maxBuffer: 1024 * 1024,
+    });
 }
 
 async function readCommitMessage(workingDirectory: string): Promise<string | null> {
