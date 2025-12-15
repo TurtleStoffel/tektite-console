@@ -13,6 +13,24 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
+    remoteMain?:
+        | {
+              status:
+                  | "upToDate"
+                  | "behind"
+                  | "ahead"
+                  | "diverged"
+                  | "noOrigin"
+                  | "noLocalMain"
+                  | "notGit"
+                  | "unknown";
+              aheadCount?: number;
+              behindCount?: number;
+              fetched?: boolean;
+              error?: string;
+              checkedAt: string;
+          }
+        | null;
     productionClone?: {
         path: string;
         exists: boolean;
@@ -382,6 +400,16 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 {project.url}
                             </a>
                         </div>
+
+                        {project.remoteMain?.status === "behind" && (
+                            <div className="alert alert-warning py-2">
+                                <span className="text-sm">
+                                    Remote <span className="font-mono">main</span> has{" "}
+                                    {typeof project.remoteMain.behindCount === "number" ? project.remoteMain.behindCount : "new"} commit
+                                    {project.remoteMain.behindCount === 1 ? "" : "s"} you haven&apos;t pulled locally.
+                                </span>
+                            </div>
+                        )}
 
                         <div className="flex items-center gap-3">
                             <div className="badge badge-outline">{project.nodeCount} nodes</div>
