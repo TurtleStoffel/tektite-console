@@ -1,8 +1,12 @@
 {
-    "name": "bun-react-template",
+    "name": "tektite-console",
     "version": "0.1.0",
     "private": true,
     "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/TurtleStoffel/tektite-console"
+    },
     "scripts": {
         "dev": "bun --hot src/index.tsx",
         "start": "NODE_ENV=production bun src/index.tsx",

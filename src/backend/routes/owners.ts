@@ -4,9 +4,16 @@ import { randomUUID } from "node:crypto";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
+import { getConsoleRepositoryUrl } from "../consoleRepository";
 
-export function createOwnerRoutes(options: { db: Database; clonesDir: string; productionDir: string }) {
+export function createOwnerRoutes(options: {
+    db: Database;
+    clonesDir: string;
+    productionDir: string;
+}) {
     const { db, clonesDir, productionDir } = options;
+
+    const consoleRepositoryUrl = getConsoleRepositoryUrl();
 
     return {
         "/api/owners": {
@@ -80,15 +87,22 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                         throw new Error("Invalid protocol.");
                     }
                 } catch {
-                    return new Response(JSON.stringify({ error: "Project URL must be a valid http(s) URL." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Project URL must be a valid http(s) URL." }),
+                        {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 const ownerId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'project')").run(ownerId);
-                db.query("INSERT INTO projects (id, name, url) VALUES (?, ?, ?)").run(ownerId, name, url);
+                db.query("INSERT INTO projects (id, name, url) VALUES (?, ?, ?)").run(
+                    ownerId,
+                    name,
+                    url,
+                );
                 return Response.json({ id: ownerId, ownerType: "project", name, url });
             },
         },
@@ -128,7 +142,9 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     .query("SELECT COUNT(1) AS count FROM flow_nodes WHERE owner_id = ?")
                     .get(ownerId) as { count: number } | null;
                 const flowCountRow = db
-                    .query("SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?")
+                    .query(
+                        "SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?",
+                    )
                     .get(ownerId) as { count: number } | null;
 
                 const [clones, productionClone] = await Promise.all([
@@ -138,7 +154,9 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
 
                 let remoteBranch = null;
                 const preferredClonePath = clones.find((clone) => clone.isWorktree === false)?.path;
-                const remoteCheckPath = preferredClonePath ?? (productionClone.exists ? productionClone.path : clones[0]?.path);
+                const remoteCheckPath =
+                    preferredClonePath ??
+                    (productionClone.exists ? productionClone.path : clones[0]?.path);
                 if (remoteCheckPath) {
                     try {
                         remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
@@ -151,6 +169,7 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     id: row.id,
                     name: row.name,
                     url: row.url,
+                    consoleRepositoryUrl,
                     nodeCount: nodeCountRow?.count ?? 0,
                     flowCount: flowCountRow?.count ?? 0,
                     clones,
@@ -172,17 +191,24 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     });
                 }
 
-                const description = typeof body?.description === "string" ? body.description.trim() : "";
+                const description =
+                    typeof body?.description === "string" ? body.description.trim() : "";
                 if (!description) {
-                    return new Response(JSON.stringify({ error: "Idea description is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Idea description is required." }),
+                        {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 const ownerId = randomUUID();
                 db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'idea')").run(ownerId);
-                db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(ownerId, description);
+                db.query("INSERT INTO ideas (id, description) VALUES (?, ?)").run(
+                    ownerId,
+                    description,
+                );
                 return Response.json({ id: ownerId, ownerType: "idea", description });
             },
         },
@@ -190,10 +216,9 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
         "/api/ideas/:id": {
             async PUT(req: Server.Request) {
                 const ownerId = req.params.id;
-                const ownerRow = db.query("SELECT owner_type FROM owners WHERE id = ?").get(ownerId) as
-                    | { owner_type: "project" | "idea" }
-                    | null
-                    | undefined;
+                const ownerRow = db
+                    .query("SELECT owner_type FROM owners WHERE id = ?")
+                    .get(ownerId) as { owner_type: "project" | "idea" } | null | undefined;
                 if (!ownerRow || ownerRow.owner_type !== "idea") {
                     return new Response(JSON.stringify({ error: "Idea not found." }), {
                         status: 404,
@@ -211,12 +236,16 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     });
                 }
 
-                const description = typeof body?.description === "string" ? body.description.trim() : "";
+                const description =
+                    typeof body?.description === "string" ? body.description.trim() : "";
                 if (!description) {
-                    return new Response(JSON.stringify({ error: "Idea description is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Idea description is required." }),
+                        {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 db.query("UPDATE ideas SET description = ? WHERE id = ?").run(description, ownerId);
