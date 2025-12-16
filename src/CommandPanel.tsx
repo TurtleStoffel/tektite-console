@@ -9,12 +9,43 @@ type StreamMessage =
     | { type: "thread"; threadId?: string | null }
     | { type: "item"; eventType: string; item: unknown };
 
+type RunStatus = "starting" | "running" | "done" | "error" | "cancelled";
+
+type CommandRun = {
+    id: string;
+    command: string;
+    repoUrl: string;
+    status: RunStatus;
+    message: string;
+    threadId?: string | null;
+    startedAt: number;
+    finishedAt?: number;
+};
+
+function createRunStatusBadge(status: RunStatus) {
+    const base = "badge badge-sm";
+
+    if (status === "running" || status === "starting") {
+        return `${base} badge-info`;
+    }
+
+    if (status === "done") {
+        return `${base} badge-success`;
+    }
+
+    if (status === "cancelled") {
+        return `${base} badge-ghost`;
+    }
+
+    return `${base} badge-error`;
+}
+
 export function CommandPanel() {
     const [commandInput, setCommandInput] = useState("");
-    const [executionMessage, setExecutionMessage] = useState<string | null>(null);
-    const [isExecuting, setIsExecuting] = useState(false);
+    const [validationMessage, setValidationMessage] = useState<string | null>(null);
+    const [runs, setRuns] = useState<CommandRun[]>([]);
     const [selectedRepoUrl, setSelectedRepoUrl] = useState<string | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+    const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
 
     useEffect(() => {
         return subscribeSelectedRepo(({ url }) => setSelectedRepoUrl(url));
@@ -22,28 +53,57 @@ export function CommandPanel() {
 
     useEffect(() => {
         return () => {
-            abortControllerRef.current?.abort();
+            for (const controller of abortControllersRef.current.values()) {
+                controller.abort();
+            }
+            abortControllersRef.current.clear();
         };
     }, []);
+
+    const updateRun = (runId: string, patch: Partial<CommandRun>) => {
+        setRuns((prevRuns) => prevRuns.map((run) => (run.id === runId ? { ...run, ...patch } : run)));
+    };
+
+    const cancelRun = (runId: string) => {
+        const controller = abortControllersRef.current.get(runId);
+        if (!controller) return;
+        controller.abort();
+        updateRun(runId, { status: "cancelled", message: "Execution cancelled.", finishedAt: Date.now() });
+        console.log(`[command-panel] cancelled run ${runId}`);
+    };
 
     const handleExecute = async () => {
         const trimmedCommand = commandInput.trim();
         if (!trimmedCommand) {
-            setExecutionMessage("Enter a command before executing.");
+            setValidationMessage("Enter a command before executing.");
             return;
         }
 
         if (!selectedRepoUrl) {
-            setExecutionMessage("Select a repository before executing.");
+            setValidationMessage("Select a repository before executing.");
             return;
         }
 
-        setIsExecuting(true);
-        setExecutionMessage("Preparing workspace and starting Codex…");
+        setValidationMessage(null);
 
-        abortControllerRef.current?.abort();
+        const runId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const startedAt = Date.now();
+
+        setRuns((prevRuns) => [
+            {
+                id: runId,
+                command: trimmedCommand,
+                repoUrl: selectedRepoUrl,
+                status: "starting",
+                message: "Preparing workspace and starting Codex…",
+                startedAt,
+            },
+            ...prevRuns,
+        ]);
+
         const abortController = new AbortController();
-        abortControllerRef.current = abortController;
+        abortControllersRef.current.set(runId, abortController);
+        console.log(`[command-panel] starting run ${runId} for ${selectedRepoUrl}`);
 
         try {
             const res = await fetch("/api/execute", {
@@ -60,8 +120,25 @@ export function CommandPanel() {
             });
 
             if (!res.ok) {
-                const errorBody = await res.json().catch(() => ({}));
-                const message = errorBody?.error || `Execution failed with status ${res.status}`;
+                const errorBody = await res.text();
+                let message = `Execution failed with status ${res.status}`;
+                if (errorBody.trim()) {
+                    try {
+                        const parsed = JSON.parse(errorBody) as unknown;
+                        if (
+                            parsed &&
+                            typeof parsed === "object" &&
+                            "error" in parsed &&
+                            typeof (parsed as { error?: unknown }).error === "string"
+                        ) {
+                            message = (parsed as { error: string }).error;
+                        } else {
+                            message = errorBody;
+                        }
+                    } catch {
+                        message = errorBody;
+                    }
+                }
                 throw new Error(message);
             }
 
@@ -74,6 +151,8 @@ export function CommandPanel() {
             let buffer = "";
             let latestMessage = "";
             let sawDone = false;
+
+            updateRun(runId, { status: "running" });
 
             const processEvent = (rawEvent: string) => {
                 const dataLines = rawEvent
@@ -91,9 +170,16 @@ export function CommandPanel() {
                     throw new Error(payload.error || "Codex run failed.");
                 }
 
+                if (payload.type === "thread") {
+                    if (typeof payload.threadId !== "undefined") {
+                        updateRun(runId, { threadId: payload.threadId ?? null });
+                    }
+                    return;
+                }
+
                 if (payload.type === "agent_message" && typeof payload.text === "string") {
                     latestMessage = payload.text;
-                    setExecutionMessage(latestMessage);
+                    updateRun(runId, { message: latestMessage });
                 }
 
                 if (payload.type === "done" && typeof payload.response === "string") {
@@ -127,25 +213,35 @@ export function CommandPanel() {
             }
 
             if (!abortController.signal.aborted && !sawDone && buffer.trim()) {
-                setExecutionMessage(latestMessage || "Connection closed before Codex finished.");
+                updateRun(runId, {
+                    status: "error",
+                    message: latestMessage || "Connection closed before Codex finished.",
+                    finishedAt: Date.now(),
+                });
                 return;
             }
 
-            setExecutionMessage(latestMessage || "Codex run completed.");
+            updateRun(runId, {
+                status: "done",
+                message: latestMessage || "Codex run completed.",
+                finishedAt: Date.now(),
+            });
+            console.log(`[command-panel] finished run ${runId}`);
         } catch (error) {
             if (abortController.signal.aborted) {
-                setExecutionMessage("Execution cancelled.");
+                updateRun(runId, { status: "cancelled", message: "Execution cancelled.", finishedAt: Date.now() });
                 return;
             }
             const message = error instanceof Error ? error.message : "Unexpected error while executing.";
-            setExecutionMessage(`Error: ${message}`);
+            updateRun(runId, { status: "error", message: `Error: ${message}`, finishedAt: Date.now() });
+            console.warn(`[command-panel] run ${runId} failed`, error);
         } finally {
-            setIsExecuting(false);
-            if (abortControllerRef.current === abortController) {
-                abortControllerRef.current = null;
-            }
+            abortControllersRef.current.delete(runId);
         }
     };
+
+    const runningCount = runs.filter((run) => run.status === "running" || run.status === "starting").length;
+    const canExecute = Boolean(commandInput.trim()) && Boolean(selectedRepoUrl);
 
     return (
         <>
@@ -173,23 +269,69 @@ export function CommandPanel() {
                     onChange={(event) => setCommandInput(event.target.value)}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
-                    <button className="btn btn-primary" onClick={handleExecute} disabled={isExecuting}>
-                        {isExecuting ? "Executing…" : "Execute"}
+                    <button className="btn btn-primary" onClick={handleExecute} disabled={!canExecute}>
+                        Execute{runningCount > 0 ? ` (${runningCount} running)` : ""}
                     </button>
-                    {isExecuting && (
+                    {runs.length > 0 && (
                         <button
                             className="btn btn-ghost"
                             type="button"
                             onClick={() => {
-                                abortControllerRef.current?.abort();
-                                setExecutionMessage("Cancelling…");
+                                setRuns([]);
+                                for (const controller of abortControllersRef.current.values()) {
+                                    controller.abort();
+                                }
+                                abortControllersRef.current.clear();
+                                setValidationMessage(null);
+                                console.log("[command-panel] cleared all runs");
                             }}
                         >
-                            Cancel
+                            Clear
                         </button>
                     )}
                 </div>
-                {executionMessage && <p className="text-sm text-base-content/70">{executionMessage}</p>}
+                {validationMessage && <p className="text-sm text-base-content/70">{validationMessage}</p>}
+                {runs.length > 0 && (
+                    <div className="space-y-2">
+                        {runs.map((run) => {
+                            const isRunActive = run.status === "starting" || run.status === "running";
+                            return (
+                                <div key={run.id} className="card card-compact bg-base-200/60">
+                                    <div className="card-body">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className={createRunStatusBadge(run.status)}>{run.status}</span>
+                                                    <span className="font-mono text-xs text-base-content/70 break-all">
+                                                        {run.repoUrl}
+                                                    </span>
+                                                </div>
+                                                <div className="font-mono text-sm break-words">{run.command}</div>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {run.threadId && (
+                                                    <span className="font-mono text-xs text-base-content/60">
+                                                        thread: {run.threadId}
+                                                    </span>
+                                                )}
+                                                {isRunActive && (
+                                                    <button
+                                                        className="btn btn-xs btn-ghost"
+                                                        type="button"
+                                                        onClick={() => cancelRun(run.id)}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-base-content/70 whitespace-pre-wrap">{run.message}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </>
     );
