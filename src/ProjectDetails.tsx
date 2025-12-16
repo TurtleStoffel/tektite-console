@@ -70,6 +70,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [error, setError] = useState<string | null>(null);
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
+    const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
     const [startingProduction, setStartingProduction] = useState(false);
     const [productionLogsOpen, setProductionLogsOpen] = useState(false);
     const [productionLogs, setProductionLogs] = useState<string[] | null>(null);
@@ -291,6 +292,27 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const openInVSCode = async (folderPath: string) => {
+        setActionError(null);
+        setOpeningVSCodePath(folderPath);
+        try {
+            const res = await fetch("/api/editor/open-vscode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: folderPath }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to open VSCode.");
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to open VSCode.";
+            setActionError(message);
+        } finally {
+            setOpeningVSCodePath(null);
+        }
+    };
+
     const refreshDevLogs = async (worktreePath: string) => {
         try {
             const res = await fetch(`/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`);
@@ -463,6 +485,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         const showRunDev =
                                             Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
                                         const isStarting = startingDevKey === key;
+                                        const isOpeningVSCode = openingVSCodePath === clone.path;
                                         const devLogsOpen = devLogsTarget?.key === key;
 
                                         return (
@@ -533,6 +556,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                                 port {clone.port}
                                                             </div>
                                                         )}
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline btn-sm"
+                                                            disabled={Boolean(openingVSCodePath)}
+                                                            onClick={() => void openInVSCode(clone.path)}
+                                                        >
+                                                            {isOpeningVSCode && (
+                                                                <span className="loading loading-spinner loading-xs" />
+                                                            )}
+                                                            {isOpeningVSCode ? "Opening" : "Open VSCode"}
+                                                        </button>
                                                         {clone.isWorktree && (
                                                             <button
                                                                 type="button"
@@ -687,6 +721,21 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 {startingProduction && <span className="loading loading-spinner loading-xs" />}
                                                 {startingProduction ? "Starting" : "Run production"}
                                             </button>
+                                            {project.productionClone?.path && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-outline btn-sm"
+                                                    disabled={Boolean(openingVSCodePath)}
+                                                    onClick={() => void openInVSCode(project.productionClone?.path ?? "")}
+                                                >
+                                                    {openingVSCodePath === project.productionClone.path && (
+                                                        <span className="loading loading-spinner loading-xs" />
+                                                    )}
+                                                    {openingVSCodePath === project.productionClone.path
+                                                        ? "Opening"
+                                                        : "Open VSCode"}
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 className="btn btn-outline btn-sm"

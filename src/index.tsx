@@ -10,6 +10,7 @@ import { helloRoutes } from "./backend/routes/hello";
 import { createOwnerRoutes } from "./backend/routes/owners";
 import { createDevServerRoutes } from "./backend/routes/devServer";
 import { createProductionServerRoutes } from "./backend/routes/productionServer";
+import { createEditorRoutes } from "./backend/routes/editor";
 import { envRoutes } from "./backend/routes/env";
 import { TEKTITE_PORT_FILE } from "./constants";
 import { findFirstFreePort } from "./backend/port";
@@ -64,6 +65,7 @@ const server = serve({
         ...createExecuteRoutes({ clonesDir }),
         ...createDevServerRoutes({ clonesDir }),
         ...createProductionServerRoutes({ productionDir }),
+        ...createEditorRoutes({ clonesDir, productionDir }),
 
         // Serve index.html for all unmatched routes.
         "/*": index,
