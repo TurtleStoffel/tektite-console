@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
@@ -154,11 +155,18 @@ export function createOwnerRoutes(options: {
 
                 let remoteBranch = null;
 
+                const serverCwd = process.cwd();
+                const serverCwdClone = clones.find(
+                    (clone) => serverCwd === clone.path || serverCwd.startsWith(clone.path + path.sep),
+                );
                 const inUseClone = clones.find((clone) => clone.inUse);
+                const anyWorktreeClone = clones.find((clone) => clone.isWorktree);
                 const nonWorktreeClone = clones.find((clone) => clone.isWorktree === false);
 
                 const remoteCheckChoice =
+                    (serverCwdClone && { path: serverCwdClone.path, reason: "serverCwd" }) ||
                     (inUseClone && { path: inUseClone.path, reason: "inUse" }) ||
+                    (anyWorktreeClone && { path: anyWorktreeClone.path, reason: "worktree" }) ||
                     (nonWorktreeClone && { path: nonWorktreeClone.path, reason: "nonWorktree" }) ||
                     (productionClone.exists && { path: productionClone.path, reason: "productionClone" }) ||
                     (clones[0]?.path && { path: clones[0].path, reason: "firstClone" }) ||
@@ -171,6 +179,7 @@ export function createOwnerRoutes(options: {
                         repositoryUrl: row.url,
                         remoteCheckPath,
                         reason: remoteCheckChoice?.reason,
+                        serverCwd,
                         cloneCount: clones.length,
                         productionCloneExists: productionClone.exists,
                     });

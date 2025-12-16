@@ -57,6 +57,18 @@ function logWarn(message: string, meta?: Record<string, unknown>) {
 
 async function repoCacheKey(dir: string): Promise<string> {
     try {
+        const { stdout } = await execAsync("git rev-parse --show-toplevel", {
+            cwd: dir,
+            timeout: 1500,
+            maxBuffer: 1024 * 1024,
+        });
+        const key = stdout.trim();
+        if (key) return `toplevel:${key}`;
+    } catch {
+        // Fall back to absolute git dir.
+    }
+
+    try {
         const { stdout } = await execAsync("git rev-parse --absolute-git-dir", {
             cwd: dir,
             timeout: 1500,
@@ -76,18 +88,6 @@ async function repoCacheKey(dir: string): Promise<string> {
         });
         const key = stdout.trim();
         if (key) return `git-common-dir:${key}`;
-    } catch {
-        // Fall back to toplevel.
-    }
-
-    try {
-        const { stdout } = await execAsync("git rev-parse --show-toplevel", {
-            cwd: dir,
-            timeout: 1500,
-            maxBuffer: 1024 * 1024,
-        });
-        const key = stdout.trim();
-        if (key) return `toplevel:${key}`;
     } catch {
         // Fall back to the provided directory.
     }

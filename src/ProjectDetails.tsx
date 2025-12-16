@@ -285,6 +285,14 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             </a>
                         </div>
 
+                        {project.remoteBranch?.status === "upToDate" && project.remoteBranch.fetched === true && (
+                            <div className="alert alert-success py-2">
+                                <span className="text-sm">
+                                    Up to date with <span className="font-mono">origin</span>.
+                                </span>
+                            </div>
+                        )}
+
                         {typeof project.remoteBranch?.behindCount === "number" &&
                             project.remoteBranch.behindCount > 0 &&
                             project.remoteBranch.fetched === true &&
