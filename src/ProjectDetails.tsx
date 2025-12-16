@@ -287,6 +287,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
                         {typeof project.remoteBranch?.behindCount === "number" &&
                             project.remoteBranch.behindCount > 0 &&
+                            project.remoteBranch.fetched === true &&
                             (project.remoteBranch.status === "behind" || project.remoteBranch.status === "diverged") && (
                             <div className="alert alert-warning py-2">
                                 <span className="text-sm">

@@ -153,14 +153,31 @@ export function createOwnerRoutes(options: {
                 ]);
 
                 let remoteBranch = null;
-                const preferredClonePath = clones.find((clone) => clone.isWorktree === false)?.path;
-                const remoteCheckPath =
-                    preferredClonePath ??
-                    (productionClone.exists ? productionClone.path : clones[0]?.path);
+
+                const inUseClone = clones.find((clone) => clone.inUse);
+                const nonWorktreeClone = clones.find((clone) => clone.isWorktree === false);
+
+                const remoteCheckChoice =
+                    (inUseClone && { path: inUseClone.path, reason: "inUse" }) ||
+                    (nonWorktreeClone && { path: nonWorktreeClone.path, reason: "nonWorktree" }) ||
+                    (productionClone.exists && { path: productionClone.path, reason: "productionClone" }) ||
+                    (clones[0]?.path && { path: clones[0].path, reason: "firstClone" }) ||
+                    null;
+
+                const remoteCheckPath = remoteCheckChoice?.path ?? null;
                 if (remoteCheckPath) {
+                    console.log("[remote-updates] selecting repo for remote check", {
+                        ownerId,
+                        repositoryUrl: row.url,
+                        remoteCheckPath,
+                        reason: remoteCheckChoice?.reason,
+                        cloneCount: clones.length,
+                        productionCloneExists: productionClone.exists,
+                    });
                     try {
                         remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
-                    } catch {
+                    } catch (error) {
+                        console.warn("[remote-updates] remote check failed", { ownerId, remoteCheckPath, error });
                         remoteBranch = null;
                     }
                 }
