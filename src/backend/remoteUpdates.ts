@@ -1,7 +1,9 @@
 import { execAsync } from "./exec";
 
-export type RemoteMainUpdateStatus = {
-    status: "upToDate" | "behind" | "ahead" | "diverged" | "noOrigin" | "noLocalMain" | "notGit" | "unknown";
+export type RemoteBranchUpdateStatus = {
+    status: "upToDate" | "behind" | "ahead" | "diverged" | "noUpstream" | "notGit" | "unknown";
+    branch?: string;
+    upstream?: string | null;
     aheadCount?: number;
     behindCount?: number;
     fetched?: boolean;
@@ -10,7 +12,7 @@ export type RemoteMainUpdateStatus = {
 };
 
 type CacheEntry = {
-    value: RemoteMainUpdateStatus;
+    value: RemoteBranchUpdateStatus;
     expiresAt: number;
 };
 
@@ -69,19 +71,19 @@ async function hasRef(dir: string, ref: string) {
     }
 }
 
-async function computeAheadBehind(dir: string) {
-    const { stdout } = await execAsync("git rev-list --left-right --count main...origin/main", {
+async function computeAheadBehindAgainstUpstream(dir: string) {
+    const { stdout } = await execAsync("git rev-list --left-right --count @{u}...HEAD", {
         cwd: dir,
         timeout: 2500,
         maxBuffer: 1024 * 1024,
     });
-    const [aheadRaw, behindRaw] = stdout.trim().split(/\s+/);
+    const [behindRaw, aheadRaw] = stdout.trim().split(/\s+/);
     const aheadCount = Number.parseInt(aheadRaw ?? "0", 10) || 0;
     const behindCount = Number.parseInt(behindRaw ?? "0", 10) || 0;
     return { aheadCount, behindCount };
 }
 
-async function readRemoteMainUpdateStatus(dir: string): Promise<RemoteMainUpdateStatus> {
+async function readRemoteBranchUpdateStatus(dir: string): Promise<RemoteBranchUpdateStatus> {
     const checkedAt = new Date().toISOString();
 
     try {
@@ -95,56 +97,82 @@ async function readRemoteMainUpdateStatus(dir: string): Promise<RemoteMainUpdate
     }
 
     try {
-        await execAsync("git remote get-url origin", {
+        const { stdout } = await execAsync("git rev-parse --abbrev-ref HEAD", {
             cwd: dir,
             timeout: 1500,
             maxBuffer: 1024 * 1024,
         });
+        const branch = stdout.trim();
+        if (!branch || branch === "HEAD") {
+            return { status: "unknown", checkedAt };
+        }
+
+        let upstream: string | null = null;
+        try {
+            const { stdout: upstreamOut } = await execAsync("git rev-parse --abbrev-ref --symbolic-full-name @{u}", {
+                cwd: dir,
+                timeout: 1500,
+                maxBuffer: 1024 * 1024,
+            });
+            upstream = upstreamOut.trim() || null;
+        } catch {
+            upstream = null;
+        }
+
+        if (!upstream) {
+            return { status: "noUpstream", branch, upstream: null, checkedAt };
+        }
+
+        let fetched = false;
+        try {
+            const [remote, ...rest] = upstream.split("/");
+            const upstreamBranch = rest.join("/");
+            if (remote && upstreamBranch) {
+                await execAsync(
+                    `git fetch --quiet --prune ${JSON.stringify(remote)} ${JSON.stringify(upstreamBranch)}`,
+                    {
+                        cwd: dir,
+                        timeout: 8000,
+                        maxBuffer: 1024 * 1024,
+                    },
+                );
+            } else {
+                await execAsync("git fetch --quiet --prune", {
+                    cwd: dir,
+                    timeout: 8000,
+                    maxBuffer: 1024 * 1024,
+                });
+            }
+            fetched = true;
+        } catch {
+            fetched = false;
+        }
+
+        try {
+            const { aheadCount, behindCount } = await computeAheadBehindAgainstUpstream(dir);
+            if (aheadCount === 0 && behindCount === 0) {
+                return { status: "upToDate", branch, upstream, fetched, aheadCount, behindCount, checkedAt };
+            }
+            if (aheadCount === 0 && behindCount > 0) {
+                return { status: "behind", branch, upstream, fetched, aheadCount, behindCount, checkedAt };
+            }
+            if (aheadCount > 0 && behindCount === 0) {
+                return { status: "ahead", branch, upstream, fetched, aheadCount, behindCount, checkedAt };
+            }
+            return { status: "diverged", branch, upstream, fetched, aheadCount, behindCount, checkedAt };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to compare HEAD with upstream";
+            return { status: "unknown", branch, upstream, fetched, error: message, checkedAt };
+        }
     } catch {
-        return { status: "noOrigin", checkedAt };
-    }
-
-    const hasLocalMain = await hasRef(dir, "refs/heads/main");
-    if (!hasLocalMain) {
-        return { status: "noLocalMain", checkedAt };
-    }
-
-    let fetched = false;
-    try {
-        await execAsync("git fetch --quiet origin main", {
-            cwd: dir,
-            timeout: 8000,
-            maxBuffer: 1024 * 1024,
-        });
-        fetched = true;
-    } catch {
-        fetched = false;
-    }
-
-    const hasOriginMain = await hasRef(dir, "refs/remotes/origin/main");
-    if (!hasOriginMain) {
-        return { status: "unknown", fetched, checkedAt };
-    }
-
-    try {
-        const { aheadCount, behindCount } = await computeAheadBehind(dir);
-        if (aheadCount === 0 && behindCount === 0) {
-            return { status: "upToDate", fetched, aheadCount, behindCount, checkedAt };
-        }
-        if (aheadCount === 0 && behindCount > 0) {
-            return { status: "behind", fetched, aheadCount, behindCount, checkedAt };
-        }
-        if (aheadCount > 0 && behindCount === 0) {
-            return { status: "ahead", fetched, aheadCount, behindCount, checkedAt };
-        }
-        return { status: "diverged", fetched, aheadCount, behindCount, checkedAt };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to compare main with origin/main";
-        return { status: "unknown", fetched, error: message, checkedAt };
+        return { status: "unknown", checkedAt };
     }
 }
 
-export async function getRemoteMainUpdateStatus(dir: string, options?: { ttlMs?: number }): Promise<RemoteMainUpdateStatus> {
+export async function getRemoteBranchUpdateStatus(
+    dir: string,
+    options?: { ttlMs?: number },
+): Promise<RemoteBranchUpdateStatus> {
     const ttlMs = options?.ttlMs ?? 60_000;
     const key = await repoCacheKey(dir);
     const now = Date.now();
@@ -153,7 +181,7 @@ export async function getRemoteMainUpdateStatus(dir: string, options?: { ttlMs?:
         return cached.value;
     }
 
-    const value = await readRemoteMainUpdateStatus(dir);
+    const value = await readRemoteBranchUpdateStatus(dir);
     cache.set(key, { value, expiresAt: now + ttlMs });
     return value;
 }

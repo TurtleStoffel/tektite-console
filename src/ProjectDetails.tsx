@@ -13,17 +13,18 @@ type ProjectDetailsPayload = {
     url: string;
     nodeCount: number;
     flowCount: number;
-    remoteMain?:
+    remoteBranch?:
         | {
               status:
                   | "upToDate"
                   | "behind"
                   | "ahead"
                   | "diverged"
-                  | "noOrigin"
-                  | "noLocalMain"
+                  | "noUpstream"
                   | "notGit"
                   | "unknown";
+              branch?: string;
+              upstream?: string | null;
               aheadCount?: number;
               behindCount?: number;
               fetched?: boolean;
@@ -401,15 +402,18 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             </a>
                         </div>
 
-                        {project.remoteMain?.status === "behind" && (
+                        {typeof project.remoteBranch?.behindCount === "number" &&
+                            project.remoteBranch.behindCount > 0 &&
+                            (project.remoteBranch.status === "behind" || project.remoteBranch.status === "diverged") && (
                             <div className="alert alert-warning py-2">
                                 <span className="text-sm">
-                                    Remote <span className="font-mono">main</span> has{" "}
-                                    {typeof project.remoteMain.behindCount === "number" ? project.remoteMain.behindCount : "new"} commit
-                                    {project.remoteMain.behindCount === 1 ? "" : "s"} you haven&apos;t pulled locally.
+                                    Remote has {project.remoteBranch.behindCount} commit
+                                    {project.remoteBranch.behindCount === 1 ? "" : "s"} on{" "}
+                                    <span className="font-mono">{project.remoteBranch.branch ?? "current branch"}</span> you haven&apos;t
+                                    pulled locally.
                                 </span>
                             </div>
-                        )}
+	                        )}
 
                         <div className="flex items-center gap-3">
                             <div className="badge badge-outline">{project.nodeCount} nodes</div>

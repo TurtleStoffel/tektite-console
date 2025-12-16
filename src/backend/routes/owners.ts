@@ -3,7 +3,7 @@ import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getProductionCloneInfo } from "../productionClone";
-import { getRemoteMainUpdateStatus } from "../remoteUpdates";
+import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
 
 export function createOwnerRoutes(options: { db: Database; clonesDir: string; productionDir: string }) {
     const { db, clonesDir, productionDir } = options;
@@ -136,14 +136,14 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     getProductionCloneInfo({ repositoryUrl: row.url, productionDir }),
                 ]);
 
-                let remoteMain = null;
+                let remoteBranch = null;
                 const preferredClonePath = clones.find((clone) => clone.isWorktree === false)?.path;
                 const remoteCheckPath = preferredClonePath ?? (productionClone.exists ? productionClone.path : clones[0]?.path);
                 if (remoteCheckPath) {
                     try {
-                        remoteMain = await getRemoteMainUpdateStatus(remoteCheckPath);
+                        remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
                     } catch {
-                        remoteMain = null;
+                        remoteBranch = null;
                     }
                 }
 
@@ -155,7 +155,7 @@ export function createOwnerRoutes(options: { db: Database; clonesDir: string; pr
                     flowCount: flowCountRow?.count ?? 0,
                     clones,
                     productionClone,
-                    remoteMain,
+                    remoteBranch,
                 });
             },
         },
