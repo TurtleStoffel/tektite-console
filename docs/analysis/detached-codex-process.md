@@ -1,131 +1,226 @@
-# Codex Process Safety & Logging Strategy
+# Codex Process Safety & Control Strategy
 
 (for Bun-managed detached processes)
 
-## 1. Problem Summary
+## 1. Constraints / Design Decisions
 
-When launching long-running Codex processes from a Bun server, we want:
+* Codex processes are started from a Bun process.
+* Each Codex process:
 
-1. Codex to outlive the Bun process (`detached: true` + `proc.unref()`),
-2. Logs to remain readable after Bun restarts,
-3. Safe termination of Codex processes later, without risking killing unrelated PIDs.
+  * must outlive the Bun process (detached, not tied to parent lifetime),
+  * is identified by a PID and a unique marker stored in **the database**,
+  * writes its history/logs into `~/.codex/` (no custom log files).
+* On restart:
+
+  * Bun should be able to safely identify which PIDs belong to “our” Codex jobs,
+  * logs should be read from Codex history files in `~/.codex/`.
 
 ---
 
-## 2. Detached Process Model
+## 2. Starting a Codex Process
 
-Launching Codex:
+When starting Codex, generate a unique job marker and store it together with the PID in the DB.
+
+Example:
 
 ```ts
-const proc = Bun.spawn({
-  cmd: ["codex-binary", "--flags"],
-  detached: true,
-  stdin: "ignore",
-  stdout: "ignore",
-  stderr: "ignore",
-});
-proc.unref();
+// Pseudo-code / TypeScript-ish
+
+type CodexJobRecord = {
+  id: string;      // internal DB id
+  pid: number;
+  jobId: string;   // unique marker passed to Codex
+  createdAt: Date;
+};
+
+async function startCodexJob(): Promise<CodexJobRecord> {
+  const jobId = crypto.randomUUID();
+  const marker = `--supervisor-id=${jobId}`;
+
+  const proc = Bun.spawn({
+    cmd: ["codex-binary", marker, /* other flags */],
+    detached: true,
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+
+  proc.unref();
+
+  const record: CodexJobRecord = {
+    id: crypto.randomUUID(),
+    pid: proc.pid,
+    jobId,
+    createdAt: new Date(),
+  };
+
+  // Store in DB (instead of file)
+  await db.insert("codex_jobs", record);
+
+  return record;
+}
 ```
 
-This ensures Codex continues running even if the Bun process exits.
+Key points:
+
+* `detached: true` + `proc.unref()` allow Codex to keep running after the Bun process exits.
+* `jobId` is a unique marker that we also pass on the Codex command line.
+* `{ pid, jobId }` are stored in the **database**, not on disk.
 
 ---
 
-## 3. Logging After Restart
+## 3. Reading Codex Logs / History
 
-You cannot reattach to a process’s stdout/stderr using only its PID.
-Therefore, Codex must log to a file or external sink independent of Bun.
+Codex history lives in `~/.codex/`. The Bun side does **not** need to pipe stdout/stderr; it just needs to:
 
-Recommended approach:
+* know which Codex job it’s dealing with,
+* read the relevant history from `~/.codex/`.
 
-* Generate a unique log file per Codex instance.
-* Store `{ pid, logPath }` in a metadata store.
-* On Bun restart, read or tail the log file directly.
+Depending on how Codex writes history, you might:
 
----
+* derive a filename or path from the `jobId`, or
+* query Codex’s own metadata files to map job → history.
 
-## 4. Preventing Accidental Kill Operations
-
-Killing by PID alone is unsafe because:
-
-* The PID might belong to another process.
-* The PID might have been reused by the OS.
-
-### Solution: Tag processes on launch
-
-Add a unique marker to the Codex command line:
+Example (conceptual):
 
 ```ts
-const jobId = crypto.randomUUID();
-const marker = `--supervisor-id=${jobId}`;
+import { join } from "node:path";
+import { homedir } from "node:os";
 
-const proc = Bun.spawn({
-  cmd: ["codex-binary", marker],
-  detached: true
-});
-proc.unref();
+async function readCodexHistory(jobId: string): Promise<string> {
+  const base = join(homedir(), ".codex");
+  // This mapping depends on how Codex names its files:
+  const historyPath = join(base, "history", `${jobId}.log`);
 
-// Store { pid, jobId, logPath }
+  const file = Bun.file(historyPath);
+  if (!(await file.exists())) {
+    throw new Error(`No history found for job ${jobId}`);
+  }
+
+  return await file.text();
+}
 ```
 
-### Verification before kill
+You can now use:
 
-To confirm that a PID still corresponds to **your** Codex process:
-
-```bash
-ps -p <pid> -o command=
-```
-
-Check both:
-
-* The command references the Codex binary.
-* It contains the exact `--supervisor-id=<jobId>` marker.
-
-If both conditions match, the process is safe to kill.
+1. DB to resolve `{ pid, jobId }`
+2. `jobId` to read history from `~/.codex/`.
 
 ---
 
-## 5. Safe Kill Procedure
+## 4. Safely Killing a Codex Process
 
-1. Load stored metadata `{ pid, jobId }`.
-2. Inspect the command line for that PID.
-3. Verify it contains both:
+You don’t want to kill arbitrary PIDs that might have been reused.
+Instead, you:
 
-   * the Codex binary,
-   * the unique jobId marker.
-4. Only then run:
+1. Load `{ pid, jobId }` from the DB.
+2. Confirm the PID still corresponds to a Codex process **with that marker**.
+3. Only then send a kill signal.
+
+### 4.1 Checking the PID and Marker
+
+Use `ps` to inspect the command line:
 
 ```ts
-process.kill(pid, "SIGTERM");
+function commandLineForPid(pid: number): string | null {
+  const res = Bun.spawnSync({
+    cmd: ["ps", "-p", String(pid), "-o", "command="],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  if (!res.success) return null;
+
+  const cmdline = new TextDecoder().decode(res.stdout).trim();
+  return cmdline || null;
+}
+
+function isOurCodexProcess(pid: number, jobId: string): boolean {
+  const cmdline = commandLineForPid(pid);
+  if (!cmdline) return false;
+
+  const marker = `--supervisor-id=${jobId}`;
+
+  // Adjust "codex-binary" to your actual executable name
+  const isCodex = cmdline.includes("codex-binary");
+  const hasMarker = cmdline.includes(marker);
+
+  return isCodex && hasMarker;
+}
 ```
 
-This protects against:
+### 4.2 Safe Kill Procedure
 
-* Killing unrelated system processes
-* Killing Codex processes not started by your supervisor
-* PID reuse errors
+```ts
+async function safeKillCodexJob(jobDbId: string): Promise<boolean> {
+  const job = await db.find<CodexJobRecord>("codex_jobs", jobDbId);
+  if (!job) return false;
+
+  const { pid, jobId } = job;
+
+  if (!isOurCodexProcess(pid, jobId)) {
+    console.warn(`Refusing to kill PID ${pid}: not our Codex job (${jobId})`);
+    return false;
+  }
+
+  try {
+    process.kill(pid, "SIGTERM");
+    // Optionally mark job as "stopping" / "stopped" in DB
+    await db.update("codex_jobs", jobDbId, { stoppedAt: new Date() });
+    return true;
+  } catch (err) {
+    console.error("Failed to kill Codex job", jobDbId, "PID", pid, err);
+    return false;
+  }
+}
+```
+
+This ensures:
+
+* You only kill processes that:
+
+  * are still running, and
+  * look like your Codex binary, and
+  * still carry your `--supervisor-id=<jobId>` marker.
+* DB stays the source of truth for which jobs exist.
 
 ---
 
-## 6. Optional Hardening
+## 5. Flow Summary
 
-* Compare expected start time vs process start time.
-* Have Codex expose a status port/socket echoing the same jobId.
-* Run a persistent supervisor process that tracks children directly.
+**On start:**
+
+1. Generate `jobId`.
+2. Start Codex with `detached: true`, `proc.unref()`, and `--supervisor-id=<jobId>`.
+3. Store `{ pid, jobId, createdAt, ... }` in your database.
+
+**On restart / when inspecting jobs:**
+
+1. Load job record from DB.
+2. Use `jobId` to read Codex history from `~/.codex/` (based on how Codex structures its history).
+
+**On kill:**
+
+1. Load job record `{ pid, jobId }` from DB.
+2. Check the process command line for:
+
+   * Codex binary name,
+   * `--supervisor-id=<jobId>` marker.
+3. If both match, `process.kill(pid, "SIGTERM")`.
+4. Update job status in DB.
 
 ---
 
-## 7. Outcome
+## 6. Result
 
-Using:
+With:
 
-* Detached processes
-* File-based logging
-* Unique supervisor IDs
-* Command-line verification before kill
+* PID + job marker stored in the **database**,
+* Codex history read directly from `~/.codex/`,
+* strict verification before killing a PID,
 
-You get a robust, restart-safe system where:
+you get:
 
-* Codex continues running after the Bun parent exits,
-* Logs remain persistent and readable,
-* You avoid killing the wrong process.
+* Codex processes that survive Bun restarts,
+* log/history access that’s independent of Bun’s lifetime,
+* safe, DB-driven control over Codex processes without risking killing unrelated PIDs.
