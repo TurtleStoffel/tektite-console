@@ -8,7 +8,7 @@
         "url": "https://github.com/TurtleStoffel/tektite-console"
     },
     "scripts": {
-        "dev": "NODE_ENV=development bun --hot src/index.tsx",
+        "dev": "NODE_ENV=development env -u DATA_DIR -u CLONES_DIR bun --hot src/index.tsx",
         "start": "NODE_ENV=production bun src/index.tsx",
         "build": "bun run build.ts",
         "fmt": "biome format --write ."
