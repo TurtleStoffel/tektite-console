@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import GithubRepoCard from "./GithubRepoCard";
 
 type MainContentProps = {
     drawerToggleId: string;
@@ -32,7 +33,9 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
             try {
                 const res = await fetch("/api/owners");
                 const payload = await res.json().catch(() => ({}));
-                const list = Array.isArray(payload?.owners) ? (payload.owners as OwnerSummary[]) : [];
+                const list = Array.isArray(payload?.owners)
+                    ? (payload.owners as OwnerSummary[])
+                    : [];
                 if (!res.ok) {
                     throw new Error(payload?.error || "Failed to load projects.");
                 }
@@ -70,6 +73,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     </label>
                 </div>
             </div>
+
+            <GithubRepoCard />
 
             {ownersError ? (
                 <div className="alert alert-error text-left">
@@ -110,7 +115,9 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                                         <div className="btn btn-outline btn-sm">View</div>
                                     </div>
                                     {url ? (
-                                        <div className="text-sm text-base-content/70 truncate">{url}</div>
+                                        <div className="text-sm text-base-content/70 truncate">
+                                            {url}
+                                        </div>
                                     ) : null}
                                 </div>
                             </Link>
