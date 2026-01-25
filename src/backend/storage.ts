@@ -62,6 +62,13 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     db.run(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_flow_edges_unique_key ON flow_edges(flow_id, key)
     `);
+    db.run(`
+        CREATE TABLE IF NOT EXISTS documents (
+            id TEXT PRIMARY KEY,
+            project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+            markdown TEXT NOT NULL
+        )
+    `);
 
     return { db };
 }

@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import CommandPanel from "./CommandPanel";
+import DocumentsPage from "./DocumentsPage";
 import Drawer from "./Drawer";
 import EnvIndicator from "./EnvIndicator";
 import MainContent from "./MainContent";
@@ -51,6 +52,10 @@ export function App() {
                                 element={<RepositoriesPage drawerToggleId={drawerToggleId} />}
                             />
                             <Route
+                                path="/documents"
+                                element={<DocumentsPage drawerToggleId={drawerToggleId} />}
+                            />
+                            <Route
                                 path="/projects/:id"
                                 element={<ProjectDetails drawerToggleId={drawerToggleId} />}
                             />
@@ -78,6 +83,9 @@ export function App() {
                                 </li>
                                 <li>
                                     <Link to="/repositories">Repositories</Link>
+                                </li>
+                                <li>
+                                    <Link to="/documents">Documents</Link>
                                 </li>
                             </ul>
                         </aside>

@@ -4,6 +4,7 @@ import { serve } from "bun";
 import { ensureClonesDir } from "./backend/git";
 import { findFirstFreePort } from "./backend/port";
 import { createDevServerRoutes } from "./backend/routes/devServer";
+import { createDocumentRoutes } from "./backend/routes/documents";
 import { createEditorRoutes } from "./backend/routes/editor";
 import { envRoutes } from "./backend/routes/env";
 import { createExecuteRoutes } from "./backend/routes/execute";
@@ -61,6 +62,7 @@ const server = serve({
         ...envRoutes,
         ...createGithubRoutes(),
         ...createFlowRoutes({ db }),
+        ...createDocumentRoutes({ db }),
         ...createProjectRoutes({ db, clonesDir, productionDir }),
         ...createRepositoryRoutes({ db }),
         ...helloRoutes,
