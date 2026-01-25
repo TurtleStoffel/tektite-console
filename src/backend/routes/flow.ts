@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
-import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
+import type { Server } from "bun";
 
 export function createFlowRoutes(options: { db: Database }) {
     const { db } = options;
@@ -18,8 +18,8 @@ export function createFlowRoutes(options: { db: Database }) {
                 }
 
                 const nodeRows = db
-                    .query("SELECT node_json, owner_id FROM flow_nodes WHERE flow_id = ?")
-                    .all(flowRow.id) as Array<{ node_json: string; owner_id: string | null }>;
+                    .query("SELECT node_json, project_id FROM flow_nodes WHERE flow_id = ?")
+                    .all(flowRow.id) as Array<{ node_json: string; project_id: string | null }>;
                 const edgeRows = db
                     .query(
                         `
@@ -50,13 +50,21 @@ export function createFlowRoutes(options: { db: Database }) {
                         .map((row) => {
                             const node = JSON.parse(row.node_json) as any;
                             if (!node || typeof node !== "object") return null;
-                            const data = node.data && typeof node.data === "object" ? node.data : {};
-                            const ownerId = typeof row.owner_id === "string" && row.owner_id ? row.owner_id : undefined;
+                            const rawData =
+                                node.data && typeof node.data === "object" ? node.data : {};
+                            const { ownerId: _ownerId, ...data } = rawData as Record<
+                                string,
+                                unknown
+                            >;
+                            const projectId =
+                                typeof row.project_id === "string" && row.project_id
+                                    ? row.project_id
+                                    : undefined;
                             return {
                                 ...node,
                                 data: {
                                     ...data,
-                                    ownerId,
+                                    projectId,
                                 },
                             };
                         })
@@ -92,17 +100,19 @@ export function createFlowRoutes(options: { db: Database }) {
                 const nodes = body?.nodes;
                 const edges = body?.edges;
                 if (!Array.isArray(nodes) || !Array.isArray(edges)) {
-                    return new Response(JSON.stringify({ error: "Payload must include nodes[] and edges[]." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Payload must include nodes[] and edges[]." }),
+                        {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 const persist = db.transaction(() => {
-                    const existingFlow = db.query("SELECT id FROM flows WHERE key = ?").get(flowKey) as
-                        | { id: string }
-                        | null
-                        | undefined;
+                    const existingFlow = db
+                        .query("SELECT id FROM flows WHERE key = ?")
+                        .get(flowKey) as { id: string } | null | undefined;
                     const flowId = existingFlow?.id ?? randomUUID();
 
                     if (!existingFlow) {
@@ -114,19 +124,21 @@ export function createFlowRoutes(options: { db: Database }) {
 
                     const nodeUuidByKey = new Map<string, string>();
                     const insertNode = db.query(
-                        "INSERT INTO flow_nodes (id, flow_id, key, owner_id, node_json) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO flow_nodes (id, flow_id, key, project_id, node_json) VALUES (?, ?, ?, ?, ?)",
                     );
 
                     for (const node of nodes) {
                         if (!node || typeof node !== "object") continue;
                         const nodeKey = (node as any).id;
                         if (typeof nodeKey !== "string" || !nodeKey) continue;
-                        const rawOwnerId = (node as any)?.data?.ownerId;
-                        const ownerId =
-                            typeof rawOwnerId === "string" && rawOwnerId.trim().length > 0 ? rawOwnerId.trim() : null;
+                        const rawProjectId = (node as any)?.data?.projectId;
+                        const projectId =
+                            typeof rawProjectId === "string" && rawProjectId.trim().length > 0
+                                ? rawProjectId.trim()
+                                : null;
                         const nodeUuid = randomUUID();
                         nodeUuidByKey.set(nodeKey, nodeUuid);
-                        insertNode.run(nodeUuid, flowId, nodeKey, ownerId, JSON.stringify(node));
+                        insertNode.run(nodeUuid, flowId, nodeKey, projectId, JSON.stringify(node));
                     }
 
                     const insertEdge = db.query(
@@ -160,10 +172,15 @@ export function createFlowRoutes(options: { db: Database }) {
                         }
 
                         const sourceHandle =
-                            typeof (edge as any).sourceHandle === "string" ? (edge as any).sourceHandle : null;
+                            typeof (edge as any).sourceHandle === "string"
+                                ? (edge as any).sourceHandle
+                                : null;
                         const targetHandle =
-                            typeof (edge as any).targetHandle === "string" ? (edge as any).targetHandle : null;
-                        const edgeType = typeof (edge as any).type === "string" ? (edge as any).type : null;
+                            typeof (edge as any).targetHandle === "string"
+                                ? (edge as any).targetHandle
+                                : null;
+                        const edgeType =
+                            typeof (edge as any).type === "string" ? (edge as any).type : null;
 
                         insertEdge.run(
                             randomUUID(),
@@ -181,7 +198,8 @@ export function createFlowRoutes(options: { db: Database }) {
                 try {
                     persist();
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to persist flow state.";
+                    const message =
+                        error instanceof Error ? error.message : "Failed to persist flow state.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 400,
                         headers: { "Content-Type": "application/json" },

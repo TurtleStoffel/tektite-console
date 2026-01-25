@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import GithubRepoCard from "./GithubRepoCard";
 
@@ -6,50 +6,45 @@ type MainContentProps = {
     drawerToggleId: string;
 };
 
-type OwnerSummary = {
+type ProjectSummary = {
     id: string;
-    ownerType: "project";
     name: string | null;
+    url: string | null;
 };
 
 export function MainContent({ drawerToggleId }: MainContentProps) {
     const [isLoading, setIsLoading] = useState(true);
-    const [owners, setOwners] = useState<OwnerSummary[]>([]);
-    const [ownersError, setOwnersError] = useState<string | null>(null);
-
-    const projects = useMemo(
-        () => owners.filter((owner) => owner.ownerType === "project"),
-        [owners],
-    );
+    const [projects, setProjects] = useState<ProjectSummary[]>([]);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
 
-        const loadOwners = async () => {
+        const loadProjects = async () => {
             setIsLoading(true);
-            setOwnersError(null);
+            setProjectsError(null);
             try {
-                const res = await fetch("/api/owners");
+                const res = await fetch("/api/projects");
                 const payload = await res.json().catch(() => ({}));
-                const list = Array.isArray(payload?.owners)
-                    ? (payload.owners as OwnerSummary[])
+                const list = Array.isArray(payload?.projects)
+                    ? (payload.projects as ProjectSummary[])
                     : [];
                 if (!res.ok) {
                     throw new Error(payload?.error || "Failed to load projects.");
                 }
                 if (cancelled) return;
-                setOwners(list);
+                setProjects(list);
             } catch (error) {
                 const message = error instanceof Error ? error.message : "Failed to load projects.";
                 if (cancelled) return;
-                setOwnersError(message);
+                setProjectsError(message);
             } finally {
                 if (cancelled) return;
                 setIsLoading(false);
             }
         };
 
-        void loadOwners();
+        void loadProjects();
         return () => {
             cancelled = true;
         };
@@ -74,9 +69,9 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
 
             <GithubRepoCard />
 
-            {ownersError ? (
+            {projectsError ? (
                 <div className="alert alert-error text-left">
-                    <span>{ownersError}</span>
+                    <span>{projectsError}</span>
                 </div>
             ) : isLoading ? (
                 <div className="flex items-center justify-center py-16">

@@ -7,7 +7,7 @@ import { getConsoleRepositoryUrl } from "../consoleRepository";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
 
-export function createOwnerRoutes(options: {
+export function createProjectRoutes(options: {
     db: Database;
     clonesDir: string;
     productionDir: string;
@@ -17,38 +17,32 @@ export function createOwnerRoutes(options: {
     const consoleRepositoryUrl = getConsoleRepositoryUrl();
 
     return {
-        "/api/owners": {
+        "/api/projects": {
             async GET() {
-                const owners = db
+                const projects = db
                     .query(
                         `
                         SELECT
-                            o.id AS id,
-                            o.owner_type AS owner_type,
-                            p.name AS project_name
-                        FROM owners o
-                        LEFT JOIN projects p ON p.id = o.id
-                        WHERE o.owner_type = 'project'
-                        ORDER BY o.owner_type ASC
+                            id,
+                            name
+                        FROM projects
+                        ORDER BY name ASC
                         `,
                     )
                     .all() as Array<{
                     id: string;
-                    owner_type: "project";
-                    project_name: string | null;
+                    name: string | null;
+                    url: string | null;
                 }>;
 
-                const normalized = owners.map((owner) => ({
-                    id: owner.id,
-                    ownerType: owner.owner_type,
-                    name: owner.project_name,
+                const normalized = projects.map((project) => ({
+                    id: project.id,
+                    name: project.name,
+                    url: project.url,
                 }));
 
-                return Response.json({ owners: normalized });
+                return Response.json({ projects: normalized });
             },
-        },
-
-        "/api/projects": {
             async POST(req: Server.Request) {
                 let body: any;
                 try {
@@ -91,38 +85,34 @@ export function createOwnerRoutes(options: {
                     );
                 }
 
-                const ownerId = randomUUID();
-                db.query("INSERT INTO owners (id, owner_type) VALUES (?, 'project')").run(ownerId);
+                const projectId = randomUUID();
                 db.query("INSERT INTO projects (id, name, url) VALUES (?, ?, ?)").run(
-                    ownerId,
+                    projectId,
                     name,
                     url,
                 );
-                return Response.json({ id: ownerId, ownerType: "project", name, url });
+                return Response.json({ id: projectId, name, url });
             },
         },
 
         "/api/projects/:id": {
             async GET(req: Server.Request) {
-                const ownerId = req.params.id;
+                const projectId = req.params.id;
                 const row = db
                     .query(
                         `
                         SELECT
-                            o.id AS id,
-                            p.name AS name,
-                            r.url AS repository_url
-                        FROM owners o
-                        JOIN projects p ON p.id = o.id
-                        LEFT JOIN repositories r ON r.project_id = o.id
-                        WHERE o.id = ? AND o.owner_type = 'project'
+                            id,
+                            name
+                        FROM projects
+                        WHERE id = ?
                         `,
                     )
-                    .get(ownerId) as
+                    .get(projectId) as
                     | {
                           id: string;
                           name: string;
-                          repository_url: string | null;
+                          url: string | null;
                       }
                     | null
                     | undefined;
@@ -135,15 +125,15 @@ export function createOwnerRoutes(options: {
                 }
 
                 const nodeCountRow = db
-                    .query("SELECT COUNT(1) AS count FROM flow_nodes WHERE owner_id = ?")
-                    .get(ownerId) as { count: number } | null;
+                    .query("SELECT COUNT(1) AS count FROM flow_nodes WHERE project_id = ?")
+                    .get(projectId) as { count: number } | null;
                 const flowCountRow = db
                     .query(
-                        "SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE owner_id = ?",
+                        "SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE project_id = ?",
                     )
-                    .get(ownerId) as { count: number } | null;
+                    .get(projectId) as { count: number } | null;
 
-                const repositoryUrl = row.repository_url?.trim() || null;
+                const repositoryUrl = row.url?.trim() || null;
                 const [clones, productionClone] = repositoryUrl
                     ? await Promise.all([
                           findRepositoryClones({ repositoryUrl, clonesDir }),
@@ -178,7 +168,7 @@ export function createOwnerRoutes(options: {
                 const remoteCheckPath = remoteCheckChoice?.path ?? null;
                 if (remoteCheckPath) {
                     console.log("[remote-updates] selecting repo for remote check", {
-                        ownerId,
+                        projectId,
                         repositoryUrl,
                         remoteCheckPath,
                         reason: remoteCheckChoice?.reason,
@@ -190,7 +180,7 @@ export function createOwnerRoutes(options: {
                         remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
                     } catch (error) {
                         console.warn("[remote-updates] remote check failed", {
-                            ownerId,
+                            projectId,
                             remoteCheckPath,
                             error,
                         });

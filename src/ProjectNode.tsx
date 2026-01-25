@@ -1,21 +1,18 @@
 import { Handle, type NodeProps, Position } from "reactflow";
 
-type OwnedNodeData = {
+type ProjectNodeData = {
     label?: string;
-    ownerId?: string;
-    displayOwnerType?: "project" | null;
+    projectId?: string;
     displayProjectName?: string | null;
 };
 
-export function OwnedNode(props: NodeProps<OwnedNodeData>) {
+export function ProjectNode(props: NodeProps<ProjectNodeData>) {
     const { data, selected, type } = props;
-
-    const ownerType = data?.displayOwnerType ?? null;
     const projectName = data?.displayProjectName ?? null;
+    const hasProject = Boolean(data?.projectId);
 
-    const borderClass = ownerType === "project" ? "border-primary/60" : "border-base-300";
-
-    const bgClass = ownerType === "project" ? "bg-primary/10" : "bg-base-100";
+    const borderClass = hasProject ? "border-primary/60" : "border-base-300";
+    const bgClass = hasProject ? "bg-primary/10" : "bg-base-100";
 
     return (
         <div
@@ -27,13 +24,13 @@ export function OwnedNode(props: NodeProps<OwnedNodeData>) {
             <div className="space-y-1">
                 <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold text-sm">{data?.label ?? "Node"}</div>
-                    {ownerType && <div className="badge badge-outline capitalize">{ownerType}</div>}
+                    {hasProject && <div className="badge badge-outline">Project</div>}
                 </div>
-                {ownerType === "project" && projectName && (
+                {projectName && (
                     <div className="text-xs text-base-content/70 break-words">{projectName}</div>
                 )}
-                {!data?.ownerId && (
-                    <div className="text-xs text-base-content/50">No owner assigned.</div>
+                {!hasProject && (
+                    <div className="text-xs text-base-content/50">No project assigned.</div>
                 )}
             </div>
             {type !== "output" && <Handle type="source" position={Position.Bottom} />}

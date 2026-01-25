@@ -10,8 +10,8 @@ import { createExecuteRoutes } from "./backend/routes/execute";
 import { createFlowRoutes } from "./backend/routes/flow";
 import { createGithubRoutes } from "./backend/routes/github";
 import { helloRoutes } from "./backend/routes/hello";
-import { createOwnerRoutes } from "./backend/routes/owners";
 import { createProductionServerRoutes } from "./backend/routes/productionServer";
+import { createProjectRoutes } from "./backend/routes/projects";
 import { createRepositoryRoutes } from "./backend/routes/repositories";
 import { initStorage } from "./backend/storage";
 import { startPullRequestCleanup } from "./backend/worktreeCleanup";
@@ -61,7 +61,7 @@ const server = serve({
         ...envRoutes,
         ...createGithubRoutes(),
         ...createFlowRoutes({ db }),
-        ...createOwnerRoutes({ db, clonesDir, productionDir }),
+        ...createProjectRoutes({ db, clonesDir, productionDir }),
         ...createRepositoryRoutes({ db }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),

@@ -18,16 +18,9 @@ export async function initStorage(dataDir: string): Promise<Storage> {
         )
     `);
     db.run(`
-        CREATE TABLE IF NOT EXISTS owners (
-            id TEXT PRIMARY KEY,
-            owner_type TEXT NOT NULL CHECK (owner_type IN ('project'))
-        )
-    `);
-    db.run(`
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
+            name TEXT NOT NULL
         )
     `);
     db.run(`
@@ -43,7 +36,7 @@ export async function initStorage(dataDir: string): Promise<Storage> {
             id TEXT PRIMARY KEY,
             flow_id TEXT NOT NULL,
             key TEXT NOT NULL,
-            owner_id TEXT REFERENCES owners(id) ON DELETE SET NULL,
+            project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
             node_json TEXT NOT NULL,
             FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE CASCADE
         )

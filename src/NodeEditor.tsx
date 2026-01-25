@@ -12,17 +12,17 @@ import ReactFlow, {
     useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { OwnedNode } from "./OwnedNode";
+import { ProjectNode } from "./ProjectNode";
 import type { GithubRepo } from "./types/github";
 
 type NodeEditorProps = {
     drawerToggleId: string;
 };
 
-type OwnerSummary = {
+type ProjectSummary = {
     id: string;
-    ownerType: "project";
     name: string | null;
+    url: string | null;
 };
 
 const initialNodes: Node[] = [
@@ -58,8 +58,8 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const nextNodeId = useRef(1);
     const [isLoading, setIsLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-    const [owners, setOwners] = useState<OwnerSummary[]>([]);
-    const [ownersError, setOwnersError] = useState<string | null>(null);
+    const [projects, setProjects] = useState<ProjectSummary[]>([]);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectUrl, setNewProjectUrl] = useState("");
@@ -113,16 +113,14 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
         [nodes, selectedNodeId],
     );
 
-    const selectedOwnerId = useMemo(() => {
+    const selectedProjectId = useMemo(() => {
         const data = selectedNode?.data as any;
-        return typeof data?.ownerId === "string" ? data.ownerId : "";
+        return typeof data?.projectId === "string" ? data.projectId : "";
     }, [selectedNode]);
 
-    const ownersById = useMemo(() => new Map(owners.map((owner) => [owner.id, owner])), [owners]);
-
-    const projects = useMemo(
-        () => owners.filter((owner) => owner.ownerType === "project"),
-        [owners],
+    const projectsById = useMemo(
+        () => new Map(projects.map((project) => [project.id, project])),
+        [projects],
     );
 
     const renderNodes = useMemo(() => {
@@ -131,11 +129,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
         return nodes.map((node) => {
             const data = node.data as any;
-            const ownerId = typeof data?.ownerId === "string" ? data.ownerId : "";
-            const owner = ownerId ? ownersById.get(ownerId) : undefined;
-            const displayOwnerType = owner?.ownerType ?? null;
-            const displayProjectName =
-                displayOwnerType === "project" ? (owner?.name ?? null) : null;
+            const projectId = typeof data?.projectId === "string" ? data.projectId : "";
+            const project = projectId ? projectsById.get(projectId) : undefined;
+            const displayProjectName = project?.name ?? null;
 
             const label = typeof data?.label === "string" ? data.label : "Node";
             const widthHint = Math.max(label.length, (displayProjectName ?? "").length);
@@ -150,41 +146,43 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                 },
                 data: {
                     ...(node.data as any),
-                    displayOwnerType,
                     displayProjectName,
                 },
             } satisfies Node;
         });
-    }, [nodes, ownersById]);
+    }, [nodes, projectsById]);
 
-    const refreshOwners = useCallback(async () => {
-        setOwnersError(null);
+    const refreshProjects = useCallback(async () => {
+        setProjectsError(null);
         try {
-            const res = await fetch("/api/owners");
+            const res = await fetch("/api/projects");
             const payload = await res.json().catch(() => ({}));
-            const list = Array.isArray(payload?.owners) ? (payload.owners as OwnerSummary[]) : [];
+            const list = Array.isArray(payload?.projects)
+                ? (payload.projects as ProjectSummary[])
+                : [];
             if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load owners.");
+                throw new Error(payload?.error || "Failed to load projects.");
             }
-            setOwners(list);
+            setProjects(list);
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load owners.";
-            setOwnersError(message);
+            const message = error instanceof Error ? error.message : "Failed to load projects.";
+            setProjectsError(message);
         }
     }, []);
 
-    const handleOwnerChange = useCallback(
-        (ownerId: string) => {
+    const handleProjectChange = useCallback(
+        (projectId: string) => {
             if (!selectedNodeId) return;
             setNodes((current) =>
                 current.map((node) => {
                     if (node.id !== selectedNodeId) return node;
                     const data = node.data && typeof node.data === "object" ? node.data : {};
                     const nextData = { ...(data as any) };
-                    if (!ownerId) {
-                        delete nextData.ownerId;
+                    delete nextData.ownerId;
+                    if (!projectId) {
+                        delete nextData.projectId;
                     } else {
-                        nextData.ownerId = ownerId;
+                        nextData.projectId = projectId;
                     }
                     return {
                         ...node,
@@ -214,12 +212,12 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             }
             setNewProjectName("");
             setNewProjectUrl("");
-            await refreshOwners();
+            await refreshProjects();
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to create project.";
-            setOwnersError(message);
+            setProjectsError(message);
         }
-    }, [newProjectName, newProjectUrl, refreshOwners]);
+    }, [newProjectName, newProjectUrl, refreshProjects]);
 
     useEffect(() => {
         let isMounted = true;
@@ -240,13 +238,13 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             }
         };
 
-        void refreshOwners();
+        void refreshProjects();
         load();
 
         return () => {
             isMounted = false;
         };
-    }, [refreshOwners, setEdges, setNodes]);
+    }, [refreshProjects, setEdges, setNodes]);
 
     useEffect(() => {
         if (isLoading) return;
@@ -275,9 +273,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const miniMapStyle = useMemo(() => ({ height: 120 }), []);
     const nodeTypes = useMemo(
         () => ({
-            default: OwnedNode,
-            input: OwnedNode,
-            output: OwnedNode,
+            default: ProjectNode,
+            input: ProjectNode,
+            output: ProjectNode,
         }),
         [],
     );
@@ -369,18 +367,20 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         if (!nodeId) return;
 
                                         const node = nodes.find((entry) => entry.id === nodeId);
-                                        const ownerId =
-                                            typeof (node as any)?.data?.ownerId === "string"
-                                                ? (node as any).data.ownerId
+                                        const projectId =
+                                            typeof (node as any)?.data?.projectId === "string"
+                                                ? (node as any).data.projectId
                                                 : "";
-                                        const owner = ownerId ? ownersById.get(ownerId) : undefined;
-                                        if (!ownerId || owner?.ownerType !== "project") return;
+                                        const project = projectId
+                                            ? projectsById.get(projectId)
+                                            : undefined;
+                                        if (!projectId || !project) return;
 
                                         event.preventDefault();
                                         event.stopPropagation();
                                         setSelectedNodeId(nodeId);
                                         setProjectMenu({
-                                            projectId: ownerId,
+                                            projectId,
                                             x: event.clientX,
                                             y: event.clientY,
                                         });
@@ -410,7 +410,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                         <div className="card-body space-y-4">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="space-y-1">
-                                    <h3 className="font-semibold text-lg">Node owner</h3>
+                                    <h3 className="font-semibold text-lg">Node project</h3>
                                     <p className="text-sm text-base-content/70">
                                         Select a node, then assign it to a Project.
                                     </p>
@@ -418,15 +418,15 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                 <button
                                     type="button"
                                     className="btn btn-outline btn-sm"
-                                    onClick={refreshOwners}
+                                    onClick={refreshProjects}
                                 >
-                                    Refresh owners
+                                    Refresh projects
                                 </button>
                             </div>
 
-                            {ownersError && (
+                            {projectsError && (
                                 <div className="alert alert-error">
-                                    <span>{ownersError}</span>
+                                    <span>{projectsError}</span>
                                 </div>
                             )}
 
@@ -444,20 +444,20 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                     </div>
                                     <label className="form-control w-full max-w-md">
                                         <div className="label">
-                                            <span className="label-text">Owner</span>
+                                            <span className="label-text">Project</span>
                                         </div>
                                         <select
                                             className="select select-bordered w-full"
-                                            value={selectedOwnerId}
+                                            value={selectedProjectId}
                                             onChange={(event) =>
-                                                handleOwnerChange(event.target.value)
+                                                handleProjectChange(event.target.value)
                                             }
                                         >
-                                            <option value="">No owner</option>
-                                            {owners.map((owner) => {
-                                                const label = `Project: ${owner.name ?? "Untitled"}`;
+                                            <option value="">No project</option>
+                                            {projects.map((project) => {
+                                                const label = project.name ?? "Untitled";
                                                 return (
-                                                    <option key={owner.id} value={owner.id}>
+                                                    <option key={project.id} value={project.id}>
                                                         {label}
                                                     </option>
                                                 );
