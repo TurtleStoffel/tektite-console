@@ -1,5 +1,5 @@
-import { mkdir } from "fs/promises";
 import { Database } from "bun:sqlite";
+import { mkdir } from "fs/promises";
 
 export type Storage = {
     db: Database;
@@ -29,6 +29,14 @@ export async function initStorage(dataDir: string): Promise<Storage> {
             name TEXT NOT NULL,
             url TEXT NOT NULL,
             FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
+        )
+    `);
+    db.run(`
+        CREATE TABLE IF NOT EXISTS repositories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            project_id TEXT REFERENCES projects(id) ON DELETE SET NULL
         )
     `);
     db.run(`
