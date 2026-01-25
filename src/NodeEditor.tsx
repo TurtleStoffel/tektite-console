@@ -12,7 +12,6 @@ import ReactFlow, {
     useNodesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Markdown } from "./Markdown";
 import { OwnedNode } from "./OwnedNode";
 import type { GithubRepo } from "./types/github";
 
@@ -22,9 +21,8 @@ type NodeEditorProps = {
 
 type OwnerSummary = {
     id: string;
-    ownerType: "project" | "idea";
+    ownerType: "project";
     name: string | null;
-    description: string | null;
 };
 
 const initialNodes: Node[] = [
@@ -65,15 +63,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectUrl, setNewProjectUrl] = useState("");
-    const [newIdeaDescription, setNewIdeaDescription] = useState("");
     const [repos, setRepos] = useState<GithubRepo[]>([]);
     const [reposLoading, setReposLoading] = useState(false);
     const [reposError, setReposError] = useState<string | null>(null);
-    const [ideaDraftOwnerId, setIdeaDraftOwnerId] = useState<string | null>(null);
-    const [ideaDraftMarkdown, setIdeaDraftMarkdown] = useState("");
-    const [ideaSaveStatus, setIdeaSaveStatus] = useState<"idle" | "saving" | "saved" | "error">(
-        "idle",
-    );
     const [projectMenu, setProjectMenu] = useState<{
         projectId: string;
         x: number;
@@ -128,11 +120,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
     const ownersById = useMemo(() => new Map(owners.map((owner) => [owner.id, owner])), [owners]);
 
-    const selectedOwner = useMemo(
-        () => (selectedOwnerId ? ownersById.get(selectedOwnerId) : undefined),
-        [ownersById, selectedOwnerId],
-    );
-
     const projects = useMemo(
         () => owners.filter((owner) => owner.ownerType === "project"),
         [owners],
@@ -149,15 +136,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             const displayOwnerType = owner?.ownerType ?? null;
             const displayProjectName =
                 displayOwnerType === "project" ? (owner?.name ?? null) : null;
-            const displayIdeaMarkdown =
-                displayOwnerType === "idea" ? (owner?.description ?? null) : null;
 
             const label = typeof data?.label === "string" ? data.label : "Node";
-            const widthHint = Math.max(
-                label.length,
-                (displayProjectName ?? "").length,
-                (displayIdeaMarkdown ?? "").length,
-            );
+            const widthHint = Math.max(label.length, (displayProjectName ?? "").length);
             const widthCh = clamp(Math.ceil(widthHint * 0.75) + 12, 28, 64);
 
             return {
@@ -171,7 +152,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                     ...(node.data as any),
                     displayOwnerType,
                     displayProjectName,
-                    displayIdeaMarkdown,
                 },
             } satisfies Node;
         });
@@ -192,46 +172,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             setOwnersError(message);
         }
     }, []);
-
-    useEffect(() => {
-        if (!selectedOwnerId || selectedOwner?.ownerType !== "idea") {
-            setIdeaDraftOwnerId(null);
-            setIdeaDraftMarkdown("");
-            setIdeaSaveStatus("idle");
-            return;
-        }
-
-        const nextMarkdown = selectedOwner.description ?? "";
-        setIdeaDraftOwnerId(selectedOwnerId);
-        setIdeaDraftMarkdown(nextMarkdown);
-        setIdeaSaveStatus("idle");
-    }, [selectedOwner?.description, selectedOwner?.ownerType, selectedOwnerId]);
-
-    const handleSaveIdea = useCallback(async () => {
-        if (!ideaDraftOwnerId) return;
-        const description = ideaDraftMarkdown.trim();
-        if (!description) return;
-
-        setIdeaSaveStatus("saving");
-        setOwnersError(null);
-        try {
-            const res = await fetch(`/api/ideas/${ideaDraftOwnerId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ description }),
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to update idea.");
-            }
-            setIdeaSaveStatus("saved");
-            await refreshOwners();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to update idea.";
-            setIdeaSaveStatus("error");
-            setOwnersError(message);
-        }
-    }, [ideaDraftMarkdown, ideaDraftOwnerId, refreshOwners]);
 
     const handleOwnerChange = useCallback(
         (ownerId: string) => {
@@ -280,27 +220,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             setOwnersError(message);
         }
     }, [newProjectName, newProjectUrl, refreshOwners]);
-
-    const handleCreateIdea = useCallback(async () => {
-        const description = newIdeaDescription.trim();
-        if (!description) return;
-        try {
-            const res = await fetch("/api/ideas", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ description }),
-            });
-            if (!res.ok) {
-                const payload = await res.json().catch(() => ({}));
-                throw new Error(payload?.error || "Failed to create idea.");
-            }
-            setNewIdeaDescription("");
-            await refreshOwners();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to create idea.";
-            setOwnersError(message);
-        }
-    }, [newIdeaDescription, refreshOwners]);
 
     useEffect(() => {
         let isMounted = true;
@@ -493,7 +412,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                 <div className="space-y-1">
                                     <h3 className="font-semibold text-lg">Node owner</h3>
                                     <p className="text-sm text-base-content/70">
-                                        Select a node, then assign it to a Project or Idea.
+                                        Select a node, then assign it to a Project.
                                     </p>
                                 </div>
                                 <button
@@ -536,10 +455,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         >
                                             <option value="">No owner</option>
                                             {owners.map((owner) => {
-                                                const label =
-                                                    owner.ownerType === "project"
-                                                        ? `Project: ${owner.name ?? "Untitled"}`
-                                                        : `Idea: ${owner.description ?? "Untitled"}`;
+                                                const label = `Project: ${owner.name ?? "Untitled"}`;
                                                 return (
                                                     <option key={owner.id} value={owner.id}>
                                                         {label}
@@ -548,52 +464,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                             })}
                                         </select>
                                     </label>
-                                    {selectedOwner?.ownerType === "idea" && (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="text-sm font-semibold">
-                                                    Idea description
-                                                </div>
-                                                <span className="text-xs text-base-content/60">
-                                                    {ideaSaveStatus === "saving" && "Saving…"}
-                                                    {ideaSaveStatus === "saved" && "Saved"}
-                                                    {ideaSaveStatus === "error" && "Save failed"}
-                                                </span>
-                                            </div>
-                                            <textarea
-                                                className="textarea textarea-bordered w-full min-h-28 font-mono text-xs"
-                                                value={ideaDraftMarkdown}
-                                                onChange={(event) =>
-                                                    setIdeaDraftMarkdown(event.target.value)
-                                                }
-                                            />
-                                            <div className="flex items-center justify-between gap-2">
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-primary btn-sm"
-                                                    onClick={handleSaveIdea}
-                                                    disabled={
-                                                        !ideaDraftOwnerId ||
-                                                        !ideaDraftMarkdown.trim() ||
-                                                        ideaSaveStatus === "saving"
-                                                    }
-                                                >
-                                                    Save idea
-                                                </button>
-                                                <div className="text-xs text-base-content/60">
-                                                    Preview
-                                                </div>
-                                            </div>
-                                            <div className="p-3 border border-base-300 rounded-xl bg-base-100/60">
-                                                <Markdown
-                                                    markdown={
-                                                        ideaDraftMarkdown.trim() || "_(empty)_"
-                                                    }
-                                                    className="text-sm space-y-2"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
@@ -637,121 +507,96 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
                             <div className="divider my-0" />
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-semibold">New project</h4>
-                                    <input
-                                        className="input input-bordered w-full"
-                                        placeholder="Project name"
-                                        value={newProjectName}
-                                        onChange={(event) => setNewProjectName(event.target.value)}
-                                    />
-                                    <input
-                                        className="input input-bordered w-full"
-                                        placeholder="Repository URL"
-                                        value={newProjectUrl}
-                                        onChange={(event) => setNewProjectUrl(event.target.value)}
-                                    />
-                                    <div className="flex items-center justify-between gap-2">
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline btn-sm"
-                                            onClick={fetchRepos}
-                                            disabled={reposLoading}
+                            <div className="space-y-2">
+                                <h4 className="font-semibold">New project</h4>
+                                <input
+                                    className="input input-bordered w-full"
+                                    placeholder="Project name"
+                                    value={newProjectName}
+                                    onChange={(event) => setNewProjectName(event.target.value)}
+                                />
+                                <input
+                                    className="input input-bordered w-full"
+                                    placeholder="Repository URL"
+                                    value={newProjectUrl}
+                                    onChange={(event) => setNewProjectUrl(event.target.value)}
+                                />
+                                <div className="flex items-center justify-between gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline btn-sm"
+                                        onClick={fetchRepos}
+                                        disabled={reposLoading}
+                                    >
+                                        {reposLoading ? "Loading repos…" : "Load repos"}
+                                    </button>
+                                    {newProjectUrl.trim() && (
+                                        <a
+                                            href={newProjectUrl.trim()}
+                                            className="link link-hover text-sm break-all"
+                                            target="_blank"
+                                            rel="noreferrer"
                                         >
-                                            {reposLoading ? "Loading repos…" : "Load repos"}
-                                        </button>
-                                        {newProjectUrl.trim() && (
-                                            <a
-                                                href={newProjectUrl.trim()}
-                                                className="link link-hover text-sm break-all"
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                {newProjectUrl.trim()}
-                                            </a>
-                                        )}
+                                            {newProjectUrl.trim()}
+                                        </a>
+                                    )}
+                                </div>
+                                {reposError && (
+                                    <div className="alert alert-error">
+                                        <span>{reposError}</span>
                                     </div>
-                                    {reposError && (
-                                        <div className="alert alert-error">
-                                            <span>{reposError}</span>
-                                        </div>
-                                    )}
-                                    {!reposLoading && !reposError && repos.length > 0 && (
-                                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                                            {repos.map((repo) => {
-                                                const label = repo.owner?.login
-                                                    ? `${repo.owner.login}/${repo.name}`
-                                                    : repo.name;
-                                                const isSelected =
-                                                    newProjectUrl.trim() === repo.url;
-                                                return (
-                                                    <div
-                                                        key={repo.url}
-                                                        className={`p-3 border rounded-xl transition-colors ${
-                                                            isSelected
-                                                                ? "border-primary bg-primary/10"
-                                                                : "border-base-300 bg-base-100/60"
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <a
-                                                                href={repo.url}
-                                                                className="font-semibold link link-hover"
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                            >
-                                                                {label}
-                                                            </a>
-                                                            <button
-                                                                type="button"
-                                                                className="btn btn-sm btn-outline"
-                                                                onClick={() =>
-                                                                    handleRepoSelect(repo)
-                                                                }
-                                                            >
-                                                                {isSelected ? "Selected" : "Select"}
-                                                            </button>
-                                                        </div>
-                                                        {repo.description && (
-                                                            <p className="text-sm text-base-content/70 mt-2">
-                                                                {repo.description}
-                                                            </p>
-                                                        )}
+                                )}
+                                {!reposLoading && !reposError && repos.length > 0 && (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {repos.map((repo) => {
+                                            const label = repo.owner?.login
+                                                ? `${repo.owner.login}/${repo.name}`
+                                                : repo.name;
+                                            const isSelected = newProjectUrl.trim() === repo.url;
+                                            return (
+                                                <div
+                                                    key={repo.url}
+                                                    className={`p-3 border rounded-xl transition-colors ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/10"
+                                                            : "border-base-300 bg-base-100/60"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <a
+                                                            href={repo.url}
+                                                            className="font-semibold link link-hover"
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                        >
+                                                            {label}
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline"
+                                                            onClick={() => handleRepoSelect(repo)}
+                                                        >
+                                                            {isSelected ? "Selected" : "Select"}
+                                                        </button>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary btn-sm"
-                                        onClick={handleCreateProject}
-                                        disabled={!newProjectName.trim() || !newProjectUrl.trim()}
-                                    >
-                                        Create project
-                                    </button>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <h4 className="font-semibold">New idea</h4>
-                                    <input
-                                        className="input input-bordered w-full"
-                                        placeholder="Idea description"
-                                        value={newIdeaDescription}
-                                        onChange={(event) =>
-                                            setNewIdeaDescription(event.target.value)
-                                        }
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary btn-sm"
-                                        onClick={handleCreateIdea}
-                                        disabled={!newIdeaDescription.trim()}
-                                    >
-                                        Create idea
-                                    </button>
-                                </div>
+                                                    {repo.description && (
+                                                        <p className="text-sm text-base-content/70 mt-2">
+                                                            {repo.description}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={handleCreateProject}
+                                    disabled={!newProjectName.trim() || !newProjectUrl.trim()}
+                                >
+                                    Create project
+                                </button>
                             </div>
                         </div>
                     </div>

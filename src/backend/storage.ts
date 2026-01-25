@@ -20,7 +20,7 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     db.run(`
         CREATE TABLE IF NOT EXISTS owners (
             id TEXT PRIMARY KEY,
-            owner_type TEXT NOT NULL CHECK (owner_type IN ('project', 'idea'))
+            owner_type TEXT NOT NULL CHECK (owner_type IN ('project'))
         )
     `);
     db.run(`
@@ -36,13 +36,6 @@ export async function initStorage(dataDir: string): Promise<Storage> {
             name TEXT NOT NULL,
             url TEXT NOT NULL,
             project_id TEXT REFERENCES projects(id) ON DELETE SET NULL
-        )
-    `);
-    db.run(`
-        CREATE TABLE IF NOT EXISTS ideas (
-            id TEXT PRIMARY KEY,
-            description TEXT NOT NULL,
-            FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
         )
     `);
     db.run(`

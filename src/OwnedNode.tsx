@@ -1,12 +1,10 @@
 import { Handle, type NodeProps, Position } from "reactflow";
-import { Markdown } from "./Markdown";
 
 type OwnedNodeData = {
     label?: string;
     ownerId?: string;
-    displayOwnerType?: "project" | "idea" | null;
+    displayOwnerType?: "project" | null;
     displayProjectName?: string | null;
-    displayIdeaMarkdown?: string | null;
 };
 
 export function OwnedNode(props: NodeProps<OwnedNodeData>) {
@@ -14,21 +12,10 @@ export function OwnedNode(props: NodeProps<OwnedNodeData>) {
 
     const ownerType = data?.displayOwnerType ?? null;
     const projectName = data?.displayProjectName ?? null;
-    const ideaMarkdown = data?.displayIdeaMarkdown ?? null;
 
-    const borderClass =
-        ownerType === "project"
-            ? "border-primary/60"
-            : ownerType === "idea"
-              ? "border-secondary/60"
-              : "border-base-300";
+    const borderClass = ownerType === "project" ? "border-primary/60" : "border-base-300";
 
-    const bgClass =
-        ownerType === "project"
-            ? "bg-primary/10"
-            : ownerType === "idea"
-              ? "bg-secondary/10"
-              : "bg-base-100";
+    const bgClass = ownerType === "project" ? "bg-primary/10" : "bg-base-100";
 
     return (
         <div
@@ -44,12 +31,6 @@ export function OwnedNode(props: NodeProps<OwnedNodeData>) {
                 </div>
                 {ownerType === "project" && projectName && (
                     <div className="text-xs text-base-content/70 break-words">{projectName}</div>
-                )}
-                {ownerType === "idea" && ideaMarkdown && (
-                    <Markdown
-                        markdown={ideaMarkdown}
-                        className="text-xs text-base-content/80 space-y-1"
-                    />
                 )}
                 {!data?.ownerId && (
                     <div className="text-xs text-base-content/50">No owner assigned.</div>

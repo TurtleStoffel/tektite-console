@@ -8,9 +8,8 @@ type MainContentProps = {
 
 type OwnerSummary = {
     id: string;
-    ownerType: "project" | "idea";
+    ownerType: "project";
     name: string | null;
-    description: string | null;
 };
 
 export function MainContent({ drawerToggleId }: MainContentProps) {
