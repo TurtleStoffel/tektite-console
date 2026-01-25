@@ -27,7 +27,6 @@ export async function initStorage(dataDir: string): Promise<Storage> {
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            url TEXT NOT NULL,
             FOREIGN KEY (id) REFERENCES owners(id) ON DELETE CASCADE
         )
     `);

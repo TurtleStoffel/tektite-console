@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { emitSelectedRepo } from "./events";
 import { ClonesSection } from "./project-details/ClonesSection";
+import {
+    buildPreviewTargets,
+    parseLogsPayload,
+    shouldShowProductionClone,
+} from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import { ProductionCloneSection } from "./project-details/ProductionCloneSection";
-import { buildPreviewTargets, parseLogsPayload, shouldShowProductionClone } from "./project-details/helpers";
 import type { LogsMeta, PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
 
 type ProjectDetailsProps = {
@@ -36,7 +40,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project, showProductionClone);
-    }, [project?.clones, project?.productionClone?.path, project?.productionClone?.port, showProductionClone]);
+    }, [
+        project?.clones,
+        project?.productionClone?.path,
+        project?.productionClone?.port,
+        showProductionClone,
+    ]);
 
     useEffect(() => {
         if (!id) return;
@@ -96,9 +105,16 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const activePreviewTarget = previewTargets.find((target) => target.key === activePreviewKey);
     const previewPort = activePreviewTarget?.port ?? null;
-    const previewProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
-    const previewHost = typeof window !== "undefined" && window.location.hostname ? window.location.hostname : "localhost";
-    const previewUrl = typeof previewPort === "number" ? `${previewProtocol}://${previewHost}:${previewPort}/` : null;
+    const previewProtocol =
+        typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
+    const previewHost =
+        typeof window !== "undefined" && window.location.hostname
+            ? window.location.hostname
+            : "localhost";
+    const previewUrl =
+        typeof previewPort === "number"
+            ? `${previewProtocol}://${previewHost}:${previewPort}/`
+            : null;
 
     const refreshProject = async () => {
         if (!id) return;
@@ -163,7 +179,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const refreshDevLogs = async (worktreePath: string) => {
         try {
-            const res = await fetch(`/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`);
+            const res = await fetch(
+                `/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`,
+            );
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load dev logs.");
@@ -178,7 +196,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     };
 
     const startProductionServer = async () => {
-        if (!project?.url) return;
+        if (!project?.url) {
+            setActionError("No repository linked to this project yet.");
+            return;
+        }
         setActionError(null);
         setStartingProduction(true);
         try {
@@ -194,7 +215,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setProductionLogsOpen(true);
             await refreshProject();
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to start production server.";
+            const message =
+                err instanceof Error ? err.message : "Failed to start production server.";
             setActionError(message);
         } finally {
             setStartingProduction(false);
@@ -202,9 +224,14 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     };
 
     const refreshProductionLogs = async () => {
-        if (!project?.url) return;
+        if (!project?.url) {
+            setActionError("No repository linked to this project yet.");
+            return;
+        }
         try {
-            const res = await fetch(`/api/production/logs?repositoryUrl=${encodeURIComponent(project.url)}`);
+            const res = await fetch(
+                `/api/production/logs?repositoryUrl=${encodeURIComponent(project.url)}`,
+            );
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load production logs.");
@@ -280,32 +307,47 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
                         <div className="space-y-1">
                             <div className="text-sm text-base-content/60">Repository</div>
-                            <a href={project.url} className="link link-hover break-all" target="_blank" rel="noreferrer">
-                                {project.url}
-                            </a>
+                            {project.url ? (
+                                <a
+                                    href={project.url ?? undefined}
+                                    className="link link-hover break-all"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {project.url ?? ""}
+                                </a>
+                            ) : (
+                                <div className="text-sm text-base-content/70">
+                                    No repository linked yet.
+                                </div>
+                            )}
                         </div>
 
-                        {project.remoteBranch?.status === "upToDate" && project.remoteBranch.fetched === true && (
-                            <div className="alert alert-success py-2">
-                                <span className="text-sm">
-                                    Up to date with <span className="font-mono">origin</span>.
-                                </span>
-                            </div>
-                        )}
+                        {project.remoteBranch?.status === "upToDate" &&
+                            project.remoteBranch.fetched === true && (
+                                <div className="alert alert-success py-2">
+                                    <span className="text-sm">
+                                        Up to date with <span className="font-mono">origin</span>.
+                                    </span>
+                                </div>
+                            )}
 
                         {typeof project.remoteBranch?.behindCount === "number" &&
                             project.remoteBranch.behindCount > 0 &&
                             project.remoteBranch.fetched === true &&
-                            (project.remoteBranch.status === "behind" || project.remoteBranch.status === "diverged") && (
-                            <div className="alert alert-warning py-2">
-                                <span className="text-sm">
-                                    Remote has {project.remoteBranch.behindCount} commit
-                                    {project.remoteBranch.behindCount === 1 ? "" : "s"} on{" "}
-                                    <span className="font-mono">{project.remoteBranch.branch ?? "current branch"}</span> you haven&apos;t
-                                    pulled locally.
-                                </span>
-                            </div>
-	                        )}
+                            (project.remoteBranch.status === "behind" ||
+                                project.remoteBranch.status === "diverged") && (
+                                <div className="alert alert-warning py-2">
+                                    <span className="text-sm">
+                                        Remote has {project.remoteBranch.behindCount} commit
+                                        {project.remoteBranch.behindCount === 1 ? "" : "s"} on{" "}
+                                        <span className="font-mono">
+                                            {project.remoteBranch.branch ?? "current branch"}
+                                        </span>{" "}
+                                        you haven&apos;t pulled locally.
+                                    </span>
+                                </div>
+                            )}
 
                         <div className="flex items-center gap-3">
                             <div className="badge badge-outline">{project.nodeCount} nodes</div>

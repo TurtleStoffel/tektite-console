@@ -1,11 +1,11 @@
 import type { Database } from "bun:sqlite";
-import type { Server } from "bun";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { Server } from "bun";
 import { findRepositoryClones } from "../cloneDiscovery";
+import { getConsoleRepositoryUrl } from "../consoleRepository";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
-import { getConsoleRepositoryUrl } from "../consoleRepository";
 
 export function createOwnerRoutes(options: {
     db: Database;
@@ -26,7 +26,6 @@ export function createOwnerRoutes(options: {
                             o.id AS id,
                             o.owner_type AS owner_type,
                             p.name AS project_name,
-                            p.url AS project_url,
                             i.description AS idea_description
                         FROM owners o
                         LEFT JOIN projects p ON p.id = o.id
@@ -38,7 +37,6 @@ export function createOwnerRoutes(options: {
                     id: string;
                     owner_type: "project" | "idea";
                     project_name: string | null;
-                    project_url: string | null;
                     idea_description: string | null;
                 }>;
 
@@ -46,7 +44,6 @@ export function createOwnerRoutes(options: {
                     id: owner.id,
                     ownerType: owner.owner_type,
                     name: owner.owner_type === "project" ? owner.project_name : null,
-                    url: owner.owner_type === "project" ? owner.project_url : null,
                     description: owner.owner_type === "idea" ? owner.idea_description : null,
                 }));
 
@@ -117,9 +114,10 @@ export function createOwnerRoutes(options: {
                         SELECT
                             o.id AS id,
                             p.name AS name,
-                            p.url AS url
+                            r.url AS repository_url
                         FROM owners o
                         JOIN projects p ON p.id = o.id
+                        LEFT JOIN repositories r ON r.project_id = o.id
                         WHERE o.id = ? AND o.owner_type = 'project'
                         `,
                     )
@@ -127,7 +125,7 @@ export function createOwnerRoutes(options: {
                     | {
                           id: string;
                           name: string;
-                          url: string;
+                          repository_url: string | null;
                       }
                     | null
                     | undefined;
@@ -148,27 +146,35 @@ export function createOwnerRoutes(options: {
                     )
                     .get(ownerId) as { count: number } | null;
 
-                const [clones, productionClone] = await Promise.all([
-                    findRepositoryClones({ repositoryUrl: row.url, clonesDir }),
-                    getProductionCloneInfo({ repositoryUrl: row.url, productionDir }),
-                ]);
+                const repositoryUrl = row.repository_url?.trim() || null;
+                const [clones, productionClone] = repositoryUrl
+                    ? await Promise.all([
+                          findRepositoryClones({ repositoryUrl, clonesDir }),
+                          getProductionCloneInfo({ repositoryUrl, productionDir }),
+                      ])
+                    : [[], null];
 
                 let remoteBranch = null;
 
                 const serverCwd = process.cwd();
                 const serverCwdClone = clones.find(
-                    (clone) => serverCwd === clone.path || serverCwd.startsWith(clone.path + path.sep),
+                    (clone) =>
+                        serverCwd === clone.path || serverCwd.startsWith(clone.path + path.sep),
                 );
                 const inUseClone = clones.find((clone) => clone.inUse);
                 const anyWorktreeClone = clones.find((clone) => clone.isWorktree);
                 const nonWorktreeClone = clones.find((clone) => clone.isWorktree === false);
+
+                const productionCloneChoice = productionClone?.exists
+                    ? { path: productionClone.path, reason: "productionClone" }
+                    : null;
 
                 const remoteCheckChoice =
                     (serverCwdClone && { path: serverCwdClone.path, reason: "serverCwd" }) ||
                     (inUseClone && { path: inUseClone.path, reason: "inUse" }) ||
                     (anyWorktreeClone && { path: anyWorktreeClone.path, reason: "worktree" }) ||
                     (nonWorktreeClone && { path: nonWorktreeClone.path, reason: "nonWorktree" }) ||
-                    (productionClone.exists && { path: productionClone.path, reason: "productionClone" }) ||
+                    productionCloneChoice ||
                     (clones[0]?.path && { path: clones[0].path, reason: "firstClone" }) ||
                     null;
 
@@ -176,17 +182,21 @@ export function createOwnerRoutes(options: {
                 if (remoteCheckPath) {
                     console.log("[remote-updates] selecting repo for remote check", {
                         ownerId,
-                        repositoryUrl: row.url,
+                        repositoryUrl,
                         remoteCheckPath,
                         reason: remoteCheckChoice?.reason,
                         serverCwd,
                         cloneCount: clones.length,
-                        productionCloneExists: productionClone.exists,
+                        productionCloneExists: productionClone?.exists ?? false,
                     });
                     try {
                         remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
                     } catch (error) {
-                        console.warn("[remote-updates] remote check failed", { ownerId, remoteCheckPath, error });
+                        console.warn("[remote-updates] remote check failed", {
+                            ownerId,
+                            remoteCheckPath,
+                            error,
+                        });
                         remoteBranch = null;
                     }
                 }
@@ -194,7 +204,7 @@ export function createOwnerRoutes(options: {
                 return Response.json({
                     id: row.id,
                     name: row.name,
-                    url: row.url,
+                    url: repositoryUrl,
                     consoleRepositoryUrl,
                     nodeCount: nodeCountRow?.count ?? 0,
                     flowCount: flowCountRow?.count ?? 0,

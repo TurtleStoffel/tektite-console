@@ -1,31 +1,20 @@
-export type ProjectDetailsRemoteBranch =
-    | {
-          status:
-              | "upToDate"
-              | "behind"
-              | "ahead"
-              | "diverged"
-              | "noUpstream"
-              | "notGit"
-              | "unknown";
-          branch?: string;
-          upstream?: string | null;
-          aheadCount?: number;
-          behindCount?: number;
-          fetched?: boolean;
-          error?: string;
-          checkedAt: string;
-      }
-    | null;
+export type ProjectDetailsRemoteBranch = {
+    status: "upToDate" | "behind" | "ahead" | "diverged" | "noUpstream" | "notGit" | "unknown";
+    branch?: string;
+    upstream?: string | null;
+    aheadCount?: number;
+    behindCount?: number;
+    fetched?: boolean;
+    error?: string;
+    checkedAt: string;
+} | null;
 
-export type ProjectDetailsClonePrStatus =
-    | {
-          state: "open" | "closed" | "merged" | "draft" | "none" | "unknown";
-          number?: number;
-          title?: string;
-          url?: string;
-      }
-    | null;
+export type ProjectDetailsClonePrStatus = {
+    state: "open" | "closed" | "merged" | "draft" | "none" | "unknown";
+    number?: number;
+    title?: string;
+    url?: string;
+} | null;
 
 export type ProjectDetailsClone = {
     path: string;
@@ -52,12 +41,12 @@ export type ProjectDetailsProductionClone = {
 export type ProjectDetailsPayload = {
     id: string;
     name: string;
-    url: string;
+    url: string | null;
     consoleRepositoryUrl?: string | null;
     nodeCount: number;
     flowCount: number;
     remoteBranch?: ProjectDetailsRemoteBranch;
-    productionClone?: ProjectDetailsProductionClone;
+    productionClone?: ProjectDetailsProductionClone | null;
     clones?: ProjectDetailsClone[];
 };
 

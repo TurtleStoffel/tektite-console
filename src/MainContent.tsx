@@ -10,7 +10,6 @@ type OwnerSummary = {
     id: string;
     ownerType: "project" | "idea";
     name: string | null;
-    url?: string | null;
     description: string | null;
 };
 
@@ -102,7 +101,6 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                 <div className="space-y-3 text-left">
                     {projects.map((project) => {
                         const name = project.name?.trim() || "Untitled";
-                        const url = project.url?.trim() || "";
                         return (
                             <Link
                                 key={project.id}
@@ -114,11 +112,6 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                                         <h2 className="card-title truncate">{name}</h2>
                                         <div className="btn btn-outline btn-sm">View</div>
                                     </div>
-                                    {url ? (
-                                        <div className="text-sm text-base-content/70 truncate">
-                                            {url}
-                                        </div>
-                                    ) : null}
                                 </div>
                             </Link>
                         );

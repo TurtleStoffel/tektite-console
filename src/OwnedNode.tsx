@@ -1,11 +1,10 @@
-import { Handle, Position, type NodeProps } from "reactflow";
+import { Handle, type NodeProps, Position } from "reactflow";
 import { Markdown } from "./Markdown";
 
 type OwnedNodeData = {
     label?: string;
     ownerId?: string;
     displayOwnerType?: "project" | "idea" | null;
-    displayOwnerUrl?: string | null;
     displayProjectName?: string | null;
     displayIdeaMarkdown?: string | null;
 };
@@ -14,7 +13,6 @@ export function OwnedNode(props: NodeProps<OwnedNodeData>) {
     const { data, selected, type } = props;
 
     const ownerType = data?.displayOwnerType ?? null;
-    const ownerUrl = data?.displayOwnerUrl ?? null;
     const projectName = data?.displayProjectName ?? null;
     const ideaMarkdown = data?.displayIdeaMarkdown ?? null;
 
@@ -47,20 +45,15 @@ export function OwnedNode(props: NodeProps<OwnedNodeData>) {
                 {ownerType === "project" && projectName && (
                     <div className="text-xs text-base-content/70 break-words">{projectName}</div>
                 )}
-                {ownerType === "project" && ownerUrl && (
-                    <a
-                        href={ownerUrl}
-                        className="link link-hover text-xs break-all"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        {ownerUrl}
-                    </a>
-                )}
                 {ownerType === "idea" && ideaMarkdown && (
-                    <Markdown markdown={ideaMarkdown} className="text-xs text-base-content/80 space-y-1" />
+                    <Markdown
+                        markdown={ideaMarkdown}
+                        className="text-xs text-base-content/80 space-y-1"
+                    />
                 )}
-                {!data?.ownerId && <div className="text-xs text-base-content/50">No owner assigned.</div>}
+                {!data?.ownerId && (
+                    <div className="text-xs text-base-content/50">No owner assigned.</div>
+                )}
             </div>
             {type !== "output" && <Handle type="source" position={Position.Bottom} />}
         </div>

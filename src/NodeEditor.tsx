@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ReactFlow, {
-    Background,
-    Controls,
-    MiniMap,
     addEdge,
+    Background,
+    type Connection,
+    Controls,
+    type Edge,
+    MiniMap,
+    type Node,
     useEdgesState,
     useNodesState,
-    type Connection,
-    type Edge,
-    type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import type { GithubRepo } from "./types/github";
-import { OwnedNode } from "./OwnedNode";
 import { Markdown } from "./Markdown";
+import { OwnedNode } from "./OwnedNode";
+import type { GithubRepo } from "./types/github";
 
 type NodeEditorProps = {
     drawerToggleId: string;
@@ -24,7 +24,6 @@ type OwnerSummary = {
     id: string;
     ownerType: "project" | "idea";
     name: string | null;
-    url?: string | null;
     description: string | null;
 };
 
@@ -72,8 +71,14 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const [reposError, setReposError] = useState<string | null>(null);
     const [ideaDraftOwnerId, setIdeaDraftOwnerId] = useState<string | null>(null);
     const [ideaDraftMarkdown, setIdeaDraftMarkdown] = useState("");
-    const [ideaSaveStatus, setIdeaSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-    const [projectMenu, setProjectMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
+    const [ideaSaveStatus, setIdeaSaveStatus] = useState<"idle" | "saving" | "saved" | "error">(
+        "idle",
+    );
+    const [projectMenu, setProjectMenu] = useState<{
+        projectId: string;
+        x: number;
+        y: number;
+    } | null>(null);
 
     useEffect(() => {
         if (!projectMenu) return;
@@ -112,7 +117,7 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     }, [setNodes]);
 
     const selectedNode = useMemo(
-        () => (selectedNodeId ? nodes.find((node) => node.id === selectedNodeId) ?? null : null),
+        () => (selectedNodeId ? (nodes.find((node) => node.id === selectedNodeId) ?? null) : null),
         [nodes, selectedNodeId],
     );
 
@@ -123,31 +128,35 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
     const ownersById = useMemo(() => new Map(owners.map((owner) => [owner.id, owner])), [owners]);
 
-    const selectedOwner = useMemo(() => (selectedOwnerId ? ownersById.get(selectedOwnerId) : undefined), [
-        ownersById,
-        selectedOwnerId,
-    ]);
+    const selectedOwner = useMemo(
+        () => (selectedOwnerId ? ownersById.get(selectedOwnerId) : undefined),
+        [ownersById, selectedOwnerId],
+    );
 
-    const projects = useMemo(() => owners.filter((owner) => owner.ownerType === "project"), [owners]);
+    const projects = useMemo(
+        () => owners.filter((owner) => owner.ownerType === "project"),
+        [owners],
+    );
 
     const renderNodes = useMemo(() => {
-        const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+        const clamp = (value: number, min: number, max: number) =>
+            Math.min(max, Math.max(min, value));
 
         return nodes.map((node) => {
             const data = node.data as any;
             const ownerId = typeof data?.ownerId === "string" ? data.ownerId : "";
             const owner = ownerId ? ownersById.get(ownerId) : undefined;
             const displayOwnerType = owner?.ownerType ?? null;
-            const displayOwnerUrl = displayOwnerType === "project" ? (owner?.url ?? null) : null;
-            const displayProjectName = displayOwnerType === "project" ? (owner?.name ?? null) : null;
-            const displayIdeaMarkdown = displayOwnerType === "idea" ? (owner?.description ?? null) : null;
+            const displayProjectName =
+                displayOwnerType === "project" ? (owner?.name ?? null) : null;
+            const displayIdeaMarkdown =
+                displayOwnerType === "idea" ? (owner?.description ?? null) : null;
 
             const label = typeof data?.label === "string" ? data.label : "Node";
             const widthHint = Math.max(
                 label.length,
                 (displayProjectName ?? "").length,
                 (displayIdeaMarkdown ?? "").length,
-                Math.min((displayOwnerUrl ?? "").length, 80),
             );
             const widthCh = clamp(Math.ceil(widthHint * 0.75) + 12, 28, 64);
 
@@ -161,7 +170,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                 data: {
                     ...(node.data as any),
                     displayOwnerType,
-                    displayOwnerUrl,
                     displayProjectName,
                     displayIdeaMarkdown,
                 },
@@ -390,12 +398,18 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
             <div className="max-w-6xl w-full mx-auto px-8 pt-8 pb-4 flex items-start justify-between gap-4">
                 <div className="space-y-2 text-left">
                     <h1 className="text-5xl font-bold leading-tight">Node Editor</h1>
-                    <p className="text-base-content/80">A simple React Flow canvas for node-based editing.</p>
+                    <p className="text-base-content/80">
+                        A simple React Flow canvas for node-based editing.
+                    </p>
                     <div className="flex items-center gap-2">
                         <Link to="/" className="btn btn-outline btn-sm">
                             Back to grid
                         </Link>
-                        <button type="button" className="btn btn-primary btn-sm" onClick={handleAddNode}>
+                        <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={handleAddNode}
+                        >
                             Add node
                         </button>
                         <span className="text-sm text-base-content/60">
@@ -429,20 +443,28 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         if (!(target instanceof HTMLElement)) return;
                                         if (target.closest("[data-project-context-menu]")) return;
 
-                                        const nodeEl = target.closest(".react-flow__node") as HTMLElement | null;
+                                        const nodeEl = target.closest(
+                                            ".react-flow__node",
+                                        ) as HTMLElement | null;
                                         const nodeId = nodeEl?.dataset?.id;
                                         if (!nodeId) return;
 
                                         const node = nodes.find((entry) => entry.id === nodeId);
                                         const ownerId =
-                                            typeof (node as any)?.data?.ownerId === "string" ? (node as any).data.ownerId : "";
+                                            typeof (node as any)?.data?.ownerId === "string"
+                                                ? (node as any).data.ownerId
+                                                : "";
                                         const owner = ownerId ? ownersById.get(ownerId) : undefined;
                                         if (!ownerId || owner?.ownerType !== "project") return;
 
                                         event.preventDefault();
                                         event.stopPropagation();
                                         setSelectedNodeId(nodeId);
-                                        setProjectMenu({ projectId: ownerId, x: event.clientX, y: event.clientY });
+                                        setProjectMenu({
+                                            projectId: ownerId,
+                                            x: event.clientX,
+                                            y: event.clientY,
+                                        });
                                     }}
                                 >
                                     <ReactFlow
@@ -474,7 +496,11 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         Select a node, then assign it to a Project or Idea.
                                     </p>
                                 </div>
-                                <button type="button" className="btn btn-outline btn-sm" onClick={refreshOwners}>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline btn-sm"
+                                    onClick={refreshOwners}
+                                >
                                     Refresh owners
                                 </button>
                             </div>
@@ -486,12 +512,16 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                             )}
 
                             {!selectedNode ? (
-                                <div className="text-sm text-base-content/70">No node selected.</div>
+                                <div className="text-sm text-base-content/70">
+                                    No node selected.
+                                </div>
                             ) : (
                                 <div className="flex flex-col gap-3">
                                     <div className="text-sm">
                                         <span className="font-semibold">Selected node:</span>{" "}
-                                        <span className="text-base-content/80">{selectedNode.id}</span>
+                                        <span className="text-base-content/80">
+                                            {selectedNode.id}
+                                        </span>
                                     </div>
                                     <label className="form-control w-full max-w-md">
                                         <div className="label">
@@ -500,7 +530,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         <select
                                             className="select select-bordered w-full"
                                             value={selectedOwnerId}
-                                            onChange={(event) => handleOwnerChange(event.target.value)}
+                                            onChange={(event) =>
+                                                handleOwnerChange(event.target.value)
+                                            }
                                         >
                                             <option value="">No owner</option>
                                             {owners.map((owner) => {
@@ -519,7 +551,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                     {selectedOwner?.ownerType === "idea" && (
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="text-sm font-semibold">Idea description</div>
+                                                <div className="text-sm font-semibold">
+                                                    Idea description
+                                                </div>
                                                 <span className="text-xs text-base-content/60">
                                                     {ideaSaveStatus === "saving" && "Saving…"}
                                                     {ideaSaveStatus === "saved" && "Saved"}
@@ -529,7 +563,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                             <textarea
                                                 className="textarea textarea-bordered w-full min-h-28 font-mono text-xs"
                                                 value={ideaDraftMarkdown}
-                                                onChange={(event) => setIdeaDraftMarkdown(event.target.value)}
+                                                onChange={(event) =>
+                                                    setIdeaDraftMarkdown(event.target.value)
+                                                }
                                             />
                                             <div className="flex items-center justify-between gap-2">
                                                 <button
@@ -544,11 +580,15 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                                 >
                                                     Save idea
                                                 </button>
-                                                <div className="text-xs text-base-content/60">Preview</div>
+                                                <div className="text-xs text-base-content/60">
+                                                    Preview
+                                                </div>
                                             </div>
                                             <div className="p-3 border border-base-300 rounded-xl bg-base-100/60">
                                                 <Markdown
-                                                    markdown={ideaDraftMarkdown.trim() || "_(empty)_"}
+                                                    markdown={
+                                                        ideaDraftMarkdown.trim() || "_(empty)_"
+                                                    }
                                                     className="text-sm space-y-2"
                                                 />
                                             </div>
@@ -562,10 +602,14 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="text-sm font-semibold">Projects</div>
-                                    <span className="text-xs text-base-content/60">{projects.length}</span>
+                                    <span className="text-xs text-base-content/60">
+                                        {projects.length}
+                                    </span>
                                 </div>
                                 {projects.length === 0 ? (
-                                    <div className="text-sm text-base-content/70">No projects yet.</div>
+                                    <div className="text-sm text-base-content/70">
+                                        No projects yet.
+                                    </div>
                                 ) : (
                                     <div className="space-y-2 max-h-44 overflow-y-auto">
                                         {projects.map((project) => (
@@ -585,16 +629,6 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                                 <div className="font-semibold text-sm">
                                                     {project.name?.trim() || "Untitled"}
                                                 </div>
-                                                {project.url && (
-                                                    <a
-                                                        href={project.url}
-                                                        className="link link-hover text-xs break-all"
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        {project.url}
-                                                    </a>
-                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -649,7 +683,8 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                                 const label = repo.owner?.login
                                                     ? `${repo.owner.login}/${repo.name}`
                                                     : repo.name;
-                                                const isSelected = newProjectUrl.trim() === repo.url;
+                                                const isSelected =
+                                                    newProjectUrl.trim() === repo.url;
                                                 return (
                                                     <div
                                                         key={repo.url}
@@ -671,7 +706,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-sm btn-outline"
-                                                                onClick={() => handleRepoSelect(repo)}
+                                                                onClick={() =>
+                                                                    handleRepoSelect(repo)
+                                                                }
                                                             >
                                                                 {isSelected ? "Selected" : "Select"}
                                                             </button>
@@ -702,7 +739,9 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                         className="input input-bordered w-full"
                                         placeholder="Idea description"
                                         value={newIdeaDescription}
-                                        onChange={(event) => setNewIdeaDescription(event.target.value)}
+                                        onChange={(event) =>
+                                            setNewIdeaDescription(event.target.value)
+                                        }
                                     />
                                     <button
                                         type="button"
