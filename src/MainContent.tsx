@@ -67,8 +67,6 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                 </div>
             </div>
 
-            <GithubRepoCard />
-
             {projectsError ? (
                 <div className="alert alert-error text-left">
                     <span>{projectsError}</span>
@@ -112,6 +110,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     })}
                 </div>
             )}
+
+            <GithubRepoCard />
         </div>
     );
 }
