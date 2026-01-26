@@ -25,6 +25,7 @@ export function createProjectRoutes(options: {
                         SELECT
                             projects.id,
                             projects.name,
+                            projects.repository_id AS repositoryId,
                             repositories.url AS url
                         FROM projects
                         LEFT JOIN repositories ON repositories.id = projects.repository_id
@@ -40,6 +41,7 @@ export function createProjectRoutes(options: {
                 const normalized = projects.map((project) => ({
                     id: project.id,
                     name: project.name,
+                    repositoryId: project.repositoryId ?? null,
                     url: project.url,
                 }));
 
@@ -66,48 +68,41 @@ export function createProjectRoutes(options: {
 
                 const repositoryId =
                     typeof body?.repositoryId === "string" ? body.repositoryId.trim() : "";
-                if (!repositoryId) {
-                    return new Response(
-                        JSON.stringify({ error: "Repository selection is required." }),
-                        {
+                let repository: { id: string; url: string } | null = null;
+                if (repositoryId) {
+                    repository = db
+                        .query("SELECT id, url FROM repositories WHERE id = ?")
+                        .get(repositoryId) as { id: string; url: string } | null;
+
+                    if (!repository) {
+                        return new Response(JSON.stringify({ error: "Repository not found." }), {
                             status: 400,
                             headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
+                        });
+                    }
 
-                const repository = db
-                    .query("SELECT id, url FROM repositories WHERE id = ?")
-                    .get(repositoryId) as { id: string; url: string } | null;
+                    const existingProject = db
+                        .query("SELECT id FROM projects WHERE repository_id = ?")
+                        .get(repositoryId) as { id: string } | null;
 
-                if (!repository) {
-                    return new Response(JSON.stringify({ error: "Repository not found." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-
-                const existingProject = db
-                    .query("SELECT id FROM projects WHERE repository_id = ?")
-                    .get(repositoryId) as { id: string } | null;
-
-                if (existingProject) {
-                    return new Response(
-                        JSON.stringify({ error: "Repository already has a project." }),
-                        {
-                            status: 409,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
+                    if (existingProject) {
+                        return new Response(
+                            JSON.stringify({ error: "Repository already has a project." }),
+                            {
+                                status: 409,
+                                headers: { "Content-Type": "application/json" },
+                            },
+                        );
+                    }
                 }
 
                 const projectId = randomUUID();
                 db.query("INSERT INTO projects (id, name, repository_id) VALUES (?, ?, ?)").run(
                     projectId,
                     name,
-                    repositoryId,
+                    repositoryId || null,
                 );
-                return Response.json({ id: projectId, name, url: repository.url });
+                return Response.json({ id: projectId, name, url: repository?.url ?? null });
             },
         },
 
@@ -120,6 +115,7 @@ export function createProjectRoutes(options: {
                         SELECT
                             projects.id,
                             projects.name,
+                            projects.repository_id AS repositoryId,
                             repositories.url AS url
                         FROM projects
                         LEFT JOIN repositories ON repositories.id = projects.repository_id
@@ -130,6 +126,7 @@ export function createProjectRoutes(options: {
                     | {
                           id: string;
                           name: string;
+                          repositoryId: string | null;
                           url: string | null;
                       }
                     | null
@@ -200,12 +197,140 @@ export function createProjectRoutes(options: {
                 return Response.json({
                     id: row.id,
                     name: row.name,
+                    repositoryId: row.repositoryId ?? null,
                     url: repositoryUrl,
                     consoleRepositoryUrl,
                     clones,
                     productionClone,
                     remoteBranch,
                 });
+            },
+            async PUT(req: Server.Request) {
+                const projectId = req.params.id ?? null;
+                if (!projectId) {
+                    return new Response(JSON.stringify({ error: "Project id is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                let body: any;
+                try {
+                    body = await req.json();
+                } catch {
+                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const rawRepositoryId =
+                    typeof body?.repositoryId === "string" ? body.repositoryId.trim() : null;
+                const repositoryId =
+                    rawRepositoryId && rawRepositoryId.length > 0 ? rawRepositoryId : null;
+
+                if (repositoryId) {
+                    const repository = db
+                        .query("SELECT id FROM repositories WHERE id = ?")
+                        .get(repositoryId) as { id: string } | null;
+
+                    if (!repository) {
+                        return new Response(JSON.stringify({ error: "Repository not found." }), {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        });
+                    }
+
+                    const existingProject = db
+                        .query("SELECT id FROM projects WHERE repository_id = ? AND id != ?")
+                        .get(repositoryId, projectId) as { id: string } | null;
+
+                    if (existingProject) {
+                        return new Response(
+                            JSON.stringify({ error: "Repository already has a project." }),
+                            {
+                                status: 409,
+                                headers: { "Content-Type": "application/json" },
+                            },
+                        );
+                    }
+                }
+
+                const result = db
+                    .query("UPDATE projects SET repository_id = ? WHERE id = ?")
+                    .run(repositoryId, projectId) as { changes: number };
+
+                if (result.changes === 0) {
+                    return new Response(JSON.stringify({ error: "Project not found." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const updated = db
+                    .query(
+                        `
+                        SELECT
+                            projects.id,
+                            projects.name,
+                            projects.repository_id AS repositoryId,
+                            repositories.url AS url
+                        FROM projects
+                        LEFT JOIN repositories ON repositories.id = projects.repository_id
+                        WHERE projects.id = ?
+                        `,
+                    )
+                    .get(projectId) as
+                    | {
+                          id: string;
+                          name: string;
+                          repositoryId: string | null;
+                          url: string | null;
+                      }
+                    | null
+                    | undefined;
+
+                if (!updated) {
+                    return new Response(JSON.stringify({ error: "Project not found." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                console.info("[projects] updated repository", {
+                    projectId,
+                    repositoryId,
+                });
+
+                return Response.json({
+                    id: updated.id,
+                    name: updated.name,
+                    repositoryId: updated.repositoryId ?? null,
+                    url: updated.url ?? null,
+                });
+            },
+            async DELETE(req: Server.Request) {
+                const projectId = req.params.id ?? null;
+                if (!projectId) {
+                    return new Response(JSON.stringify({ error: "Project id is required." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const result = db
+                    .query("DELETE FROM projects WHERE id = ?")
+                    .run(projectId) as { changes: number };
+
+                if (result.changes === 0) {
+                    return new Response(JSON.stringify({ error: "Project not found." }), {
+                        status: 404,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                console.info("[projects] deleted", { projectId });
+                return Response.json({ id: projectId });
             },
         },
     } as const;

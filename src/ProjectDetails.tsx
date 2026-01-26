@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Markdown } from "./Markdown";
 import { emitSelectedRepo } from "./events";
 import { ClonesSection } from "./project-details/ClonesSection";
 import {
@@ -10,15 +11,22 @@ import {
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import { ProductionCloneSection } from "./project-details/ProductionCloneSection";
 import type { LogsMeta, PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
+import type { RepositorySummary } from "./types/repositories";
 
 type ProjectDetailsProps = {
     drawerToggleId: string;
 };
 
 type LogsTarget = { key: string; path: string };
+type DocumentSummary = {
+    id: string;
+    projectId: string | null;
+    markdown: string;
+};
 
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [project, setProject] = useState<ProjectDetailsPayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -33,6 +41,15 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [devLogs, setDevLogs] = useState<string[] | null>(null);
     const [devLogsMeta, setDevLogsMeta] = useState<LogsMeta | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
+    const [repositoriesLoading, setRepositoriesLoading] = useState(false);
+    const [repositoriesError, setRepositoriesError] = useState<string | null>(null);
+    const [repositorySelection, setRepositorySelection] = useState("");
+    const [updatingRepository, setUpdatingRepository] = useState(false);
+    const [deletingProject, setDeletingProject] = useState(false);
+    const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+    const [documentsLoading, setDocumentsLoading] = useState(false);
+    const [documentsError, setDocumentsError] = useState<string | null>(null);
 
     const showProductionClone = useMemo(() => {
         return shouldShowProductionClone(project);
@@ -91,6 +108,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [project?.url]);
 
     useEffect(() => {
+        setRepositorySelection(project?.repositoryId ?? "");
+    }, [project?.repositoryId]);
+
+    useEffect(() => {
         if (previewTargets.length === 0) {
             setActivePreviewKey(null);
             return;
@@ -130,6 +151,49 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         }
     };
+
+    const loadRepositories = useCallback(async () => {
+        setRepositoriesLoading(true);
+        setRepositoriesError(null);
+        try {
+            const res = await fetch("/api/repositories");
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load repositories.");
+            }
+            const list = Array.isArray(payload?.repositories)
+                ? (payload.repositories as RepositorySummary[])
+                : [];
+            setRepositories(list);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load repositories.";
+            setRepositoriesError(message);
+        } finally {
+            setRepositoriesLoading(false);
+        }
+    }, []);
+
+    const loadDocuments = useCallback(async () => {
+        if (!id) return;
+        setDocumentsLoading(true);
+        setDocumentsError(null);
+        try {
+            const res = await fetch(`/api/projects/${id}/documents`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load documents.");
+            }
+            const list = Array.isArray(payload?.documents)
+                ? (payload.documents as DocumentSummary[])
+                : [];
+            setDocuments(list);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load documents.";
+            setDocumentsError(message);
+        } finally {
+            setDocumentsLoading(false);
+        }
+    }, [id]);
 
     const startDevServer = async (worktreePath: string, key: string) => {
         setActionError(null);
@@ -245,6 +309,54 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const updateRepository = async (nextRepositoryId: string | null) => {
+        if (!id) return;
+        setActionError(null);
+        setUpdatingRepository(true);
+        try {
+            const res = await fetch(`/api/projects/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ repositoryId: nextRepositoryId }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update repository.");
+            }
+            setProject(payload as ProjectDetailsPayload);
+            setRepositorySelection(payload?.repositoryId ?? "");
+            await loadRepositories();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to update repository.";
+            setActionError(message);
+        } finally {
+            setUpdatingRepository(false);
+        }
+    };
+
+    const deleteProject = async () => {
+        if (!id) return;
+        const confirmed = window.confirm(
+            "Delete this project? Linked documents will be unassigned.",
+        );
+        if (!confirmed) return;
+        setActionError(null);
+        setDeletingProject(true);
+        try {
+            const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to delete project.");
+            }
+            navigate("/");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to delete project.";
+            setActionError(message);
+        } finally {
+            setDeletingProject(false);
+        }
+    };
+
     useEffect(() => {
         if (!productionLogsOpen) return;
         void refreshProductionLogs();
@@ -266,6 +378,39 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
         return () => window.clearInterval(interval);
     }, [devLogsTarget?.path]);
+
+    useEffect(() => {
+        void loadRepositories();
+    }, [loadRepositories]);
+
+    useEffect(() => {
+        if (!id) return;
+        let active = true;
+
+        const load = async () => {
+            if (!active) return;
+            await loadDocuments();
+        };
+
+        void load();
+        const interval = window.setInterval(() => {
+            void load();
+        }, 15000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [id, loadDocuments]);
+
+    const availableRepositories = useMemo(() => {
+        return repositories.filter(
+            (repo) => !repo.projectId || repo.id === project?.repositoryId,
+        );
+    }, [repositories, project?.repositoryId]);
+
+    const currentRepositoryId = project?.repositoryId ?? "";
+    const repositoryChanged = repositorySelection !== currentRepositoryId;
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -319,6 +464,119 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             ) : (
                                 <div className="text-sm text-base-content/70">
                                     No repository linked yet.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="text-sm text-base-content/60">Update repository</div>
+                            {repositoriesError && (
+                                <div className="alert alert-error py-2">
+                                    <span className="text-sm">{repositoriesError}</span>
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                    className="select select-bordered"
+                                    value={repositorySelection}
+                                    onChange={(event) =>
+                                        setRepositorySelection(event.target.value)
+                                    }
+                                    disabled={repositoriesLoading || updatingRepository}
+                                >
+                                    <option value="">
+                                        {repositoriesLoading
+                                            ? "Loading repositories..."
+                                            : availableRepositories.length === 0
+                                              ? "No unlinked repositories"
+                                              : "No repository"}
+                                    </option>
+                                    {availableRepositories.map((repo) => (
+                                        <option key={repo.id} value={repo.id}>
+                                            {repo.name} — {repo.url}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() =>
+                                        void updateRepository(
+                                            repositorySelection.trim() || null,
+                                        )
+                                    }
+                                    disabled={
+                                        updatingRepository ||
+                                        repositoriesLoading ||
+                                        !repositoryChanged
+                                    }
+                                >
+                                    {updatingRepository ? "Saving..." : "Save repository"}
+                                </button>
+                                {project.repositoryId && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => void updateRepository(null)}
+                                        disabled={updatingRepository}
+                                    >
+                                        Unlink
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm text-base-content/60">
+                                    Related documents
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline btn-xs"
+                                        onClick={() => void loadDocuments()}
+                                        disabled={documentsLoading}
+                                    >
+                                        {documentsLoading ? "Refreshing..." : "Refresh"}
+                                    </button>
+                                    <Link to="/documents" className="btn btn-outline btn-xs">
+                                        Open documents
+                                    </Link>
+                                </div>
+                            </div>
+                            {documentsError && (
+                                <div className="alert alert-error py-2">
+                                    <span className="text-sm">{documentsError}</span>
+                                </div>
+                            )}
+                            {documentsLoading ? (
+                                <div className="flex items-center gap-2 text-sm text-base-content/70">
+                                    <span className="loading loading-spinner loading-sm" />
+                                    <span>Loading documents...</span>
+                                </div>
+                            ) : documents.length === 0 ? (
+                                <div className="text-sm text-base-content/70">
+                                    No documents linked to this project yet.
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {documents.map((doc, index) => (
+                                        <div
+                                            key={doc.id}
+                                            className="card bg-base-100 border border-base-300"
+                                        >
+                                            <div className="card-body p-4 space-y-2">
+                                                <div className="text-xs text-base-content/60">
+                                                    Document {index + 1}
+                                                </div>
+                                                <Markdown
+                                                    markdown={doc.markdown}
+                                                    className="text-sm space-y-2"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -393,6 +651,22 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             previewUrl={previewUrl}
                             onChangeActivePreviewKey={(key) => setActivePreviewKey(key)}
                         />
+
+                        <div className="divider my-0" />
+
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm text-base-content/60">
+                                Delete project and unlink documents
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-error btn-sm"
+                                onClick={() => void deleteProject()}
+                                disabled={deletingProject}
+                            >
+                                {deletingProject ? "Deleting..." : "Delete project"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

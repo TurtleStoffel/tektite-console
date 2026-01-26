@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import type { RepositorySummary } from "./types/repositories";
 import { getErrorMessage } from "./utils/errors";
 
-type MainContentProps = {
+type ProjectsPageProps = {
     drawerToggleId: string;
 };
 
@@ -14,7 +14,7 @@ type ProjectSummary = {
     url: string | null;
 };
 
-export function MainContent({ drawerToggleId }: MainContentProps) {
+export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectRepositoryId, setNewProjectRepositoryId] = useState("");
     const queryClient = useQueryClient();
@@ -76,18 +76,22 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
             repositoryId,
         }: {
             name: string;
-            repositoryId: string;
+            repositoryId: string | null;
         }) => {
+            const payload: { name: string; repositoryId?: string } = { name };
+            if (repositoryId) {
+                payload.repositoryId = repositoryId;
+            }
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, repositoryId }),
+                body: JSON.stringify(payload),
             });
-            const payload = await res.json().catch(() => ({}));
+            const response = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(payload?.error || "Failed to create project.");
+                throw new Error(response?.error || "Failed to create project.");
             }
-            return payload as { id: string; name: string; url: string };
+            return response as { id: string; name: string; url: string | null };
         },
         onSuccess: async () => {
             setNewProjectName("");
@@ -99,8 +103,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
     const handleCreateProject = useCallback(() => {
         const name = newProjectName.trim();
         const repositoryId = newProjectRepositoryId.trim();
-        if (!name || !repositoryId) return;
-        createProjectMutation.mutate({ name, repositoryId });
+        if (!name) return;
+        createProjectMutation.mutate({ name, repositoryId: repositoryId || null });
     }, [createProjectMutation, newProjectName, newProjectRepositoryId]);
 
     const projectsError = getErrorMessage(projectsErrorRaw);
@@ -134,7 +138,7 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                         <div className="space-y-1">
                             <h2 className="card-title">New project</h2>
                             <p className="text-sm text-base-content/70">
-                                Select a repository to track the new project.
+                                Optionally link a repository to track the new project.
                             </p>
                         </div>
                         <button
@@ -167,14 +171,14 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                             className="select select-bordered w-full"
                             value={newProjectRepositoryId}
                             onChange={(event) => setNewProjectRepositoryId(event.target.value)}
-                            disabled={repositoriesLoading || availableRepositories.length === 0}
+                            disabled={repositoriesLoading}
                         >
                             <option value="">
                                 {repositoriesLoading
                                     ? "Loading repositories..."
                                     : availableRepositories.length === 0
                                       ? "No unlinked repositories"
-                                      : "Select repository"}
+                                      : "No repository"}
                             </option>
                             {availableRepositories.map((repo) => (
                                 <option key={repo.id} value={repo.id}>
@@ -191,11 +195,7 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                             type="button"
                             className="btn btn-primary btn-sm"
                             onClick={handleCreateProject}
-                            disabled={
-                                isCreating ||
-                                !newProjectName.trim() ||
-                                !newProjectRepositoryId.trim()
-                            }
+                            disabled={isCreating || !newProjectName.trim()}
                         >
                             {isCreating ? "Creating…" : "Create project"}
                         </button>
@@ -237,9 +237,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     })}
                 </div>
             )}
-
         </div>
     );
 }
 
-export default MainContent;
+export default ProjectsPage;

@@ -41,6 +41,7 @@ export type ProjectDetailsProductionClone = {
 export type ProjectDetailsPayload = {
     id: string;
     name: string;
+    repositoryId: string | null;
     url: string | null;
     consoleRepositoryUrl?: string | null;
     remoteBranch?: ProjectDetailsRemoteBranch;

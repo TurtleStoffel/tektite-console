@@ -3,7 +3,7 @@ import CommandPanel from "./CommandPanel";
 import DocumentsPage from "./DocumentsPage";
 import Drawer from "./Drawer";
 import EnvIndicator from "./EnvIndicator";
-import MainContent from "./MainContent";
+import ProjectsPage from "./ProjectsPage";
 import ProjectDetails from "./ProjectDetails";
 import RepositoriesPage from "./RepositoriesPage";
 import "./index.css";
@@ -40,7 +40,7 @@ export function App() {
                         <Routes>
                             <Route
                                 path="/"
-                                element={<MainContent drawerToggleId={drawerToggleId} />}
+                                element={<ProjectsPage drawerToggleId={drawerToggleId} />}
                             />
                             <Route
                                 path="/repositories"
