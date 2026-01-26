@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import GithubRepoCard from "./GithubRepoCard";
+import { getErrorMessage } from "./utils/errors";
 
 type MainContentProps = {
     drawerToggleId: string;
@@ -13,69 +15,63 @@ type ProjectSummary = {
 };
 
 export function MainContent({ drawerToggleId }: MainContentProps) {
-    const [isLoading, setIsLoading] = useState(true);
-    const [projects, setProjects] = useState<ProjectSummary[]>([]);
-    const [projectsError, setProjectsError] = useState<string | null>(null);
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectUrl, setNewProjectUrl] = useState("");
-    const [isCreating, setIsCreating] = useState(false);
-    const [createError, setCreateError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-    const loadProjects = useCallback(async (shouldSetLoading = true) => {
-        if (shouldSetLoading) {
-            setIsLoading(true);
+    const fetchProjects = useCallback(async () => {
+        console.info("[projects] loading project list...");
+        const res = await fetch("/api/projects");
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || "Failed to load projects.");
         }
-        setProjectsError(null);
-        try {
-            const res = await fetch("/api/projects");
-            const payload = await res.json().catch(() => ({}));
-            const list = Array.isArray(payload?.projects)
-                ? (payload.projects as ProjectSummary[])
-                : [];
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load projects.");
-            }
-            setProjects(list);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load projects.";
-            setProjectsError(message);
-        } finally {
-            if (shouldSetLoading) {
-                setIsLoading(false);
-            }
-        }
+        const list = Array.isArray(payload?.projects) ? (payload.projects as ProjectSummary[]) : [];
+        console.info(`[projects] loaded ${list.length} projects.`);
+        return list;
     }, []);
 
-    useEffect(() => {
-        void loadProjects(true);
-    }, [loadProjects]);
+    const {
+        data: projects = [],
+        isLoading,
+        isFetching,
+        error: projectsErrorRaw,
+        refetch: refetchProjects,
+    } = useQuery<ProjectSummary[]>({
+        queryKey: ["projects"],
+        queryFn: fetchProjects,
+    });
 
-    const handleCreateProject = useCallback(async () => {
-        const name = newProjectName.trim();
-        const url = newProjectUrl.trim();
-        if (!name || !url) return;
-        setCreateError(null);
-        setIsCreating(true);
-        try {
+    const createProjectMutation = useMutation({
+        mutationFn: async ({ name, url }: { name: string; url: string }) => {
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, url }),
             });
+            const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const payload = await res.json().catch(() => ({}));
                 throw new Error(payload?.error || "Failed to create project.");
             }
+            return payload as { id: string; name: string; url: string };
+        },
+        onSuccess: async () => {
             setNewProjectName("");
             setNewProjectUrl("");
-            await loadProjects(false);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to create project.";
-            setCreateError(message);
-        } finally {
-            setIsCreating(false);
-        }
-    }, [newProjectName, newProjectUrl, loadProjects]);
+            await queryClient.invalidateQueries({ queryKey: ["projects"] });
+        },
+    });
+
+    const handleCreateProject = useCallback(() => {
+        const name = newProjectName.trim();
+        const url = newProjectUrl.trim();
+        if (!name || !url) return;
+        createProjectMutation.mutate({ name, url });
+    }, [createProjectMutation, newProjectName, newProjectUrl]);
+
+    const projectsError = getErrorMessage(projectsErrorRaw);
+    const createError = getErrorMessage(createProjectMutation.error);
+    const isCreating = createProjectMutation.isPending;
 
     return (
         <div className="max-w-6xl w-full mx-auto p-8 text-center space-y-8 relative z-10">
@@ -112,7 +108,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                         <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={() => loadProjects(false)}
+                            onClick={() => void refetchProjects()}
+                            disabled={isFetching}
                         >
                             Refresh list
                         </button>
@@ -172,7 +169,7 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                 </div>
             ) : (
                 <div className="space-y-3 text-left">
-                    {projects.map((project) => {
+                    {projects.map((project: ProjectSummary) => {
                         const name = project.name?.trim() || "Untitled";
                         return (
                             <Link

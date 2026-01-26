@@ -1,41 +1,37 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import RepositoriesList from "./RepositoriesList";
 import type { RepositorySummary } from "./types/repositories";
+import { getErrorMessage } from "./utils/errors";
 
 export function GithubRepoCard() {
-    const [repos, setRepos] = useState<RepositorySummary[]>([]);
-    const [reposLoading, setReposLoading] = useState(true);
-    const [reposError, setReposError] = useState<string | null>(null);
-
     const fetchRepos = useCallback(async () => {
-        setReposLoading(true);
-        setReposError(null);
-        console.info("Loading repositories from local DB...");
-        try {
-            const res = await fetch("/api/repositories");
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load repositories.");
-            }
-            const list = Array.isArray(payload?.repositories)
-                ? (payload.repositories as RepositorySummary[])
-                : [];
-            setRepos(list);
-            console.info(`[repositories] loaded ${list.length} repositories.`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load repositories.";
-            setReposError(message);
-            setRepos([]);
-            console.error("[repositories] failed to load repositories.", error);
-        } finally {
-            setReposLoading(false);
+        console.info("[repositories] loading repositories from local DB...");
+        const res = await fetch("/api/repositories");
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || "Failed to load repositories.");
         }
+        const list = Array.isArray(payload?.repositories)
+            ? (payload.repositories as RepositorySummary[])
+            : [];
+        console.info(`[repositories] loaded ${list.length} repositories.`);
+        return list;
     }, []);
 
-    useEffect(() => {
-        void fetchRepos();
-    }, [fetchRepos]);
+    const {
+        data: repos = [],
+        isLoading: reposLoading,
+        isFetching: reposFetching,
+        error: reposErrorRaw,
+        refetch: refetchRepos,
+    } = useQuery<RepositorySummary[]>({
+        queryKey: ["repositories"],
+        queryFn: fetchRepos,
+    });
+
+    const reposError = getErrorMessage(reposErrorRaw);
 
     return (
         <div className="card bg-base-200 border border-base-300 shadow-md text-left">
@@ -48,14 +44,16 @@ export function GithubRepoCard() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {reposLoading && <span className="loading loading-spinner loading-xs" />}
+                        {(reposLoading || reposFetching) && (
+                            <span className="loading loading-spinner loading-xs" />
+                        )}
                         <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={fetchRepos}
-                            disabled={reposLoading}
+                            onClick={() => void refetchRepos()}
+                            disabled={reposLoading || reposFetching}
                         >
-                            {reposLoading ? "Refreshing..." : "Refresh"}
+                            {reposLoading || reposFetching ? "Refreshing..." : "Refresh"}
                         </button>
                         <Link to="/repositories" className="btn btn-outline btn-sm">
                             View all

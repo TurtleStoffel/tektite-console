@@ -1,72 +1,71 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import RepositoriesList from "./RepositoriesList";
 import type { RepositorySummary } from "./types/repositories";
+import { getErrorMessage } from "./utils/errors";
 
 type RepositoriesPageProps = {
     drawerToggleId: string;
 };
 
 export function RepositoriesPage({ drawerToggleId }: RepositoriesPageProps) {
-    const [repos, setRepos] = useState<RepositorySummary[]>([]);
-    const [reposLoading, setReposLoading] = useState(true);
-    const [reposError, setReposError] = useState<string | null>(null);
-    const [syncLoading, setSyncLoading] = useState(false);
-    const [syncError, setSyncError] = useState<string | null>(null);
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     const fetchRepos = useCallback(async () => {
-        setReposLoading(true);
-        setReposError(null);
         console.info("Loading repositories from local DB...");
-        try {
-            const res = await fetch("/api/repositories");
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load repositories.");
-            }
-            const list = Array.isArray(payload?.repositories)
-                ? (payload.repositories as RepositorySummary[])
-                : [];
-            setRepos(list);
-            console.info(`[repositories] loaded ${list.length} repositories.`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to load repositories.";
-            setReposError(message);
-            setRepos([]);
-            console.error("[repositories] failed to load repositories.", error);
-        } finally {
-            setReposLoading(false);
+        const res = await fetch("/api/repositories");
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || "Failed to load repositories.");
         }
+        const list = Array.isArray(payload?.repositories)
+            ? (payload.repositories as RepositorySummary[])
+            : [];
+        console.info(`[repositories] loaded ${list.length} repositories.`);
+        return list;
     }, []);
 
-    const syncRepos = useCallback(async () => {
-        setSyncLoading(true);
-        setSyncError(null);
-        setSyncMessage(null);
-        console.info("[repositories] syncing repositories from GitHub...");
-        try {
+    const {
+        data: repos = [],
+        isLoading: reposLoading,
+        isFetching: reposFetching,
+        error: reposErrorRaw,
+        refetch: refetchRepos,
+    } = useQuery<RepositorySummary[]>({
+        queryKey: ["repositories"],
+        queryFn: fetchRepos,
+    });
+
+    const syncReposMutation = useMutation<{ inserted: number; total: number }, Error, void>({
+        mutationFn: async () => {
+            console.info("[repositories] syncing repositories from GitHub...");
             const res = await fetch("/api/repositories/sync", { method: "POST" });
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to sync repositories.");
             }
-            const inserted = typeof payload?.insertedCount === "number" ? payload.insertedCount : 0;
-            const total = typeof payload?.total === "number" ? payload.total : 0;
-            setSyncMessage(`Synced ${inserted} new repositories from ${total} GitHub repos.`);
-            await fetchRepos();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Failed to sync repositories.";
-            setSyncError(message);
-            console.error("[repositories] failed to sync repositories.", error);
-        } finally {
-            setSyncLoading(false);
-        }
-    }, [fetchRepos]);
+            return {
+                inserted: typeof payload?.insertedCount === "number" ? payload.insertedCount : 0,
+                total: typeof payload?.total === "number" ? payload.total : 0,
+            };
+        },
+        onSuccess: async (result: { inserted: number; total: number }) => {
+            setSyncMessage(
+                `Synced ${result.inserted} new repositories from ${result.total} GitHub repos.`,
+            );
+            await queryClient.invalidateQueries({ queryKey: ["repositories"] });
+        },
+    });
 
-    useEffect(() => {
-        void fetchRepos();
-    }, [fetchRepos]);
+    const reposError = getErrorMessage(reposErrorRaw);
+    const syncError = getErrorMessage(syncReposMutation.error);
+    const syncLoading = syncReposMutation.isPending;
+    const handleSyncRepos = useCallback(() => {
+        setSyncMessage(null);
+        syncReposMutation.mutate();
+    }, [syncReposMutation]);
 
     return (
         <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
@@ -81,7 +80,7 @@ export function RepositoriesPage({ drawerToggleId }: RepositoriesPageProps) {
                     <button
                         type="button"
                         className="btn btn-primary btn-sm"
-                        onClick={syncRepos}
+                        onClick={handleSyncRepos}
                         disabled={syncLoading}
                     >
                         {syncLoading ? "Syncing..." : "Sync from GitHub"}
@@ -89,10 +88,10 @@ export function RepositoriesPage({ drawerToggleId }: RepositoriesPageProps) {
                     <button
                         type="button"
                         className="btn btn-outline btn-sm"
-                        onClick={fetchRepos}
-                        disabled={reposLoading}
+                        onClick={() => void refetchRepos()}
+                        disabled={reposLoading || reposFetching}
                     >
-                        {reposLoading ? "Refreshing..." : "Refresh"}
+                        {reposLoading || reposFetching ? "Refreshing..." : "Refresh"}
                     </button>
                     <Link to="/" className="btn btn-outline btn-sm">
                         Back to projects
