@@ -23,10 +23,12 @@ export function createProjectRoutes(options: {
                     .query(
                         `
                         SELECT
-                            id,
-                            name
+                            projects.id,
+                            projects.name,
+                            repositories.url AS url
                         FROM projects
-                        ORDER BY name ASC
+                        LEFT JOIN repositories ON repositories.id = projects.repository_id
+                        ORDER BY projects.name ASC
                         `,
                     )
                     .all() as Array<{
@@ -62,22 +64,11 @@ export function createProjectRoutes(options: {
                     });
                 }
 
-                const url = typeof body?.url === "string" ? body.url.trim() : "";
-                if (!url) {
-                    return new Response(JSON.stringify({ error: "Project URL is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-
-                try {
-                    const parsed = new URL(url);
-                    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-                        throw new Error("Invalid protocol.");
-                    }
-                } catch {
+                const repositoryId =
+                    typeof body?.repositoryId === "string" ? body.repositoryId.trim() : "";
+                if (!repositoryId) {
                     return new Response(
-                        JSON.stringify({ error: "Project URL must be a valid http(s) URL." }),
+                        JSON.stringify({ error: "Repository selection is required." }),
                         {
                             status: 400,
                             headers: { "Content-Type": "application/json" },
@@ -85,13 +76,38 @@ export function createProjectRoutes(options: {
                     );
                 }
 
+                const repository = db
+                    .query("SELECT id, url FROM repositories WHERE id = ?")
+                    .get(repositoryId) as { id: string; url: string } | null;
+
+                if (!repository) {
+                    return new Response(JSON.stringify({ error: "Repository not found." }), {
+                        status: 400,
+                        headers: { "Content-Type": "application/json" },
+                    });
+                }
+
+                const existingProject = db
+                    .query("SELECT id FROM projects WHERE repository_id = ?")
+                    .get(repositoryId) as { id: string } | null;
+
+                if (existingProject) {
+                    return new Response(
+                        JSON.stringify({ error: "Repository already has a project." }),
+                        {
+                            status: 409,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
+                }
+
                 const projectId = randomUUID();
-                db.query("INSERT INTO projects (id, name, url) VALUES (?, ?, ?)").run(
+                db.query("INSERT INTO projects (id, name, repository_id) VALUES (?, ?, ?)").run(
                     projectId,
                     name,
-                    url,
+                    repositoryId,
                 );
-                return Response.json({ id: projectId, name, url });
+                return Response.json({ id: projectId, name, url: repository.url });
             },
         },
 
@@ -102,10 +118,12 @@ export function createProjectRoutes(options: {
                     .query(
                         `
                         SELECT
-                            id,
-                            name
+                            projects.id,
+                            projects.name,
+                            repositories.url AS url
                         FROM projects
-                        WHERE id = ?
+                        LEFT JOIN repositories ON repositories.id = projects.repository_id
+                        WHERE projects.id = ?
                         `,
                     )
                     .get(projectId) as

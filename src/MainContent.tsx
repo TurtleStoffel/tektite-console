@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import GithubRepoCard from "./GithubRepoCard";
+import type { RepositorySummary } from "./types/repositories";
 import { getErrorMessage } from "./utils/errors";
 
 type MainContentProps = {
@@ -16,7 +16,7 @@ type ProjectSummary = {
 
 export function MainContent({ drawerToggleId }: MainContentProps) {
     const [newProjectName, setNewProjectName] = useState("");
-    const [newProjectUrl, setNewProjectUrl] = useState("");
+    const [newProjectRepositoryId, setNewProjectRepositoryId] = useState("");
     const queryClient = useQueryClient();
 
     const fetchProjects = useCallback(async () => {
@@ -42,12 +42,46 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
         queryFn: fetchProjects,
     });
 
+    const fetchRepositories = useCallback(async () => {
+        console.info("[repositories] loading repositories from local DB...");
+        const res = await fetch("/api/repositories");
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || "Failed to load repositories.");
+        }
+        const list = Array.isArray(payload?.repositories)
+            ? (payload.repositories as RepositorySummary[])
+            : [];
+        console.info(`[repositories] loaded ${list.length} repositories.`);
+        return list;
+    }, []);
+
+    const {
+        data: repositories = [],
+        isLoading: repositoriesLoading,
+        error: repositoriesErrorRaw,
+    } = useQuery<RepositorySummary[]>({
+        queryKey: ["repositories"],
+        queryFn: fetchRepositories,
+    });
+
+    const availableRepositories = useMemo(
+        () => repositories.filter((repo) => !repo.projectId),
+        [repositories],
+    );
+
     const createProjectMutation = useMutation({
-        mutationFn: async ({ name, url }: { name: string; url: string }) => {
+        mutationFn: async ({
+            name,
+            repositoryId,
+        }: {
+            name: string;
+            repositoryId: string;
+        }) => {
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, url }),
+                body: JSON.stringify({ name, repositoryId }),
             });
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -57,19 +91,20 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
         },
         onSuccess: async () => {
             setNewProjectName("");
-            setNewProjectUrl("");
+            setNewProjectRepositoryId("");
             await queryClient.invalidateQueries({ queryKey: ["projects"] });
         },
     });
 
     const handleCreateProject = useCallback(() => {
         const name = newProjectName.trim();
-        const url = newProjectUrl.trim();
-        if (!name || !url) return;
-        createProjectMutation.mutate({ name, url });
-    }, [createProjectMutation, newProjectName, newProjectUrl]);
+        const repositoryId = newProjectRepositoryId.trim();
+        if (!name || !repositoryId) return;
+        createProjectMutation.mutate({ name, repositoryId });
+    }, [createProjectMutation, newProjectName, newProjectRepositoryId]);
 
     const projectsError = getErrorMessage(projectsErrorRaw);
+    const repositoriesError = getErrorMessage(repositoriesErrorRaw);
     const createError = getErrorMessage(createProjectMutation.error);
     const isCreating = createProjectMutation.isPending;
 
@@ -102,7 +137,7 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                         <div className="space-y-1">
                             <h2 className="card-title">New project</h2>
                             <p className="text-sm text-base-content/70">
-                                Add a repository URL to track the new project.
+                                Select a repository to track the new project.
                             </p>
                         </div>
                         <button
@@ -119,6 +154,11 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                             <span>{createError}</span>
                         </div>
                     )}
+                    {repositoriesError && (
+                        <div className="alert alert-error">
+                            <span>{repositoriesError}</span>
+                        </div>
+                    )}
                     <div className="grid gap-3 md:grid-cols-2">
                         <input
                             className="input input-bordered w-full"
@@ -126,12 +166,25 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                             value={newProjectName}
                             onChange={(event) => setNewProjectName(event.target.value)}
                         />
-                        <input
-                            className="input input-bordered w-full"
-                            placeholder="Repository URL"
-                            value={newProjectUrl}
-                            onChange={(event) => setNewProjectUrl(event.target.value)}
-                        />
+                        <select
+                            className="select select-bordered w-full"
+                            value={newProjectRepositoryId}
+                            onChange={(event) => setNewProjectRepositoryId(event.target.value)}
+                            disabled={repositoriesLoading || availableRepositories.length === 0}
+                        >
+                            <option value="">
+                                {repositoriesLoading
+                                    ? "Loading repositories..."
+                                    : availableRepositories.length === 0
+                                      ? "No unlinked repositories"
+                                      : "Select repository"}
+                            </option>
+                            {availableRepositories.map((repo) => (
+                                <option key={repo.id} value={repo.id}>
+                                    {repo.name} — {repo.url}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-xs text-base-content/60">
@@ -141,7 +194,11 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                             type="button"
                             className="btn btn-primary btn-sm"
                             onClick={handleCreateProject}
-                            disabled={isCreating || !newProjectName.trim() || !newProjectUrl.trim()}
+                            disabled={
+                                isCreating ||
+                                !newProjectName.trim() ||
+                                !newProjectRepositoryId.trim()
+                            }
                         >
                             {isCreating ? "Creating…" : "Create project"}
                         </button>
@@ -189,7 +246,6 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                 </div>
             )}
 
-            <GithubRepoCard />
         </div>
     );
 }

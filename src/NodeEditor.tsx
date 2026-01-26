@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ReactFlow, {
     addEdge,
@@ -13,7 +13,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { ProjectNode } from "./ProjectNode";
-import type { GithubRepo } from "./types/github";
+import type { RepositorySummary } from "./types/repositories";
 
 type NodeEditorProps = {
     drawerToggleId: string;
@@ -62,10 +62,10 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
     const [projectsError, setProjectsError] = useState<string | null>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [newProjectName, setNewProjectName] = useState("");
-    const [newProjectUrl, setNewProjectUrl] = useState("");
-    const [repos, setRepos] = useState<GithubRepo[]>([]);
-    const [reposLoading, setReposLoading] = useState(false);
-    const [reposError, setReposError] = useState<string | null>(null);
+    const [newProjectRepositoryId, setNewProjectRepositoryId] = useState("");
+    const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
+    const [repositoriesLoading, setRepositoriesLoading] = useState(false);
+    const [repositoriesError, setRepositoriesError] = useState<string | null>(null);
     const [projectMenu, setProjectMenu] = useState<{
         projectId: string;
         x: number;
@@ -198,26 +198,26 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
 
     const handleCreateProject = useCallback(async () => {
         const name = newProjectName.trim();
-        const url = newProjectUrl.trim();
-        if (!name || !url) return;
+        const repositoryId = newProjectRepositoryId.trim();
+        if (!name || !repositoryId) return;
         try {
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, url }),
+                body: JSON.stringify({ name, repositoryId }),
             });
             if (!res.ok) {
                 const payload = await res.json().catch(() => ({}));
                 throw new Error(payload?.error || "Failed to create project.");
             }
             setNewProjectName("");
-            setNewProjectUrl("");
+            setNewProjectRepositoryId("");
             await refreshProjects();
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to create project.";
             setProjectsError(message);
         }
-    }, [newProjectName, newProjectUrl, refreshProjects]);
+    }, [newProjectName, newProjectRepositoryId, refreshProjects]);
 
     useEffect(() => {
         let isMounted = true;
@@ -239,12 +239,13 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
         };
 
         void refreshProjects();
+        void fetchRepositories();
         load();
 
         return () => {
             isMounted = false;
         };
-    }, [refreshProjects, setEdges, setNodes]);
+    }, [fetchRepositories, refreshProjects, setEdges, setNodes]);
 
     useEffect(() => {
         if (isLoading) return;
@@ -280,34 +281,47 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
         [],
     );
 
-    const fetchRepos = useCallback(async () => {
-        setReposLoading(true);
-        setReposError(null);
+    const fetchRepositories = useCallback(async () => {
+        setRepositoriesLoading(true);
+        setRepositoriesError(null);
         try {
-            const res = await fetch("/api/github/repos");
+            console.info("[repositories] loading repositories for new project...");
+            const res = await fetch("/api/repositories");
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load repositories.");
             }
-            setRepos(Array.isArray(payload?.repos) ? (payload.repos as GithubRepo[]) : []);
+            const list = Array.isArray(payload?.repositories)
+                ? (payload.repositories as RepositorySummary[])
+                : [];
+            console.info(`[repositories] loaded ${list.length} repositories.`);
+            setRepositories(list);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to load repositories.";
-            setReposError(message);
-            setRepos([]);
+            setRepositoriesError(message);
+            setRepositories([]);
         } finally {
-            setReposLoading(false);
+            setRepositoriesLoading(false);
         }
     }, []);
 
-    const handleRepoSelect = useCallback(
-        (repo: GithubRepo) => {
-            setNewProjectUrl(repo.url);
+    const availableRepositories = useMemo(
+        () => repositories.filter((repo) => !repo.projectId),
+        [repositories],
+    );
+
+    const handleRepositoryChange = useCallback(
+        (event: ChangeEvent<HTMLSelectElement>) => {
+            const value = event.target.value;
+            setNewProjectRepositoryId(value);
+            if (!value) return;
             setNewProjectName((current) => {
                 if (current.trim()) return current;
-                return repo.owner?.login ? `${repo.owner.login}/${repo.name}` : repo.name;
+                const selected = availableRepositories.find((repo) => repo.id === value);
+                return selected?.name ?? current;
             });
         },
-        [setNewProjectName],
+        [availableRepositories],
     );
 
     return (
@@ -515,85 +529,54 @@ export function NodeEditor({ drawerToggleId }: NodeEditorProps) {
                                     value={newProjectName}
                                     onChange={(event) => setNewProjectName(event.target.value)}
                                 />
-                                <input
-                                    className="input input-bordered w-full"
-                                    placeholder="Repository URL"
-                                    value={newProjectUrl}
-                                    onChange={(event) => setNewProjectUrl(event.target.value)}
-                                />
+                                <select
+                                    className="select select-bordered w-full"
+                                    value={newProjectRepositoryId}
+                                    onChange={handleRepositoryChange}
+                                    disabled={
+                                        repositoriesLoading || availableRepositories.length === 0
+                                    }
+                                >
+                                    <option value="">
+                                        {repositoriesLoading
+                                            ? "Loading repositories..."
+                                            : availableRepositories.length === 0
+                                              ? "No unlinked repositories"
+                                              : "Select repository"}
+                                    </option>
+                                    {availableRepositories.map((repo) => (
+                                        <option key={repo.id} value={repo.id}>
+                                            {repo.name} — {repo.url}
+                                        </option>
+                                    ))}
+                                </select>
                                 <div className="flex items-center justify-between gap-2">
                                     <button
                                         type="button"
                                         className="btn btn-outline btn-sm"
-                                        onClick={fetchRepos}
-                                        disabled={reposLoading}
+                                        onClick={fetchRepositories}
+                                        disabled={repositoriesLoading}
                                     >
-                                        {reposLoading ? "Loading repos…" : "Load repos"}
+                                        {repositoriesLoading
+                                            ? "Refreshing…"
+                                            : "Refresh repositories"}
                                     </button>
-                                    {newProjectUrl.trim() && (
-                                        <a
-                                            href={newProjectUrl.trim()}
-                                            className="link link-hover text-sm break-all"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            {newProjectUrl.trim()}
-                                        </a>
-                                    )}
+                                    <span className="text-xs text-base-content/60">
+                                        {availableRepositories.length} available
+                                    </span>
                                 </div>
-                                {reposError && (
+                                {repositoriesError && (
                                     <div className="alert alert-error">
-                                        <span>{reposError}</span>
-                                    </div>
-                                )}
-                                {!reposLoading && !reposError && repos.length > 0 && (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                                        {repos.map((repo) => {
-                                            const label = repo.owner?.login
-                                                ? `${repo.owner.login}/${repo.name}`
-                                                : repo.name;
-                                            const isSelected = newProjectUrl.trim() === repo.url;
-                                            return (
-                                                <div
-                                                    key={repo.url}
-                                                    className={`p-3 border rounded-xl transition-colors ${
-                                                        isSelected
-                                                            ? "border-primary bg-primary/10"
-                                                            : "border-base-300 bg-base-100/60"
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <a
-                                                            href={repo.url}
-                                                            className="font-semibold link link-hover"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                        >
-                                                            {label}
-                                                        </a>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-sm btn-outline"
-                                                            onClick={() => handleRepoSelect(repo)}
-                                                        >
-                                                            {isSelected ? "Selected" : "Select"}
-                                                        </button>
-                                                    </div>
-                                                    {repo.description && (
-                                                        <p className="text-sm text-base-content/70 mt-2">
-                                                            {repo.description}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                        <span>{repositoriesError}</span>
                                     </div>
                                 )}
                                 <button
                                     type="button"
                                     className="btn btn-primary btn-sm"
                                     onClick={handleCreateProject}
-                                    disabled={!newProjectName.trim() || !newProjectUrl.trim()}
+                                    disabled={
+                                        !newProjectName.trim() || !newProjectRepositoryId.trim()
+                                    }
                                 >
                                     Create project
                                 </button>
