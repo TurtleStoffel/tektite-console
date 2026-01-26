@@ -116,9 +116,6 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     <p className="text-base-content/80">Select a project to view details.</p>
                 </header>
                 <div className="flex items-center gap-2">
-                    <Link to="/editor" className="btn btn-primary btn-sm">
-                        Node editor
-                    </Link>
                     <label htmlFor={drawerToggleId} className="btn btn-outline btn-sm lg:hidden">
                         Menu
                     </label>
@@ -215,13 +212,8 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                     <div className="card-body">
                         <h2 className="card-title">No projects yet</h2>
                         <p className="text-base-content/70">
-                            Create your first project in the Node editor.
+                            Create your first project using the form above.
                         </p>
-                        <div className="card-actions justify-end">
-                            <Link to="/editor" className="btn btn-primary btn-sm">
-                                Open Node editor
-                            </Link>
-                        </div>
                     </div>
                 </div>
             ) : (

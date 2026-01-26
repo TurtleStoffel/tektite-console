@@ -8,7 +8,6 @@ import { createDocumentRoutes } from "./backend/routes/documents";
 import { createEditorRoutes } from "./backend/routes/editor";
 import { envRoutes } from "./backend/routes/env";
 import { createExecuteRoutes } from "./backend/routes/execute";
-import { createFlowRoutes } from "./backend/routes/flow";
 import { createGithubRoutes } from "./backend/routes/github";
 import { helloRoutes } from "./backend/routes/hello";
 import { createProductionServerRoutes } from "./backend/routes/productionServer";
@@ -61,7 +60,6 @@ const server = serve({
     routes: {
         ...envRoutes,
         ...createGithubRoutes(),
-        ...createFlowRoutes({ db }),
         ...createDocumentRoutes({ db }),
         ...createProjectRoutes({ db, clonesDir, productionDir }),
         ...createRepositoryRoutes({ db }),

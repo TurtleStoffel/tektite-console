@@ -43,8 +43,6 @@ export type ProjectDetailsPayload = {
     name: string;
     url: string | null;
     consoleRepositoryUrl?: string | null;
-    nodeCount: number;
-    flowCount: number;
     remoteBranch?: ProjectDetailsRemoteBranch;
     productionClone?: ProjectDetailsProductionClone | null;
     clones?: ProjectDetailsClone[];

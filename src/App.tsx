@@ -4,7 +4,6 @@ import DocumentsPage from "./DocumentsPage";
 import Drawer from "./Drawer";
 import EnvIndicator from "./EnvIndicator";
 import MainContent from "./MainContent";
-import NodeEditor from "./NodeEditor";
 import ProjectDetails from "./ProjectDetails";
 import RepositoriesPage from "./RepositoriesPage";
 import "./index.css";
@@ -42,10 +41,6 @@ export function App() {
                             <Route
                                 path="/"
                                 element={<MainContent drawerToggleId={drawerToggleId} />}
-                            />
-                            <Route
-                                path="/editor"
-                                element={<NodeEditor drawerToggleId={drawerToggleId} />}
                             />
                             <Route
                                 path="/repositories"

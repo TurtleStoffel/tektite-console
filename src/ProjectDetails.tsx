@@ -275,8 +275,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                     <p className="text-sm text-base-content/70 break-all">{id}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Link to="/editor" className="btn btn-outline btn-sm">
-                        Back to editor
+                    <Link to="/" className="btn btn-outline btn-sm">
+                        Back to projects
                     </Link>
                     <label htmlFor={drawerToggleId} className="btn btn-outline btn-sm lg:hidden">
                         Menu
@@ -348,11 +348,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     </span>
                                 </div>
                             )}
-
-                        <div className="flex items-center gap-3">
-                            <div className="badge badge-outline">{project.nodeCount} nodes</div>
-                            <div className="badge badge-outline">{project.flowCount} flows</div>
-                        </div>
 
                         <div className="divider my-0" />
 

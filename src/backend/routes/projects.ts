@@ -142,15 +142,6 @@ export function createProjectRoutes(options: {
                     });
                 }
 
-                const nodeCountRow = db
-                    .query("SELECT COUNT(1) AS count FROM flow_nodes WHERE project_id = ?")
-                    .get(projectId) as { count: number } | null;
-                const flowCountRow = db
-                    .query(
-                        "SELECT COUNT(DISTINCT flow_id) AS count FROM flow_nodes WHERE project_id = ?",
-                    )
-                    .get(projectId) as { count: number } | null;
-
                 const repositoryUrl = row.url?.trim() || null;
                 const [clones, productionClone] = repositoryUrl
                     ? await Promise.all([
@@ -211,8 +202,6 @@ export function createProjectRoutes(options: {
                     name: row.name,
                     url: repositoryUrl,
                     consoleRepositoryUrl,
-                    nodeCount: nodeCountRow?.count ?? 0,
-                    flowCount: flowCountRow?.count ?? 0,
                     clones,
                     productionClone,
                     remoteBranch,
