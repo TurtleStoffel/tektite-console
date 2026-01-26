@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import GithubRepoCard from "./GithubRepoCard";
 
@@ -16,39 +16,66 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [projects, setProjects] = useState<ProjectSummary[]>([]);
     const [projectsError, setProjectsError] = useState<string | null>(null);
+    const [newProjectName, setNewProjectName] = useState("");
+    const [newProjectUrl, setNewProjectUrl] = useState("");
+    const [isCreating, setIsCreating] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let cancelled = false;
-
-        const loadProjects = async () => {
+    const loadProjects = useCallback(async (shouldSetLoading = true) => {
+        if (shouldSetLoading) {
             setIsLoading(true);
-            setProjectsError(null);
-            try {
-                const res = await fetch("/api/projects");
-                const payload = await res.json().catch(() => ({}));
-                const list = Array.isArray(payload?.projects)
-                    ? (payload.projects as ProjectSummary[])
-                    : [];
-                if (!res.ok) {
-                    throw new Error(payload?.error || "Failed to load projects.");
-                }
-                if (cancelled) return;
-                setProjects(list);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : "Failed to load projects.";
-                if (cancelled) return;
-                setProjectsError(message);
-            } finally {
-                if (cancelled) return;
+        }
+        setProjectsError(null);
+        try {
+            const res = await fetch("/api/projects");
+            const payload = await res.json().catch(() => ({}));
+            const list = Array.isArray(payload?.projects)
+                ? (payload.projects as ProjectSummary[])
+                : [];
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load projects.");
+            }
+            setProjects(list);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to load projects.";
+            setProjectsError(message);
+        } finally {
+            if (shouldSetLoading) {
                 setIsLoading(false);
             }
-        };
-
-        void loadProjects();
-        return () => {
-            cancelled = true;
-        };
+        }
     }, []);
+
+    useEffect(() => {
+        void loadProjects(true);
+    }, [loadProjects]);
+
+    const handleCreateProject = useCallback(async () => {
+        const name = newProjectName.trim();
+        const url = newProjectUrl.trim();
+        if (!name || !url) return;
+        setCreateError(null);
+        setIsCreating(true);
+        try {
+            const res = await fetch("/api/projects", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, url }),
+            });
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload?.error || "Failed to create project.");
+            }
+            setNewProjectName("");
+            setNewProjectUrl("");
+            await loadProjects(false);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to create project.";
+            setCreateError(message);
+        } finally {
+            setIsCreating(false);
+        }
+    }, [newProjectName, newProjectUrl, loadProjects]);
 
     return (
         <div className="max-w-6xl w-full mx-auto p-8 text-center space-y-8 relative z-10">
@@ -67,11 +94,65 @@ export function MainContent({ drawerToggleId }: MainContentProps) {
                 </div>
             </div>
 
-            {projectsError ? (
+            {projectsError && (
                 <div className="alert alert-error text-left">
                     <span>{projectsError}</span>
                 </div>
-            ) : isLoading ? (
+            )}
+
+            <div className="card bg-base-200 border border-base-300 shadow-md text-left">
+                <div className="card-body space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                            <h2 className="card-title">New project</h2>
+                            <p className="text-sm text-base-content/70">
+                                Add a repository URL to track the new project.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => loadProjects(false)}
+                        >
+                            Refresh list
+                        </button>
+                    </div>
+                    {createError && (
+                        <div className="alert alert-error">
+                            <span>{createError}</span>
+                        </div>
+                    )}
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <input
+                            className="input input-bordered w-full"
+                            placeholder="Project name"
+                            value={newProjectName}
+                            onChange={(event) => setNewProjectName(event.target.value)}
+                        />
+                        <input
+                            className="input input-bordered w-full"
+                            placeholder="Repository URL"
+                            value={newProjectUrl}
+                            onChange={(event) => setNewProjectUrl(event.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-xs text-base-content/60">
+                            {projects.length} total projects
+                        </span>
+                        <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={handleCreateProject}
+                            disabled={isCreating || !newProjectName.trim() || !newProjectUrl.trim()}
+                        >
+                            {isCreating ? "Creating…" : "Create project"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {isLoading ? (
                 <div className="flex items-center justify-center py-16">
                     <span className="loading loading-spinner loading-lg" />
                 </div>
