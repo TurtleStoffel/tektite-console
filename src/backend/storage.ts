@@ -20,15 +20,15 @@ export async function initStorage(dataDir: string): Promise<Storage> {
     db.run(`
         CREATE TABLE IF NOT EXISTS projects (
             id TEXT PRIMARY KEY,
-            name TEXT NOT NULL
+            name TEXT NOT NULL,
+            repository_id TEXT REFERENCES repositories(id) ON DELETE SET NULL
         )
     `);
     db.run(`
         CREATE TABLE IF NOT EXISTS repositories (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
-            url TEXT NOT NULL,
-            project_id TEXT REFERENCES projects(id) ON DELETE SET NULL
+            url TEXT NOT NULL
         )
     `);
     db.run(`

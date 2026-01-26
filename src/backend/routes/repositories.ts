@@ -37,9 +37,15 @@ export function createRepositoryRoutes(options: { db: Database }) {
                 const rows = db
                     .query(
                         `
-                        SELECT id, name, url, project_id
+                        SELECT
+                            repositories.id,
+                            repositories.name,
+                            repositories.url,
+                            MIN(projects.id) AS project_id
                         FROM repositories
-                        ORDER BY name ASC
+                        LEFT JOIN projects ON projects.repository_id = repositories.id
+                        GROUP BY repositories.id, repositories.name, repositories.url
+                        ORDER BY repositories.name ASC
                         `,
                     )
                     .all() as Array<{
