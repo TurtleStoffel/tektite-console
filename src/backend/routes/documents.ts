@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 
 type RouteRequest = Request & { params: Record<string, string> };
 
@@ -8,6 +9,60 @@ type DocumentRow = {
     project_id: string | null;
     markdown: string;
 };
+
+const jsonHeaders = { "Content-Type": "application/json" };
+
+const createDocumentSchema = z.object({
+    markdown: z.string(),
+    projectId: z.string().optional().nullable(),
+});
+
+const createProjectDocumentSchema = z.object({
+    markdown: z.string(),
+});
+
+const updateDocumentSchema = z.object({
+    markdown: z.string(),
+    projectId: z.string().optional().nullable(),
+});
+
+async function parseJsonBody<T extends z.ZodTypeAny>(
+    req: Request,
+    schema: T,
+    context: string,
+): Promise<{ data: z.infer<T> } | { response: Response }> {
+    let body: unknown;
+    try {
+        body = await req.json();
+    } catch (error) {
+        console.warn("[documents] invalid json payload", { context, error });
+        return {
+            response: new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
+                status: 400,
+                headers: jsonHeaders,
+            }),
+        };
+    }
+
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+        console.warn("[documents] invalid request body", {
+            context,
+            issues: parsed.error.issues,
+        });
+        return {
+            response: new Response(
+                JSON.stringify({ error: "Invalid request payload.", issues: parsed.error.issues }),
+                {
+                    status: 400,
+                    headers: jsonHeaders,
+                },
+            ),
+        };
+    }
+
+    return { data: parsed.data };
+}
 
 function findProject(db: Database, projectId: string) {
     return db.query("SELECT id FROM projects WHERE id = ?").get(projectId) as
@@ -43,26 +98,11 @@ export function createDocumentRoutes(options: { db: Database }) {
                 return Response.json({ documents });
             },
             async POST(req: RouteRequest) {
-                let body: any;
-                try {
-                    body = await req.json();
-                } catch {
-                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                const parsed = await parseJsonBody(req, createDocumentSchema, "documents:create");
+                if ("response" in parsed) {
+                    return parsed.response;
                 }
-
-                if (typeof body?.markdown !== "string") {
-                    return new Response(
-                        JSON.stringify({ error: "Document markdown is required." }),
-                        {
-                            status: 400,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
+                const body = parsed.data;
                 const rawProjectId =
                     typeof body?.projectId === "string" ? body.projectId.trim() : "";
                 const projectId = rawProjectId.length > 0 ? rawProjectId : null;
@@ -128,36 +168,26 @@ export function createDocumentRoutes(options: { db: Database }) {
                 if (!projectId) {
                     return new Response(JSON.stringify({ error: "Project id is required." }), {
                         status: 400,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
                 const project = findProject(db, projectId);
                 if (!project) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
 
-                let body: any;
-                try {
-                    body = await req.json();
-                } catch {
-                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                const parsed = await parseJsonBody(
+                    req,
+                    createProjectDocumentSchema,
+                    "project-documents:create",
+                );
+                if ("response" in parsed) {
+                    return parsed.response;
                 }
-
-                if (typeof body?.markdown !== "string") {
-                    return new Response(
-                        JSON.stringify({ error: "Document markdown is required." }),
-                        {
-                            status: 400,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
+                const body = parsed.data;
 
                 const documentId = randomUUID();
                 db.query("INSERT INTO documents (id, project_id, markdown) VALUES (?, ?, ?)").run(
@@ -201,28 +231,15 @@ export function createDocumentRoutes(options: { db: Database }) {
                 if (!documentId) {
                     return new Response(JSON.stringify({ error: "Document id is required." }), {
                         status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-                let body: any;
-                try {
-                    body = await req.json();
-                } catch {
-                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
 
-                if (typeof body?.markdown !== "string") {
-                    return new Response(
-                        JSON.stringify({ error: "Document markdown is required." }),
-                        {
-                            status: 400,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
+                const parsed = await parseJsonBody(req, updateDocumentSchema, "documents:update");
+                if ("response" in parsed) {
+                    return parsed.response;
                 }
+                const body = parsed.data;
 
                 const rawProjectId =
                     typeof body?.projectId === "string" ? body.projectId.trim() : "";
