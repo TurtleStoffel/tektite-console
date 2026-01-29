@@ -161,8 +161,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load repositories.");
             }
-            const list = Array.isArray(payload?.repositories)
-                ? (payload.repositories as RepositorySummary[])
+            const list = Array.isArray(payload?.data)
+                ? (payload.data as RepositorySummary[])
                 : [];
             setRepositories(list);
         } catch (err) {
@@ -183,8 +183,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load documents.");
             }
-            const list = Array.isArray(payload?.documents)
-                ? (payload.documents as DocumentSummary[])
+            const list = Array.isArray(payload?.data)
+                ? (payload.data as DocumentSummary[])
                 : [];
             setDocuments(list);
         } catch (err) {

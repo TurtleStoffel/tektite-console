@@ -26,7 +26,7 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         if (!res.ok) {
             throw new Error(payload?.error || "Failed to load projects.");
         }
-        const list = Array.isArray(payload?.projects) ? (payload.projects as ProjectSummary[]) : [];
+        const list = Array.isArray(payload?.data) ? (payload.data as ProjectSummary[]) : [];
         console.info(`[projects] loaded ${list.length} projects.`);
         return list;
     }, []);
@@ -49,8 +49,8 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         if (!res.ok) {
             throw new Error(payload?.error || "Failed to load repositories.");
         }
-        const list = Array.isArray(payload?.repositories)
-            ? (payload.repositories as RepositorySummary[])
+        const list = Array.isArray(payload?.data)
+            ? (payload.data as RepositorySummary[])
             : [];
         console.info(`[repositories] loaded ${list.length} repositories.`);
         return list;

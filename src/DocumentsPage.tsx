@@ -34,7 +34,7 @@ export function DocumentsPage({ drawerToggleId }: DocumentsPageProps) {
         if (!res.ok) {
             throw new Error(payload?.error || "Failed to load documents.");
         }
-        return Array.isArray(payload?.documents) ? (payload.documents as DocumentSummary[]) : [];
+        return Array.isArray(payload?.data) ? (payload.data as DocumentSummary[]) : [];
     }, []);
 
     const {

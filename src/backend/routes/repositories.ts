@@ -62,7 +62,7 @@ export function createRepositoryRoutes(options: { db: Database }) {
                     projectId: row.project_id,
                 }));
 
-                return Response.json({ repositories });
+                return Response.json({ data: repositories });
             },
         },
         "/api/repositories/sync": {

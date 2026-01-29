@@ -45,7 +45,7 @@ export function createProjectRoutes(options: {
                     url: project.url,
                 }));
 
-                return Response.json({ projects: normalized });
+                return Response.json({ data: normalized });
             },
             async POST(req: Server.Request) {
                 let body: any;

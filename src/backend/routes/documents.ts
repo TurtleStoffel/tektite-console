@@ -95,7 +95,7 @@ export function createDocumentRoutes(options: { db: Database }) {
                     markdown: row.markdown,
                 }));
 
-                return Response.json({ documents });
+                return Response.json({ data: documents });
             },
             async POST(req: RouteRequest) {
                 const parsed = await parseJsonBody(req, createDocumentSchema, "documents:create");
@@ -161,7 +161,7 @@ export function createDocumentRoutes(options: { db: Database }) {
                     markdown: row.markdown,
                 }));
 
-                return Response.json({ documents });
+                return Response.json({ data: documents });
             },
             async POST(req: RouteRequest) {
                 const projectId = req.params.id ?? null;
