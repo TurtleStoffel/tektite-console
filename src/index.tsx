@@ -51,13 +51,84 @@ const { db } = await initStorage(dataDir);
 
 startPullRequestCleanup({ clonesDir });
 
+const corsOrigin = "http://localhost:5173";
+const corsHeaders = {
+    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const withCorsResponse = (response: Response) => {
+    const headers = new Headers(response.headers);
+    headers.set("Access-Control-Allow-Origin", corsOrigin);
+    headers.set("Access-Control-Allow-Methods", corsHeaders["Access-Control-Allow-Methods"]);
+    headers.set("Access-Control-Allow-Headers", corsHeaders["Access-Control-Allow-Headers"]);
+    headers.append("Vary", "Origin");
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+    });
+};
+
+const corsPreflightResponse = () =>
+    new Response(null, {
+        status: 204,
+        headers: {
+            ...corsHeaders,
+            Vary: "Origin",
+        },
+    });
+
+const wrapRouteHandler = (handler: (...args: any[]) => any) => {
+    return async (...args: any[]) => {
+        const req = args[0] as Request | undefined;
+        if (req?.method === "OPTIONS") {
+            return corsPreflightResponse();
+        }
+        const result = await handler(...args);
+        const response = result instanceof Response ? result : new Response(result);
+        return withCorsResponse(response);
+    };
+};
+
+const withCorsRoutes = <T extends Record<string, any>>(routes: T): T => {
+    const entries = Object.entries(routes).map(([route, handler]) => {
+        if (!route.startsWith("/api/")) {
+            return [route, handler];
+        }
+
+        if (typeof handler === "function") {
+            return [route, wrapRouteHandler(handler)];
+        }
+
+        if (handler && typeof handler === "object") {
+            const wrapped: Record<string, any> = {};
+            for (const [method, methodHandler] of Object.entries(handler)) {
+                wrapped[method] =
+                    typeof methodHandler === "function"
+                        ? wrapRouteHandler(methodHandler)
+                        : methodHandler;
+            }
+            if (!("OPTIONS" in handler)) {
+                wrapped.OPTIONS = corsPreflightResponse;
+            }
+            return [route, wrapped];
+        }
+
+        return [route, handler];
+    });
+
+    return Object.fromEntries(entries) as T;
+};
+
 const server = serve({
     port: PORT,
 
     // Disable timeout for long-running Codex requests
     idleTimeout: 0,
 
-    routes: {
+    routes: withCorsRoutes({
         ...envRoutes,
         ...createGithubRoutes(),
         ...createDocumentRoutes({ db }),
@@ -71,7 +142,7 @@ const server = serve({
 
         // Serve index.html for all unmatched routes.
         "/*": index,
-    },
+    }),
 
     development: process.env.NODE_ENV !== "production" && {
         // Enable browser hot reloading in development
