@@ -1,14 +1,11 @@
-import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import { asc, eq } from "drizzle-orm";
+import type * as schema from "../db/schema";
+import { documents, projects } from "../db/schema";
 
 type RouteRequest = Request & { params: Record<string, string> };
-
-type DocumentRow = {
-    id: string;
-    project_id: string | null;
-    markdown: string;
-};
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
@@ -64,38 +61,41 @@ async function parseJsonBody<T extends z.ZodTypeAny>(
     return { data: parsed.data };
 }
 
-function findProject(db: Database, projectId: string) {
-    return db.query("SELECT id FROM projects WHERE id = ?").get(projectId) as
-        | { id: string }
-        | null
-        | undefined;
+type Db = BunSQLiteDatabase<typeof schema>;
+
+function findProject(db: Db, projectId: string) {
+    return (
+        db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get() ??
+        null
+    );
 }
 
-export function createDocumentRoutes(options: { db: Database }) {
+export function createDocumentRoutes(options: { db: Db }) {
     const { db } = options;
 
     return {
         "/api/documents": {
             async GET() {
                 const rows = db
-                    .query(
-                        `
-                        SELECT d.id, d.project_id, d.markdown, p.name AS project_name
-                        FROM documents d
-                        LEFT JOIN projects p ON p.id = d.project_id
-                        ORDER BY p.name ASC, d.id ASC
-                        `,
-                    )
-                    .all() as Array<DocumentRow & { project_name: string | null }>;
+                    .select({
+                        id: documents.id,
+                        projectId: documents.projectId,
+                        markdown: documents.markdown,
+                        projectName: projects.name,
+                    })
+                    .from(documents)
+                    .leftJoin(projects, eq(documents.projectId, projects.id))
+                    .orderBy(asc(projects.name), asc(documents.id))
+                    .all();
 
-                const documents = rows.map((row) => ({
+                const result = rows.map((row) => ({
                     id: row.id,
-                    projectId: row.project_id,
-                    projectName: row.project_name,
+                    projectId: row.projectId,
+                    projectName: row.projectName,
                     markdown: row.markdown,
                 }));
 
-                return Response.json({ data: documents });
+                return Response.json({ data: result });
             },
             async POST(req: RouteRequest) {
                 const parsed = await parseJsonBody(req, createDocumentSchema, "documents:create");
@@ -117,11 +117,13 @@ export function createDocumentRoutes(options: { db: Database }) {
                 }
 
                 const documentId = randomUUID();
-                db.query("INSERT INTO documents (id, project_id, markdown) VALUES (?, ?, ?)").run(
-                    documentId,
-                    projectId,
-                    body.markdown,
-                );
+                db.insert(documents)
+                    .values({
+                        id: documentId,
+                        projectId,
+                        markdown: body.markdown,
+                    })
+                    .run();
                 console.info("[documents] created", { documentId, projectId });
 
                 return Response.json({ id: documentId, projectId, markdown: body.markdown });
@@ -145,23 +147,23 @@ export function createDocumentRoutes(options: { db: Database }) {
                 }
 
                 const rows = db
-                    .query(
-                        `
-                        SELECT id, project_id, markdown
-                        FROM documents
-                        WHERE project_id = ?
-                        ORDER BY id ASC
-                        `,
-                    )
-                    .all(projectId) as DocumentRow[];
+                    .select({
+                        id: documents.id,
+                        projectId: documents.projectId,
+                        markdown: documents.markdown,
+                    })
+                    .from(documents)
+                    .where(eq(documents.projectId, projectId))
+                    .orderBy(asc(documents.id))
+                    .all();
 
-                const documents = rows.map((row) => ({
+                const result = rows.map((row) => ({
                     id: row.id,
-                    projectId: row.project_id,
+                    projectId: row.projectId,
                     markdown: row.markdown,
                 }));
 
-                return Response.json({ data: documents });
+                return Response.json({ data: result });
             },
             async POST(req: RouteRequest) {
                 const projectId = req.params.id ?? null;
@@ -190,11 +192,13 @@ export function createDocumentRoutes(options: { db: Database }) {
                 const body = parsed.data;
 
                 const documentId = randomUUID();
-                db.query("INSERT INTO documents (id, project_id, markdown) VALUES (?, ?, ?)").run(
-                    documentId,
-                    projectId,
-                    body.markdown,
-                );
+                db.insert(documents)
+                    .values({
+                        id: documentId,
+                        projectId,
+                        markdown: body.markdown,
+                    })
+                    .run();
                 console.info("[documents] created", { documentId, projectId });
 
                 return Response.json({ id: documentId, projectId, markdown: body.markdown });
@@ -210,8 +214,14 @@ export function createDocumentRoutes(options: { db: Database }) {
                     });
                 }
                 const row = db
-                    .query("SELECT id, project_id, markdown FROM documents WHERE id = ?")
-                    .get(documentId) as DocumentRow | null | undefined;
+                    .select({
+                        id: documents.id,
+                        projectId: documents.projectId,
+                        markdown: documents.markdown,
+                    })
+                    .from(documents)
+                    .where(eq(documents.id, documentId))
+                    .get();
 
                 if (!row) {
                     return new Response(JSON.stringify({ error: "Document not found." }), {
@@ -222,7 +232,7 @@ export function createDocumentRoutes(options: { db: Database }) {
 
                 return Response.json({
                     id: row.id,
-                    projectId: row.project_id,
+                    projectId: row.projectId,
                     markdown: row.markdown,
                 });
             },
@@ -254,25 +264,25 @@ export function createDocumentRoutes(options: { db: Database }) {
                     }
                 }
 
-                const result = db
-                    .query("UPDATE documents SET markdown = ?, project_id = ? WHERE id = ?")
-                    .run(body.markdown, projectId, documentId) as { changes: number };
-
-                if (result.changes === 0) {
-                    return new Response(JSON.stringify({ error: "Document not found." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                db.update(documents)
+                    .set({ markdown: body.markdown, projectId })
+                    .where(eq(documents.id, documentId))
+                    .run();
 
                 const row = db
-                    .query("SELECT id, project_id, markdown FROM documents WHERE id = ?")
-                    .get(documentId) as DocumentRow | null | undefined;
+                    .select({
+                        id: documents.id,
+                        projectId: documents.projectId,
+                        markdown: documents.markdown,
+                    })
+                    .from(documents)
+                    .where(eq(documents.id, documentId))
+                    .get();
                 console.info("[documents] updated", { documentId });
 
                 return Response.json({
                     id: row?.id ?? documentId,
-                    projectId: row?.project_id ?? projectId,
+                    projectId: row?.projectId ?? projectId,
                     markdown: row?.markdown ?? body.markdown,
                 });
             },
@@ -284,16 +294,8 @@ export function createDocumentRoutes(options: { db: Database }) {
                         headers: { "Content-Type": "application/json" },
                     });
                 }
-                const result = db.query("DELETE FROM documents WHERE id = ?").run(documentId) as {
-                    changes: number;
-                };
 
-                if (result.changes === 0) {
-                    return new Response(JSON.stringify({ error: "Document not found." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                db.delete(documents).where(eq(documents.id, documentId)).run();
 
                 console.info("[documents] deleted", { documentId });
                 return Response.json({ id: documentId });

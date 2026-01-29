@@ -1,5 +1,8 @@
-import type { Database } from "bun:sqlite";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { randomUUID } from "node:crypto";
+import { asc, eq, min } from "drizzle-orm";
+import type * as schema from "../db/schema";
+import { projects, repositories } from "../db/schema";
 import type { GithubRepo } from "../../types/github";
 
 async function fetchGithubRepos(): Promise<GithubRepo[]> {
@@ -28,41 +31,35 @@ async function fetchGithubRepos(): Promise<GithubRepo[]> {
     }
 }
 
-export function createRepositoryRoutes(options: { db: Database }) {
+type Db = BunSQLiteDatabase<typeof schema>;
+
+export function createRepositoryRoutes(options: { db: Db }) {
     const { db } = options;
 
     return {
         "/api/repositories": {
             async GET() {
                 const rows = db
-                    .query(
-                        `
-                        SELECT
-                            repositories.id,
-                            repositories.name,
-                            repositories.url,
-                            MIN(projects.id) AS project_id
-                        FROM repositories
-                        LEFT JOIN projects ON projects.repository_id = repositories.id
-                        GROUP BY repositories.id, repositories.name, repositories.url
-                        ORDER BY repositories.name ASC
-                        `,
-                    )
-                    .all() as Array<{
-                    id: string;
-                    name: string;
-                    url: string;
-                    project_id: string | null;
-                }>;
+                    .select({
+                        id: repositories.id,
+                        name: repositories.name,
+                        url: repositories.url,
+                        projectId: min(projects.id).as("projectId"),
+                    })
+                    .from(repositories)
+                    .leftJoin(projects, eq(projects.repositoryId, repositories.id))
+                    .groupBy(repositories.id, repositories.name, repositories.url)
+                    .orderBy(asc(repositories.name))
+                    .all();
 
-                const repositories = rows.map((row) => ({
+                const repositoriesList = rows.map((row) => ({
                     id: row.id,
                     name: row.name,
                     url: row.url,
-                    projectId: row.project_id,
+                    projectId: row.projectId ?? null,
                 }));
 
-                return Response.json({ data: repositories });
+                return Response.json({ data: repositoriesList });
             },
         },
         "/api/repositories/sync": {
@@ -70,13 +67,11 @@ export function createRepositoryRoutes(options: { db: Database }) {
                 try {
                     console.info("[repositories] syncing from GitHub");
                     const repos = await fetchGithubRepos();
-                    const existing = db.query("SELECT url FROM repositories").all() as Array<{
-                        url: string;
-                    }>;
+                    const existing = db
+                        .select({ url: repositories.url })
+                        .from(repositories)
+                        .all();
                     const existingUrls = new Set(existing.map((row) => row.url));
-                    const insert = db.query(
-                        "INSERT INTO repositories (id, name, url) VALUES (?, ?, ?)",
-                    );
 
                     let insertedCount = 0;
                     for (const repo of repos) {
@@ -88,7 +83,9 @@ export function createRepositoryRoutes(options: { db: Database }) {
                         if (!name) {
                             continue;
                         }
-                        insert.run(randomUUID(), name, url);
+                        db.insert(repositories)
+                            .values({ id: randomUUID(), name, url })
+                            .run();
                         existingUrls.add(url);
                         insertedCount += 1;
                     }

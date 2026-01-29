@@ -1,14 +1,17 @@
-import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Server } from "bun";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getConsoleRepositoryUrl } from "../consoleRepository";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
+import type * as schema from "../db/schema";
+import { projects, repositories } from "../db/schema";
 
 export function createProjectRoutes(options: {
-    db: Database;
+    db: BunSQLiteDatabase<typeof schema>;
     clonesDir: string;
     productionDir: string;
 }) {
@@ -19,30 +22,23 @@ export function createProjectRoutes(options: {
     return {
         "/api/projects": {
             async GET() {
-                const projects = db
-                    .query(
-                        `
-                        SELECT
-                            projects.id,
-                            projects.name,
-                            projects.repository_id AS repositoryId,
-                            repositories.url AS url
-                        FROM projects
-                        LEFT JOIN repositories ON repositories.id = projects.repository_id
-                        ORDER BY projects.name ASC
-                        `,
-                    )
-                    .all() as Array<{
-                    id: string;
-                    name: string | null;
-                    url: string | null;
-                }>;
+                const projectsRows = db
+                    .select({
+                        id: projects.id,
+                        name: projects.name,
+                        repositoryId: projects.repositoryId,
+                        url: repositories.url,
+                    })
+                    .from(projects)
+                    .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
+                    .orderBy(asc(projects.name))
+                    .all();
 
-                const normalized = projects.map((project) => ({
+                const normalized = projectsRows.map((project) => ({
                     id: project.id,
                     name: project.name,
                     repositoryId: project.repositoryId ?? null,
-                    url: project.url,
+                    url: project.url ?? null,
                 }));
 
                 return Response.json({ data: normalized });
@@ -70,9 +66,12 @@ export function createProjectRoutes(options: {
                     typeof body?.repositoryId === "string" ? body.repositoryId.trim() : "";
                 let repository: { id: string; url: string } | null = null;
                 if (repositoryId) {
-                    repository = db
-                        .query("SELECT id, url FROM repositories WHERE id = ?")
-                        .get(repositoryId) as { id: string; url: string } | null;
+                    repository =
+                        db
+                            .select({ id: repositories.id, url: repositories.url })
+                            .from(repositories)
+                            .where(eq(repositories.id, repositoryId))
+                            .get() ?? null;
 
                     if (!repository) {
                         return new Response(JSON.stringify({ error: "Repository not found." }), {
@@ -82,8 +81,10 @@ export function createProjectRoutes(options: {
                     }
 
                     const existingProject = db
-                        .query("SELECT id FROM projects WHERE repository_id = ?")
-                        .get(repositoryId) as { id: string } | null;
+                        .select({ id: projects.id })
+                        .from(projects)
+                        .where(eq(projects.repositoryId, repositoryId))
+                        .get();
 
                     if (existingProject) {
                         return new Response(
@@ -97,11 +98,13 @@ export function createProjectRoutes(options: {
                 }
 
                 const projectId = randomUUID();
-                db.query("INSERT INTO projects (id, name, repository_id) VALUES (?, ?, ?)").run(
-                    projectId,
-                    name,
-                    repositoryId || null,
-                );
+                db.insert(projects)
+                    .values({
+                        id: projectId,
+                        name,
+                        repositoryId: repositoryId || null,
+                    })
+                    .run();
                 return Response.json({ id: projectId, name, url: repository?.url ?? null });
             },
         },
@@ -110,27 +113,16 @@ export function createProjectRoutes(options: {
             async GET(req: Server.Request) {
                 const projectId = req.params.id;
                 const row = db
-                    .query(
-                        `
-                        SELECT
-                            projects.id,
-                            projects.name,
-                            projects.repository_id AS repositoryId,
-                            repositories.url AS url
-                        FROM projects
-                        LEFT JOIN repositories ON repositories.id = projects.repository_id
-                        WHERE projects.id = ?
-                        `,
-                    )
-                    .get(projectId) as
-                    | {
-                          id: string;
-                          name: string;
-                          repositoryId: string | null;
-                          url: string | null;
-                      }
-                    | null
-                    | undefined;
+                    .select({
+                        id: projects.id,
+                        name: projects.name,
+                        repositoryId: projects.repositoryId,
+                        url: repositories.url,
+                    })
+                    .from(projects)
+                    .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
+                    .where(eq(projects.id, projectId))
+                    .get();
 
                 if (!row) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
@@ -231,8 +223,10 @@ export function createProjectRoutes(options: {
 
                 if (repositoryId) {
                     const repository = db
-                        .query("SELECT id FROM repositories WHERE id = ?")
-                        .get(repositoryId) as { id: string } | null;
+                        .select({ id: repositories.id })
+                        .from(repositories)
+                        .where(eq(repositories.id, repositoryId))
+                        .get();
 
                     if (!repository) {
                         return new Response(JSON.stringify({ error: "Repository not found." }), {
@@ -242,8 +236,10 @@ export function createProjectRoutes(options: {
                     }
 
                     const existingProject = db
-                        .query("SELECT id FROM projects WHERE repository_id = ? AND id != ?")
-                        .get(repositoryId, projectId) as { id: string } | null;
+                        .select({ id: projects.id })
+                        .from(projects)
+                        .where(and(eq(projects.repositoryId, repositoryId), ne(projects.id, projectId)))
+                        .get();
 
                     if (existingProject) {
                         return new Response(
@@ -257,8 +253,10 @@ export function createProjectRoutes(options: {
                 }
 
                 const result = db
-                    .query("UPDATE projects SET repository_id = ? WHERE id = ?")
-                    .run(repositoryId, projectId) as { changes: number };
+                    .update(projects)
+                    .set({ repositoryId })
+                    .where(eq(projects.id, projectId))
+                    .run() as { changes: number };
 
                 if (result.changes === 0) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
@@ -268,27 +266,16 @@ export function createProjectRoutes(options: {
                 }
 
                 const updated = db
-                    .query(
-                        `
-                        SELECT
-                            projects.id,
-                            projects.name,
-                            projects.repository_id AS repositoryId,
-                            repositories.url AS url
-                        FROM projects
-                        LEFT JOIN repositories ON repositories.id = projects.repository_id
-                        WHERE projects.id = ?
-                        `,
-                    )
-                    .get(projectId) as
-                    | {
-                          id: string;
-                          name: string;
-                          repositoryId: string | null;
-                          url: string | null;
-                      }
-                    | null
-                    | undefined;
+                    .select({
+                        id: projects.id,
+                        name: projects.name,
+                        repositoryId: projects.repositoryId,
+                        url: repositories.url,
+                    })
+                    .from(projects)
+                    .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
+                    .where(eq(projects.id, projectId))
+                    .get();
 
                 if (!updated) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
@@ -319,8 +306,9 @@ export function createProjectRoutes(options: {
                 }
 
                 const result = db
-                    .query("DELETE FROM projects WHERE id = ?")
-                    .run(projectId) as { changes: number };
+                    .delete(projects)
+                    .where(eq(projects.id, projectId))
+                    .run() as { changes: number };
 
                 if (result.changes === 0) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
