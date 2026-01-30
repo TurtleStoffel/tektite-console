@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { asc, eq } from "drizzle-orm";
 import type * as schema from "../db/schema";
 import { documents, projects } from "../db/schema";
@@ -61,13 +61,15 @@ async function parseJsonBody<T extends z.ZodTypeAny>(
     return { data: parsed.data };
 }
 
-type Db = BunSQLiteDatabase<typeof schema>;
+type Db = BunSQLDatabase<typeof schema>;
 
-function findProject(db: Db, projectId: string) {
-    return (
-        db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get() ??
-        null
-    );
+async function findProject(db: Db, projectId: string) {
+    const rows = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .execute();
+    return rows[0] ?? null;
 }
 
 export function createDocumentRoutes(options: { db: Db }) {
@@ -76,7 +78,7 @@ export function createDocumentRoutes(options: { db: Db }) {
     return {
         "/api/documents": {
             async GET() {
-                const rows = db
+                const rows = await db
                     .select({
                         id: documents.id,
                         projectId: documents.projectId,
@@ -86,7 +88,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     .from(documents)
                     .leftJoin(projects, eq(documents.projectId, projects.id))
                     .orderBy(asc(projects.name), asc(documents.id))
-                    .all();
+                    .execute();
 
                 const result = rows.map((row) => ({
                     id: row.id,
@@ -107,7 +109,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     typeof body?.projectId === "string" ? body.projectId.trim() : "";
                 const projectId = rawProjectId.length > 0 ? rawProjectId : null;
                 if (projectId) {
-                    const project = findProject(db, projectId);
+                    const project = await findProject(db, projectId);
                     if (!project) {
                         return new Response(JSON.stringify({ error: "Project not found." }), {
                             status: 404,
@@ -117,13 +119,13 @@ export function createDocumentRoutes(options: { db: Db }) {
                 }
 
                 const documentId = randomUUID();
-                db.insert(documents)
+                await db.insert(documents)
                     .values({
                         id: documentId,
                         projectId,
                         markdown: body.markdown,
                     })
-                    .run();
+                    .execute();
                 console.info("[documents] created", { documentId, projectId });
 
                 return Response.json({ id: documentId, projectId, markdown: body.markdown });
@@ -138,7 +140,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                         headers: { "Content-Type": "application/json" },
                     });
                 }
-                const project = findProject(db, projectId);
+                const project = await findProject(db, projectId);
                 if (!project) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
@@ -146,7 +148,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     });
                 }
 
-                const rows = db
+                const rows = await db
                     .select({
                         id: documents.id,
                         projectId: documents.projectId,
@@ -155,7 +157,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     .from(documents)
                     .where(eq(documents.projectId, projectId))
                     .orderBy(asc(documents.id))
-                    .all();
+                    .execute();
 
                 const result = rows.map((row) => ({
                     id: row.id,
@@ -173,7 +175,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                         headers: jsonHeaders,
                     });
                 }
-                const project = findProject(db, projectId);
+                const project = await findProject(db, projectId);
                 if (!project) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
@@ -192,13 +194,13 @@ export function createDocumentRoutes(options: { db: Db }) {
                 const body = parsed.data;
 
                 const documentId = randomUUID();
-                db.insert(documents)
+                await db.insert(documents)
                     .values({
                         id: documentId,
                         projectId,
                         markdown: body.markdown,
                     })
-                    .run();
+                    .execute();
                 console.info("[documents] created", { documentId, projectId });
 
                 return Response.json({ id: documentId, projectId, markdown: body.markdown });
@@ -213,7 +215,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                         headers: { "Content-Type": "application/json" },
                     });
                 }
-                const row = db
+                const row = await db
                     .select({
                         id: documents.id,
                         projectId: documents.projectId,
@@ -221,9 +223,10 @@ export function createDocumentRoutes(options: { db: Db }) {
                     })
                     .from(documents)
                     .where(eq(documents.id, documentId))
-                    .get();
+                    .execute();
 
-                if (!row) {
+                const document = row[0] ?? null;
+                if (!document) {
                     return new Response(JSON.stringify({ error: "Document not found." }), {
                         status: 404,
                         headers: { "Content-Type": "application/json" },
@@ -231,9 +234,9 @@ export function createDocumentRoutes(options: { db: Db }) {
                 }
 
                 return Response.json({
-                    id: row.id,
-                    projectId: row.projectId,
-                    markdown: row.markdown,
+                    id: document.id,
+                    projectId: document.projectId,
+                    markdown: document.markdown,
                 });
             },
             async PUT(req: RouteRequest) {
@@ -255,7 +258,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     typeof body?.projectId === "string" ? body.projectId.trim() : "";
                 const projectId = rawProjectId.length > 0 ? rawProjectId : null;
                 if (projectId) {
-                    const project = findProject(db, projectId);
+                    const project = await findProject(db, projectId);
                     if (!project) {
                         return new Response(JSON.stringify({ error: "Project not found." }), {
                             status: 404,
@@ -264,12 +267,12 @@ export function createDocumentRoutes(options: { db: Db }) {
                     }
                 }
 
-                db.update(documents)
+                await db.update(documents)
                     .set({ markdown: body.markdown, projectId })
                     .where(eq(documents.id, documentId))
-                    .run();
+                    .execute();
 
-                const row = db
+                const row = await db
                     .select({
                         id: documents.id,
                         projectId: documents.projectId,
@@ -277,13 +280,14 @@ export function createDocumentRoutes(options: { db: Db }) {
                     })
                     .from(documents)
                     .where(eq(documents.id, documentId))
-                    .get();
+                    .execute();
                 console.info("[documents] updated", { documentId });
 
+                const document = row[0] ?? null;
                 return Response.json({
-                    id: row?.id ?? documentId,
-                    projectId: row?.projectId ?? projectId,
-                    markdown: row?.markdown ?? body.markdown,
+                    id: document?.id ?? documentId,
+                    projectId: document?.projectId ?? projectId,
+                    markdown: document?.markdown ?? body.markdown,
                 });
             },
             async DELETE(req: RouteRequest) {
@@ -295,7 +299,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                     });
                 }
 
-                db.delete(documents).where(eq(documents.id, documentId)).run();
+                await db.delete(documents).where(eq(documents.id, documentId)).execute();
 
                 console.info("[documents] deleted", { documentId });
                 return Response.json({ id: documentId });

@@ -32,11 +32,10 @@ function resolvePathFromEnv(raw: string): string {
     return path.resolve(expandHome(raw.trim()));
 }
 
-const dataDirValue = process.env.DATA_DIR;
-if (!dataDirValue) {
-    throw new Error("Missing required env var: DATA_DIR.");
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+    throw new Error("Missing required env var: DATABASE_URL.");
 }
-const dataDir = resolvePathFromEnv(dataDirValue);
 
 const clonesDirValue = process.env.CLONES_DIR;
 if (!clonesDirValue) {
@@ -47,7 +46,7 @@ const productionDir = path.join(path.dirname(clonesDir), "production");
 
 void ensureClonesDir(clonesDir);
 void ensureClonesDir(productionDir);
-const { db } = await initStorage(dataDir);
+const { db } = await initStorage(databaseUrl);
 
 startPullRequestCleanup({ clonesDir });
 

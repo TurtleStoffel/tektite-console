@@ -1,4 +1,4 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { randomUUID } from "node:crypto";
 import { asc, eq, min } from "drizzle-orm";
 import type * as schema from "../db/schema";
@@ -31,7 +31,7 @@ async function fetchGithubRepos(): Promise<GithubRepo[]> {
     }
 }
 
-type Db = BunSQLiteDatabase<typeof schema>;
+type Db = BunSQLDatabase<typeof schema>;
 
 export function createRepositoryRoutes(options: { db: Db }) {
     const { db } = options;
@@ -39,7 +39,7 @@ export function createRepositoryRoutes(options: { db: Db }) {
     return {
         "/api/repositories": {
             async GET() {
-                const rows = db
+                const rows = await db
                     .select({
                         id: repositories.id,
                         name: repositories.name,
@@ -50,7 +50,7 @@ export function createRepositoryRoutes(options: { db: Db }) {
                     .leftJoin(projects, eq(projects.repositoryId, repositories.id))
                     .groupBy(repositories.id, repositories.name, repositories.url)
                     .orderBy(asc(repositories.name))
-                    .all();
+                    .execute();
 
                 const repositoriesList = rows.map((row) => ({
                     id: row.id,
@@ -67,10 +67,10 @@ export function createRepositoryRoutes(options: { db: Db }) {
                 try {
                     console.info("[repositories] syncing from GitHub");
                     const repos = await fetchGithubRepos();
-                    const existing = db
+                    const existing = await db
                         .select({ url: repositories.url })
                         .from(repositories)
-                        .all();
+                        .execute();
                     const existingUrls = new Set(existing.map((row) => row.url));
 
                     let insertedCount = 0;
@@ -83,9 +83,7 @@ export function createRepositoryRoutes(options: { db: Db }) {
                         if (!name) {
                             continue;
                         }
-                        db.insert(repositories)
-                            .values({ id: randomUUID(), name, url })
-                            .run();
+                        await db.insert(repositories).values({ id: randomUUID(), name, url }).execute();
                         existingUrls.add(url);
                         insertedCount += 1;
                     }

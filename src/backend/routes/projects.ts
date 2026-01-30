@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Server } from "bun";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getConsoleRepositoryUrl } from "../consoleRepository";
@@ -11,7 +11,7 @@ import type * as schema from "../db/schema";
 import { projects, repositories } from "../db/schema";
 
 export function createProjectRoutes(options: {
-    db: BunSQLiteDatabase<typeof schema>;
+    db: BunSQLDatabase<typeof schema>;
     clonesDir: string;
     productionDir: string;
 }) {
@@ -22,7 +22,7 @@ export function createProjectRoutes(options: {
     return {
         "/api/projects": {
             async GET() {
-                const projectsRows = db
+                const projectsRows = await db
                     .select({
                         id: projects.id,
                         name: projects.name,
@@ -32,7 +32,7 @@ export function createProjectRoutes(options: {
                     .from(projects)
                     .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
                     .orderBy(asc(projects.name))
-                    .all();
+                    .execute();
 
                 const normalized = projectsRows.map((project) => ({
                     id: project.id,
@@ -66,12 +66,12 @@ export function createProjectRoutes(options: {
                     typeof body?.repositoryId === "string" ? body.repositoryId.trim() : "";
                 let repository: { id: string; url: string } | null = null;
                 if (repositoryId) {
-                    repository =
-                        db
-                            .select({ id: repositories.id, url: repositories.url })
-                            .from(repositories)
-                            .where(eq(repositories.id, repositoryId))
-                            .get() ?? null;
+                    const repositoriesRows = await db
+                        .select({ id: repositories.id, url: repositories.url })
+                        .from(repositories)
+                        .where(eq(repositories.id, repositoryId))
+                        .execute();
+                    repository = repositoriesRows[0] ?? null;
 
                     if (!repository) {
                         return new Response(JSON.stringify({ error: "Repository not found." }), {
@@ -80,13 +80,13 @@ export function createProjectRoutes(options: {
                         });
                     }
 
-                    const existingProject = db
+                    const existingProject = await db
                         .select({ id: projects.id })
                         .from(projects)
                         .where(eq(projects.repositoryId, repositoryId))
-                        .get();
+                        .execute();
 
-                    if (existingProject) {
+                    if (existingProject[0]) {
                         return new Response(
                             JSON.stringify({ error: "Repository already has a project." }),
                             {
@@ -98,13 +98,13 @@ export function createProjectRoutes(options: {
                 }
 
                 const projectId = randomUUID();
-                db.insert(projects)
+                await db.insert(projects)
                     .values({
                         id: projectId,
                         name,
                         repositoryId: repositoryId || null,
                     })
-                    .run();
+                    .execute();
                 return Response.json({ id: projectId, name, url: repository?.url ?? null });
             },
         },
@@ -112,7 +112,7 @@ export function createProjectRoutes(options: {
         "/api/projects/:id": {
             async GET(req: Server.Request) {
                 const projectId = req.params.id;
-                const row = db
+                const row = await db
                     .select({
                         id: projects.id,
                         name: projects.name,
@@ -122,16 +122,17 @@ export function createProjectRoutes(options: {
                     .from(projects)
                     .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
                     .where(eq(projects.id, projectId))
-                    .get();
+                    .execute();
 
-                if (!row) {
+                const projectRow = row[0] ?? null;
+                if (!projectRow) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
                         headers: { "Content-Type": "application/json" },
                     });
                 }
 
-                const repositoryUrl = row.url?.trim() || null;
+                const repositoryUrl = projectRow.url?.trim() || null;
                 const [clones, productionClone] = repositoryUrl
                     ? await Promise.all([
                           findRepositoryClones({ repositoryUrl, clonesDir }),
@@ -187,9 +188,9 @@ export function createProjectRoutes(options: {
                 }
 
                 return Response.json({
-                    id: row.id,
-                    name: row.name,
-                    repositoryId: row.repositoryId ?? null,
+                    id: projectRow.id,
+                    name: projectRow.name,
+                    repositoryId: projectRow.repositoryId ?? null,
                     url: repositoryUrl,
                     consoleRepositoryUrl,
                     clones,
@@ -222,26 +223,26 @@ export function createProjectRoutes(options: {
                     rawRepositoryId && rawRepositoryId.length > 0 ? rawRepositoryId : null;
 
                 if (repositoryId) {
-                    const repository = db
+                    const repository = await db
                         .select({ id: repositories.id })
                         .from(repositories)
                         .where(eq(repositories.id, repositoryId))
-                        .get();
+                        .execute();
 
-                    if (!repository) {
+                    if (!repository[0]) {
                         return new Response(JSON.stringify({ error: "Repository not found." }), {
                             status: 400,
                             headers: { "Content-Type": "application/json" },
                         });
                     }
 
-                    const existingProject = db
+                    const existingProject = await db
                         .select({ id: projects.id })
                         .from(projects)
                         .where(and(eq(projects.repositoryId, repositoryId), ne(projects.id, projectId)))
-                        .get();
+                        .execute();
 
-                    if (existingProject) {
+                    if (existingProject[0]) {
                         return new Response(
                             JSON.stringify({ error: "Repository already has a project." }),
                             {
@@ -252,20 +253,21 @@ export function createProjectRoutes(options: {
                     }
                 }
 
-                const result = db
+                const updatedRows = await db
                     .update(projects)
                     .set({ repositoryId })
                     .where(eq(projects.id, projectId))
-                    .run() as { changes: number };
+                    .returning({ id: projects.id })
+                    .execute();
 
-                if (result.changes === 0) {
+                if (updatedRows.length === 0) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
                         headers: { "Content-Type": "application/json" },
                     });
                 }
 
-                const updated = db
+                const updated = await db
                     .select({
                         id: projects.id,
                         name: projects.name,
@@ -275,9 +277,10 @@ export function createProjectRoutes(options: {
                     .from(projects)
                     .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
                     .where(eq(projects.id, projectId))
-                    .get();
+                    .execute();
 
-                if (!updated) {
+                const updatedRow = updated[0] ?? null;
+                if (!updatedRow) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
                         headers: { "Content-Type": "application/json" },
@@ -290,10 +293,10 @@ export function createProjectRoutes(options: {
                 });
 
                 return Response.json({
-                    id: updated.id,
-                    name: updated.name,
-                    repositoryId: updated.repositoryId ?? null,
-                    url: updated.url ?? null,
+                    id: updatedRow.id,
+                    name: updatedRow.name,
+                    repositoryId: updatedRow.repositoryId ?? null,
+                    url: updatedRow.url ?? null,
                 });
             },
             async DELETE(req: Server.Request) {
@@ -305,12 +308,13 @@ export function createProjectRoutes(options: {
                     });
                 }
 
-                const result = db
+                const deleted = await db
                     .delete(projects)
                     .where(eq(projects.id, projectId))
-                    .run() as { changes: number };
+                    .returning({ id: projects.id })
+                    .execute();
 
-                if (result.changes === 0) {
+                if (deleted.length === 0) {
                     return new Response(JSON.stringify({ error: "Project not found." }), {
                         status: 404,
                         headers: { "Content-Type": "application/json" },
