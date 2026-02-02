@@ -63,21 +63,12 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
     } | null>(null);
     const [hasSeededProjects, setHasSeededProjects] = useState(false);
 
-    const fetchProjects = useCallback(async () => {
-        console.info("[canvas] loading projects for canvas...");
-        const res = await fetch("/api/projects");
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            throw new Error(payload?.error || "Failed to load projects.");
-        }
-        const list = Array.isArray(payload?.data) ? (payload.data as ProjectSummary[]) : [];
-        console.info(`[canvas] loaded ${list.length} projects.`);
-        return list;
-    }, []);
-
     const { data: projects = [] } = useQuery<ProjectSummary[]>({
         queryKey: ["projects"],
-        queryFn: fetchProjects,
+        queryFn: () =>
+            fetch("/api/projects")
+                .then((res) => res.json())
+                .then((payload) => (Array.isArray(payload?.data) ? payload.data : [])),
     });
 
     useEffect(() => {
