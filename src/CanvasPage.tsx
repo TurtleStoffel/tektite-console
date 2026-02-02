@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DocumentNode from "./DocumentNode";
 import ProjectNode from "./ProjectNode";
+import RepositoryNode from "./RepositoryNode";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.8;
@@ -14,6 +16,7 @@ type CanvasNode = {
     width: number;
     height: number;
     label: string;
+    kind: "project" | "repository" | "document" | "rectangle";
 };
 
 type CanvasEdge = {
@@ -104,6 +107,7 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                     width: DEFAULT_NODE_SIZE.width,
                     height: DEFAULT_NODE_SIZE.height,
                     label: `Rect ${prev.length + 1}`,
+                    kind: "rectangle",
                 };
                 return [...prev, nextNode];
             });
@@ -140,6 +144,7 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                     width: DEFAULT_NODE_SIZE.width,
                     height: DEFAULT_NODE_SIZE.height,
                     label: project.name?.trim() || "Untitled project",
+                    kind: "project",
                 };
             }),
         );
@@ -444,6 +449,40 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                     {nodes.map((node) => {
                         const isSelected = node.id === selectedId;
                         const isConnectSource = connectMode.sourceId === node.id;
+                        if (node.kind === "repository") {
+                            return (
+                                <RepositoryNode
+                                    key={node.id}
+                                    id={node.id}
+                                    label={node.label}
+                                    width={node.width}
+                                    height={node.height}
+                                    x={node.x}
+                                    y={node.y}
+                                    isSelected={isSelected}
+                                    isConnectSource={isConnectSource}
+                                    onPointerDown={(event) => handleNodePointerDown(event, node)}
+                                />
+                            );
+                        }
+
+                        if (node.kind === "document") {
+                            return (
+                                <DocumentNode
+                                    key={node.id}
+                                    id={node.id}
+                                    label={node.label}
+                                    width={node.width}
+                                    height={node.height}
+                                    x={node.x}
+                                    y={node.y}
+                                    isSelected={isSelected}
+                                    isConnectSource={isConnectSource}
+                                    onPointerDown={(event) => handleNodePointerDown(event, node)}
+                                />
+                            );
+                        }
+
                         return (
                             <ProjectNode
                                 key={node.id}
