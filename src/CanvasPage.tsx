@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ProjectNode from "./ProjectNode";
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.8;
@@ -382,14 +383,14 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                 >
                     {connectMode.active ? "Connecting…" : "Connect"}
                 </button>
-                    <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={deleteSelected}
-                        disabled={!selectedId}
-                    >
-                        Delete selected
-                    </button>
+                <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={deleteSelected}
+                    disabled={!selectedId}
+                >
+                    Delete selected
+                </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={resetView}>
                     Reset view
                 </button>
@@ -444,19 +445,18 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                         const isSelected = node.id === selectedId;
                         const isConnectSource = connectMode.sourceId === node.id;
                         return (
-                            <div
+                            <ProjectNode
                                 key={node.id}
-                                className={`absolute rounded-xl border px-3 py-2 shadow-md select-none ${
-                                    isSelected ? "border-primary bg-primary/10" : "border-base-300 bg-base-200"
-                                } ${
-                                    isConnectSource ? "ring-2 ring-secondary ring-offset-2 ring-offset-base-100" : ""
-                                }`}
-                                style={{ width: node.width, height: node.height, left: node.x, top: node.y }}
+                                id={node.id}
+                                label={node.label}
+                                width={node.width}
+                                height={node.height}
+                                x={node.x}
+                                y={node.y}
+                                isSelected={isSelected}
+                                isConnectSource={isConnectSource}
                                 onPointerDown={(event) => handleNodePointerDown(event, node)}
-                            >
-                                <div className="text-sm font-semibold">{node.label}</div>
-                                <div className="text-xs text-base-content/60">{node.id.slice(0, 8)}</div>
-                            </div>
+                            />
                         );
                     })}
                 </div>
