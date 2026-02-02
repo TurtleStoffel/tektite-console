@@ -47,6 +47,13 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
     const [connectMode, setConnectMode] = useState<ConnectMode>({ active: false, sourceId: null });
     const [viewport, setViewport] = useState<Viewport>({ x: 120, y: 120, scale: 1 });
     const [isSpacePressed, setIsSpacePressed] = useState(false);
+    const [contextMenu, setContextMenu] = useState<{
+        isOpen: boolean;
+        clientX: number;
+        clientY: number;
+        worldX: number;
+        worldY: number;
+    } | null>(null);
 
     useEffect(() => {
         viewRef.current = viewport;
@@ -63,28 +70,31 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         return { x, y };
     }, []);
 
-    const createNode = useCallback(() => {
-        const surface = canvasRef.current;
-        if (!surface) {
-            throw new Error("Canvas surface not mounted.");
-        }
-        const rect = surface.getBoundingClientRect();
-        const center = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        setNodes((prev) => {
-            const nextNode: CanvasNode = {
-                id,
-                x: center.x - DEFAULT_NODE_SIZE.width / 2,
-                y: center.y - DEFAULT_NODE_SIZE.height / 2,
-                width: DEFAULT_NODE_SIZE.width,
-                height: DEFAULT_NODE_SIZE.height,
-                label: `Rect ${prev.length + 1}`,
-            };
-            return [...prev, nextNode];
-        });
-        setSelectedId(id);
-        console.info(`[canvas] created rectangle ${id}.`);
-    }, [screenToWorld]);
+    const createNode = useCallback(
+        (position?: { x: number; y: number }) => {
+            const surface = canvasRef.current;
+            if (!surface) {
+                throw new Error("Canvas surface not mounted.");
+            }
+            const rect = surface.getBoundingClientRect();
+            const center = position ?? screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            setNodes((prev) => {
+                const nextNode: CanvasNode = {
+                    id,
+                    x: center.x - DEFAULT_NODE_SIZE.width / 2,
+                    y: center.y - DEFAULT_NODE_SIZE.height / 2,
+                    width: DEFAULT_NODE_SIZE.width,
+                    height: DEFAULT_NODE_SIZE.height,
+                    label: `Rect ${prev.length + 1}`,
+                };
+                return [...prev, nextNode];
+            });
+            setSelectedId(id);
+            console.info(`[canvas] created rectangle ${id}.`);
+        },
+        [screenToWorld],
+    );
 
     const deleteSelected = useCallback(() => {
         if (!selectedId) return;
@@ -123,6 +133,25 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         const nextX = pointerX - worldX * nextScale;
         const nextY = pointerY - worldY * nextScale;
         setViewport({ x: nextX, y: nextY, scale: nextScale });
+    }, []);
+
+    const handleContextMenu = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            event.preventDefault();
+            const position = screenToWorld(event.clientX, event.clientY);
+            setContextMenu({
+                isOpen: true,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                worldX: position.x,
+                worldY: position.y,
+            });
+        },
+        [screenToWorld],
+    );
+
+    const closeContextMenu = useCallback(() => {
+        setContextMenu(null);
     }, []);
 
     const handleBackgroundPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -237,6 +266,7 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
 
             if (event.key === "Escape") {
                 setConnectMode({ active: false, sourceId: null });
+                setContextMenu(null);
             }
         };
 
@@ -302,9 +332,6 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="btn btn-primary btn-sm" onClick={createNode}>
-                    Add rectangle
-                </button>
                 <button
                     type="button"
                     className={`btn btn-sm ${connectMode.active ? "btn-secondary" : "btn-ghost"}`}
@@ -334,8 +361,14 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                     isSpacePressed ? "cursor-grab" : "cursor-default"
                 }`}
                 style={{ touchAction: "none" }}
+                onContextMenu={handleContextMenu}
                 onWheel={handleWheel}
-                onPointerDown={handleBackgroundPointerDown}
+                onPointerDown={(event) => {
+                    if (contextMenu?.isOpen && event.target === event.currentTarget) {
+                        closeContextMenu();
+                    }
+                    handleBackgroundPointerDown(event);
+                }}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
             >
@@ -386,9 +419,35 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                 </div>
 
                 <div className="absolute bottom-4 left-4 space-y-1 text-xs text-base-content/60">
-                    <div>Wheel to zoom · Drag to pan (hold Space) · Drag rectangles to move</div>
-                    <div>Connect mode: click two rectangles · Delete with button or Delete key</div>
+                    <div>Right-click for menu · Wheel to zoom · Drag to pan (hold Space)</div>
+                    <div>Connect mode: click two rectangles · Drag rectangles to move · Delete key removes</div>
                 </div>
+
+                {contextMenu?.isOpen && (
+                    <div
+                        className="absolute z-30"
+                        style={{
+                            left: contextMenu.clientX - (canvasRef.current?.getBoundingClientRect().left ?? 0),
+                            top: contextMenu.clientY - (canvasRef.current?.getBoundingClientRect().top ?? 0),
+                        }}
+                        onPointerDown={(event) => {
+                            event.stopPropagation();
+                        }}
+                    >
+                        <div className="menu rounded-box border border-base-300 bg-base-100 shadow-lg w-52">
+                            <button
+                                type="button"
+                                className="btn btn-ghost justify-start"
+                                onClick={() => {
+                                    createNode({ x: contextMenu.worldX, y: contextMenu.worldY });
+                                    closeContextMenu();
+                                }}
+                            >
+                                Add rectangle
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
