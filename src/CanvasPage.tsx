@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const MIN_SCALE = 0.2;
@@ -18,6 +19,12 @@ type CanvasEdge = {
     id: string;
     from: string;
     to: string;
+};
+
+type ProjectSummary = {
+    id: string;
+    name: string | null;
+    url: string | null;
 };
 
 type Viewport = {
@@ -54,6 +61,24 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         worldX: number;
         worldY: number;
     } | null>(null);
+    const [hasSeededProjects, setHasSeededProjects] = useState(false);
+
+    const fetchProjects = useCallback(async () => {
+        console.info("[canvas] loading projects for canvas...");
+        const res = await fetch("/api/projects");
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(payload?.error || "Failed to load projects.");
+        }
+        const list = Array.isArray(payload?.data) ? (payload.data as ProjectSummary[]) : [];
+        console.info(`[canvas] loaded ${list.length} projects.`);
+        return list;
+    }, []);
+
+    const { data: projects = [] } = useQuery<ProjectSummary[]>({
+        queryKey: ["projects"],
+        queryFn: fetchProjects,
+    });
 
     useEffect(() => {
         viewRef.current = viewport;
@@ -103,6 +128,33 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         console.info(`[canvas] deleted rectangle ${selectedId}.`);
         setSelectedId(null);
     }, [selectedId]);
+
+    useEffect(() => {
+        if (hasSeededProjects) return;
+        if (projects.length === 0) return;
+        const spacingX = 240;
+        const spacingY = 160;
+        const columns = Math.max(1, Math.ceil(Math.sqrt(projects.length)));
+        const originX = 120;
+        const originY = 120;
+        setNodes(
+            projects.map((project, index) => {
+                const col = index % columns;
+                const row = Math.floor(index / columns);
+                return {
+                    id: project.id,
+                    x: originX + col * spacingX,
+                    y: originY + row * spacingY,
+                    width: DEFAULT_NODE_SIZE.width,
+                    height: DEFAULT_NODE_SIZE.height,
+                    label: project.name?.trim() || "Untitled project",
+                };
+            }),
+        );
+        setEdges([]);
+        setHasSeededProjects(true);
+        console.info("[canvas] seeded rectangles from persisted projects.");
+    }, [hasSeededProjects, projects]);
 
     const toggleConnectMode = useCallback(() => {
         setConnectMode((prev) => ({
@@ -339,14 +391,14 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                 >
                     {connectMode.active ? "Connecting…" : "Connect"}
                 </button>
-                <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={deleteSelected}
-                    disabled={!selectedId}
-                >
-                    Delete selected
-                </button>
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={deleteSelected}
+                        disabled={!selectedId}
+                    >
+                        Delete selected
+                    </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={resetView}>
                     Reset view
                 </button>
