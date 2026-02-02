@@ -28,8 +28,8 @@ export function RepositoryNode({
     return (
         <div
             className={`absolute rounded-xl border px-3 py-2 shadow-md select-none ${
-                isSelected ? "border-accent bg-accent/10" : "border-base-300 bg-base-200"
-            } ${isConnectSource ? "ring-2 ring-accent ring-offset-2 ring-offset-base-100" : ""}`}
+                isSelected ? "border-secondary bg-secondary/15" : "border-secondary/50 bg-secondary/5"
+            } ${isConnectSource ? "ring-2 ring-secondary ring-offset-2 ring-offset-base-100" : ""}`}
             style={style}
             onPointerDown={onPointerDown}
         >

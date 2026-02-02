@@ -31,6 +31,13 @@ type ProjectSummary = {
     url: string | null;
 };
 
+type RepositorySummary = {
+    id: string;
+    name: string | null;
+    url: string | null;
+    projectId?: string | null;
+};
+
 type Viewport = {
     x: number;
     y: number;
@@ -65,12 +72,20 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         worldX: number;
         worldY: number;
     } | null>(null);
-    const [hasSeededProjects, setHasSeededProjects] = useState(false);
+    const [hasSeededNodes, setHasSeededNodes] = useState(false);
 
     const { data: projects = [] } = useQuery<ProjectSummary[]>({
         queryKey: ["projects"],
         queryFn: () =>
             fetch("/api/projects")
+                .then((res) => res.json())
+                .then((payload) => (Array.isArray(payload?.data) ? payload.data : [])),
+    });
+
+    const { data: repositories = [] } = useQuery<RepositorySummary[]>({
+        queryKey: ["repositories"],
+        queryFn: () =>
+            fetch("/api/repositories")
                 .then((res) => res.json())
                 .then((payload) => (Array.isArray(payload?.data) ? payload.data : [])),
     });
@@ -126,32 +141,45 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
     }, [selectedId]);
 
     useEffect(() => {
-        if (hasSeededProjects) return;
-        if (projects.length === 0) return;
+        if (hasSeededNodes) return;
+        const totalCount = projects.length + repositories.length;
+        if (totalCount === 0) return;
         const spacingX = 240;
         const spacingY = 160;
-        const columns = Math.max(1, Math.ceil(Math.sqrt(projects.length)));
+        const columns = Math.max(1, Math.ceil(Math.sqrt(totalCount)));
         const originX = 120;
         const originY = 120;
+        const combined = [
+            ...projects.map((project) => ({
+                id: project.id,
+                label: project.name?.trim() || "Untitled project",
+                kind: "project" as const,
+            })),
+            ...repositories.map((repo) => ({
+                id: repo.id,
+                label: repo.name?.trim() || "Untitled repository",
+                kind: "repository" as const,
+            })),
+        ];
         setNodes(
-            projects.map((project, index) => {
+            combined.map((entry, index) => {
                 const col = index % columns;
                 const row = Math.floor(index / columns);
                 return {
-                    id: project.id,
+                    id: entry.id,
                     x: originX + col * spacingX,
                     y: originY + row * spacingY,
                     width: DEFAULT_NODE_SIZE.width,
                     height: DEFAULT_NODE_SIZE.height,
-                    label: project.name?.trim() || "Untitled project",
-                    kind: "project",
+                    label: entry.label,
+                    kind: entry.kind,
                 };
             }),
         );
         setEdges([]);
-        setHasSeededProjects(true);
-        console.info("[canvas] seeded rectangles from persisted projects.");
-    }, [hasSeededProjects, projects]);
+        setHasSeededNodes(true);
+        console.info("[canvas] seeded rectangles from persisted projects and repositories.");
+    }, [hasSeededNodes, projects, repositories]);
 
     const toggleConnectMode = useCallback(() => {
         setConnectMode((prev) => ({
