@@ -57,7 +57,12 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<Viewport>({ x: 0, y: 0, scale: 1 });
     const dragNodeRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
-    const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+    const panRef = useRef<{
+        startX: number;
+        startY: number;
+        originX: number;
+        originY: number;
+    } | null>(null);
 
     const [nodes, setNodes] = useState<CanvasNode[]>([]);
     const [edges, setEdges] = useState<CanvasEdge[]>([]);
@@ -112,8 +117,11 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                 throw new Error("Canvas surface not mounted.");
             }
             const rect = surface.getBoundingClientRect();
-            const center = position ?? screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
-            const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const center =
+                position ?? screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            const id =
+                globalThis.crypto?.randomUUID?.() ??
+                `${Date.now()}-${Math.random().toString(16).slice(2)}`;
             setNodes((prev) => {
                 const nextNode: CanvasNode = {
                     id,
@@ -135,7 +143,9 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
     const deleteSelected = useCallback(() => {
         if (!selectedId) return;
         setNodes((prev) => prev.filter((node) => node.id !== selectedId));
-        setEdges((prev) => prev.filter((edge) => edge.from !== selectedId && edge.to !== selectedId));
+        setEdges((prev) =>
+            prev.filter((edge) => edge.from !== selectedId && edge.to !== selectedId),
+        );
         console.info(`[canvas] deleted rectangle ${selectedId}.`);
         setSelectedId(null);
     }, [selectedId]);
@@ -231,43 +241,62 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         setContextMenu(null);
     }, []);
 
-    const handleBackgroundPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0 || dragNodeRef.current) return;
-        if (!isSpacePressed && event.target !== event.currentTarget) return;
-        panRef.current = {
-            startX: event.clientX,
-            startY: event.clientY,
-            originX: viewRef.current.x,
-            originY: viewRef.current.y,
+    useEffect(() => {
+        if (!contextMenu?.isOpen) return;
+        const handlePointerDown = (event: PointerEvent) => {
+            const menu = document.getElementById("canvas-context-menu");
+            if (menu?.contains(event.target as Node)) return;
+            setContextMenu(null);
         };
-        (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
-    }, [isSpacePressed]);
+        window.addEventListener("pointerdown", handlePointerDown);
+        return () => {
+            window.removeEventListener("pointerdown", handlePointerDown);
+        };
+    }, [contextMenu?.isOpen]);
 
-    const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (panRef.current) {
-            const dx = event.clientX - panRef.current.startX;
-            const dy = event.clientY - panRef.current.startY;
-            setViewport((prev) => ({
-                ...prev,
-                x: panRef.current ? panRef.current.originX + dx : prev.x,
-                y: panRef.current ? panRef.current.originY + dy : prev.y,
-            }));
-            return;
-        }
+    const handleBackgroundPointerDown = useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            if (event.button !== 0 || dragNodeRef.current) return;
+            if (!isSpacePressed && event.target !== event.currentTarget) return;
+            panRef.current = {
+                startX: event.clientX,
+                startY: event.clientY,
+                originX: viewRef.current.x,
+                originY: viewRef.current.y,
+            };
+            (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
+        },
+        [isSpacePressed],
+    );
 
-        if (dragNodeRef.current) {
-            const world = screenToWorld(event.clientX, event.clientY);
-            const offsetX = dragNodeRef.current.offsetX;
-            const offsetY = dragNodeRef.current.offsetY;
-            setNodes((prev) =>
-                prev.map((node) =>
-                    node.id === dragNodeRef.current?.id
-                        ? { ...node, x: world.x - offsetX, y: world.y - offsetY }
-                        : node,
-                ),
-            );
-        }
-    }, [screenToWorld]);
+    const handlePointerMove = useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            if (panRef.current) {
+                const dx = event.clientX - panRef.current.startX;
+                const dy = event.clientY - panRef.current.startY;
+                setViewport((prev) => ({
+                    ...prev,
+                    x: panRef.current ? panRef.current.originX + dx : prev.x,
+                    y: panRef.current ? panRef.current.originY + dy : prev.y,
+                }));
+                return;
+            }
+
+            if (dragNodeRef.current) {
+                const world = screenToWorld(event.clientX, event.clientY);
+                const offsetX = dragNodeRef.current.offsetX;
+                const offsetY = dragNodeRef.current.offsetY;
+                setNodes((prev) =>
+                    prev.map((node) =>
+                        node.id === dragNodeRef.current?.id
+                            ? { ...node, x: world.x - offsetX, y: world.y - offsetY }
+                            : node,
+                    ),
+                );
+            }
+        },
+        [screenToWorld],
+    );
 
     const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (panRef.current) {
@@ -308,7 +337,8 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                             return edgesPrev;
                         }
                         const edgeId =
-                            globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                            globalThis.crypto?.randomUUID?.() ??
+                            `${Date.now()}-${Math.random().toString(16).slice(2)}`;
                         console.info(`[canvas] connected ${sourceId} to ${node.id}.`);
                         return [...edgesPrev, { id: edgeId, from: sourceId, to: node.id }];
                     });
@@ -530,18 +560,23 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
 
                 <div className="absolute bottom-4 left-4 space-y-1 text-xs text-base-content/60">
                     <div>Right-click for menu · Wheel to zoom · Drag to pan (hold Space)</div>
-                    <div>Connect mode: click two rectangles · Drag rectangles to move · Delete key removes</div>
+                    <div>
+                        Connect mode: click two rectangles · Drag rectangles to move · Delete key
+                        removes
+                    </div>
                 </div>
 
                 {contextMenu?.isOpen && (
                     <div
+                        id="canvas-context-menu"
                         className="absolute z-30"
                         style={{
-                            left: contextMenu.clientX - (canvasRef.current?.getBoundingClientRect().left ?? 0),
-                            top: contextMenu.clientY - (canvasRef.current?.getBoundingClientRect().top ?? 0),
-                        }}
-                        onPointerDown={(event) => {
-                            event.stopPropagation();
+                            left:
+                                contextMenu.clientX -
+                                (canvasRef.current?.getBoundingClientRect().left ?? 0),
+                            top:
+                                contextMenu.clientY -
+                                (canvasRef.current?.getBoundingClientRect().top ?? 0),
                         }}
                     >
                         <div className="menu rounded-box border border-base-300 bg-base-100 shadow-lg w-52">
