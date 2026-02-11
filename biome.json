@@ -5,6 +5,28 @@
         "indentWidth": 4,
         "lineWidth": 100
     },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "style": {
+                "noRestrictedImports": {
+                    "level": "error",
+                    "options": {
+                        "patterns": [
+                            {
+                                "group": [
+                                    "@/backend/domains/*/**",
+                                    "!@/backend/domains/*/service",
+                                    "!@/backend/domains/*/service.ts"
+                                ],
+                                "message": "Cross-domain imports must go through service.ts"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    },
     "css": {
         "parser": {
             "tailwindDirectives": true
