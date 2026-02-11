@@ -1,4 +1,4 @@
-import { normalizeRepoUrl } from "../utils/normalizeRepoUrl";
+import { normalizeRepoUrl } from "../../utils/normalizeRepoUrl";
 
 import type {
     ParsedLogsPayload,
