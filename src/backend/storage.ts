@@ -1,8 +1,8 @@
 import type { SQL } from "bun";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
-import { initLocalStorage } from "./db/local/storage";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as localSchema from "./db/local/schema";
+import { initLocalStorage } from "./db/local/storage";
 import { initSupabaseStorage } from "./db/supabase/storage";
 
 export type Storage = {

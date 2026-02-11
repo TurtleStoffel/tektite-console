@@ -1,8 +1,14 @@
-import fs from "fs";
-import path from "path";
-import { execAsync } from "./exec";
-import { cleanRepositoryUrl, detectRepoChanges, getPullRequestStatus, isWorktreeDir, sanitizeRepoName } from "./git";
+import fs from "node:fs";
+import path from "node:path";
 import { TEKTITE_PORT_FILE } from "../constants";
+import { execAsync } from "./exec";
+import {
+    cleanRepositoryUrl,
+    detectRepoChanges,
+    getPullRequestStatus,
+    isWorktreeDir,
+    sanitizeRepoName,
+} from "./git";
 import { isWorkspaceActive } from "./workspaceActivity";
 
 export type CloneLocation = "clonesDir";
@@ -110,7 +116,9 @@ async function findMatchingReposInRoot(options: {
     return matches;
 }
 
-async function readHeadCommitSummary(dir: string): Promise<{ hash: string | null; description: string | null }> {
+async function readHeadCommitSummary(
+    dir: string,
+): Promise<{ hash: string | null; description: string | null }> {
     try {
         const { stdout } = await execAsync("git log -1 --pretty=format:%H%n%s", {
             cwd: dir,
@@ -158,7 +166,12 @@ export async function findRepositoryClones(options: {
     }
 
     const scanned = await Promise.all([
-        findMatchingReposInRoot({ rootDir: options.clonesDir, location: "clonesDir", repoId, maxDirs: 200 }),
+        findMatchingReposInRoot({
+            rootDir: options.clonesDir,
+            location: "clonesDir",
+            repoId,
+            maxDirs: 200,
+        }),
     ]);
     for (const list of scanned) {
         for (const clone of list) record(clone);
@@ -177,7 +190,9 @@ export async function findRepositoryClones(options: {
                     if (Number.isFinite(parsed)) {
                         port = parsed;
                     } else {
-                        console.warn(`Invalid ${TEKTITE_PORT_FILE} contents at ${portPath}: ${portText}`);
+                        console.warn(
+                            `Invalid ${TEKTITE_PORT_FILE} contents at ${portPath}: ${portText}`,
+                        );
                     }
                 }
             } catch (error) {

@@ -45,7 +45,11 @@ export function ClonesSection({
                 <div className="alert alert-error py-2">
                     <div className="flex items-center justify-between gap-3 w-full">
                         <span className="text-sm">{actionError}</span>
-                        <button type="button" className="btn btn-ghost btn-xs" onClick={onDismissActionError}>
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            onClick={onDismissActionError}
+                        >
                             Close
                         </button>
                     </div>
@@ -53,7 +57,9 @@ export function ClonesSection({
             )}
 
             {!clones || clones.length === 0 ? (
-                <div className="text-sm text-base-content/70">No clones found in configured folders.</div>
+                <div className="text-sm text-base-content/70">
+                    No clones found in configured folders.
+                </div>
             ) : (
                 <div className="space-y-2">
                     {clones.map((clone) => (
@@ -128,7 +134,9 @@ function CloneCard({
                                 rel="noreferrer"
                             >
                                 View PR{" "}
-                                {typeof clone.prStatus.number === "number" ? `#${clone.prStatus.number}` : ""}
+                                {typeof clone.prStatus.number === "number"
+                                    ? `#${clone.prStatus.number}`
+                                    : ""}
                                 {clone.prStatus.title ? ` — ${clone.prStatus.title}` : ""}
                             </a>
                         )}
@@ -228,9 +236,13 @@ function CloneCard({
                     badges={
                         devLogsMeta ? (
                             <>
-                                <div className="badge badge-outline">{devLogsMeta.exists ? "worktree" : "missing"}</div>
+                                <div className="badge badge-outline">
+                                    {devLogsMeta.exists ? "worktree" : "missing"}
+                                </div>
                                 {devLogsMeta.installing && (
-                                    <div className="badge badge-warning badge-outline">installing</div>
+                                    <div className="badge badge-warning badge-outline">
+                                        installing
+                                    </div>
                                 )}
                                 {devLogsMeta.running && (
                                     <div className="badge badge-success badge-outline">running</div>

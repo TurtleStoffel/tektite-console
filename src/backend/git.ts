@@ -1,8 +1,8 @@
-import { mkdir } from "fs/promises";
-import fs from "fs";
-import path from "path";
-import { randomUUID } from "crypto";
-import { execAsync, execFileAsync, isExecTimeoutError, type ExecError } from "./exec";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "./exec";
 
 export type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
 
@@ -100,7 +100,9 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
 
         const execError = error as ExecError;
         if (execError.code === "ENOENT") {
-            console.warn(`Failed to read PR status for branch ${branch}; GitHub CLI (gh) not found.`);
+            console.warn(
+                `Failed to read PR status for branch ${branch}; GitHub CLI (gh) not found.`,
+            );
             return { state: "unknown" };
         }
 
@@ -111,7 +113,9 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
 
 async function resolveDefaultBranch(baseDir: string): Promise<string> {
     try {
-        const { stdout } = await execAsync("git symbolic-ref refs/remotes/origin/HEAD", { cwd: baseDir });
+        const { stdout } = await execAsync("git symbolic-ref refs/remotes/origin/HEAD", {
+            cwd: baseDir,
+        });
         const match = stdout.trim().match(/^refs\/remotes\/origin\/(.+)$/);
         if (match?.[1]) {
             return match[1];
@@ -122,11 +126,11 @@ async function resolveDefaultBranch(baseDir: string): Promise<string> {
 
     for (const candidate of ["main", "master"]) {
         try {
-            await execAsync(`git show-ref --verify --quiet refs/remotes/origin/${candidate}`, { cwd: baseDir });
+            await execAsync(`git show-ref --verify --quiet refs/remotes/origin/${candidate}`, {
+                cwd: baseDir,
+            });
             return candidate;
-        } catch {
-            continue;
-        }
+        } catch {}
     }
 
     return "main";
@@ -199,10 +203,14 @@ export async function ensureClonesDir(clonesDir: string) {
     await mkdir(clonesDir, { recursive: true });
 }
 
-async function getBranchStatus(dir: string): Promise<{ branch: string; upstream: string | null; aheadCount: number } | null> {
+async function getBranchStatus(
+    dir: string,
+): Promise<{ branch: string; upstream: string | null; aheadCount: number } | null> {
     try {
         await execAsync("git rev-parse --is-inside-work-tree", { cwd: dir });
-        const { stdout: branchOut } = await execAsync("git rev-parse --abbrev-ref HEAD", { cwd: dir });
+        const { stdout: branchOut } = await execAsync("git rev-parse --abbrev-ref HEAD", {
+            cwd: dir,
+        });
         const branch = branchOut.trim();
         if (!branch || branch === "HEAD") {
             return null;
@@ -210,9 +218,12 @@ async function getBranchStatus(dir: string): Promise<{ branch: string; upstream:
 
         let upstream: string | null = null;
         try {
-            const { stdout: upstreamOut } = await execAsync("git rev-parse --abbrev-ref --symbolic-full-name @{u}", {
-                cwd: dir,
-            });
+            const { stdout: upstreamOut } = await execAsync(
+                "git rev-parse --abbrev-ref --symbolic-full-name @{u}",
+                {
+                    cwd: dir,
+                },
+            );
             upstream = upstreamOut.trim() || null;
         } catch {
             upstream = null;
@@ -221,9 +232,12 @@ async function getBranchStatus(dir: string): Promise<{ branch: string; upstream:
         let aheadCount = 0;
         if (upstream) {
             try {
-                const { stdout: aheadOut } = await execAsync("git rev-list --left-right --count @{u}...HEAD", {
-                    cwd: dir,
-                });
+                const { stdout: aheadOut } = await execAsync(
+                    "git rev-list --left-right --count @{u}...HEAD",
+                    {
+                        cwd: dir,
+                    },
+                );
                 const parts = aheadOut.trim().split(/\s+/);
                 aheadCount = Number.parseInt(parts[1] ?? "0", 10) || 0;
             } catch {
@@ -231,7 +245,9 @@ async function getBranchStatus(dir: string): Promise<{ branch: string; upstream:
             }
         } else {
             try {
-                const { stdout: headOut } = await execAsync("git rev-parse --verify HEAD", { cwd: dir });
+                const { stdout: headOut } = await execAsync("git rev-parse --verify HEAD", {
+                    cwd: dir,
+                });
                 if (headOut.trim()) {
                     aheadCount = 1;
                 }
@@ -253,7 +269,7 @@ async function ensurePushed(dir: string, branch: string, upstream: string | null
     const pushCmd = shouldResetUpstream ? `git push -u origin ${branch}` : "git push";
 
     console.log(
-        `[codex] pushing branch ${branch}${shouldResetUpstream ? " (setting upstream to origin/" + branch + ")" : ""}`,
+        `[codex] pushing branch ${branch}${shouldResetUpstream ? ` (setting upstream to origin/${branch})` : ""}`,
     );
     await execAsync(pushCmd, { cwd: dir });
 }
@@ -391,7 +407,9 @@ export function extractWorktreeRepoRoot(worktreePath: string) {
         }
 
         const gitDir = match[1].trim();
-        const absoluteGitDir = path.isAbsolute(gitDir) ? gitDir : path.resolve(worktreePath, gitDir);
+        const absoluteGitDir = path.isAbsolute(gitDir)
+            ? gitDir
+            : path.resolve(worktreePath, gitDir);
         const worktreesDir = path.dirname(absoluteGitDir); // .../.git/worktrees
         const baseGitDir = path.dirname(worktreesDir); // .../.git
         const repoRoot = path.dirname(baseGitDir);

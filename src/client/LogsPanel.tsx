@@ -9,7 +9,14 @@ type LogsPanelProps = {
     loadingText?: string;
 };
 
-export function LogsPanel({ title, badges, logs, onRefresh, emptyText, loadingText = "Loading logs…" }: LogsPanelProps) {
+export function LogsPanel({
+    title,
+    badges,
+    logs,
+    onRefresh,
+    emptyText,
+    loadingText = "Loading logs…",
+}: LogsPanelProps) {
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
@@ -25,10 +32,11 @@ export function LogsPanel({ title, badges, logs, onRefresh, emptyText, loadingTe
                 {logs && logs.length > 0 ? (
                     <pre className="text-xs whitespace-pre-wrap break-words">{logs.join("\n")}</pre>
                 ) : (
-                    <div className="text-sm text-base-content/70">{logs === null ? loadingText : emptyText}</div>
+                    <div className="text-sm text-base-content/70">
+                        {logs === null ? loadingText : emptyText}
+                    </div>
                 )}
             </div>
         </div>
     );
 }
-

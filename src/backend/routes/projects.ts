@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Server } from "bun";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { and, asc, eq, ne } from "drizzle-orm";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getConsoleRepositoryUrl } from "../consoleRepository";
-import { getProductionCloneInfo } from "../productionClone";
-import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
 import type * as schema from "../db/local/schema";
 import { projects, repositories } from "../db/local/schema";
+import { getProductionCloneInfo } from "../productionClone";
+import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
 
 export function createProjectRoutes(options: {
     db: BunSQLiteDatabase<typeof schema>;
@@ -98,7 +98,8 @@ export function createProjectRoutes(options: {
                 }
 
                 const projectId = randomUUID();
-                await db.insert(projects)
+                await db
+                    .insert(projects)
                     .values({
                         id: projectId,
                         name,
@@ -239,7 +240,12 @@ export function createProjectRoutes(options: {
                     const existingProject = await db
                         .select({ id: projects.id })
                         .from(projects)
-                        .where(and(eq(projects.repositoryId, repositoryId), ne(projects.id, projectId)))
+                        .where(
+                            and(
+                                eq(projects.repositoryId, repositoryId),
+                                ne(projects.id, projectId),
+                            ),
+                        )
                         .execute();
 
                     if (existingProject[0]) {

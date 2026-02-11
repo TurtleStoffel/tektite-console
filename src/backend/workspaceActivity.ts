@@ -14,4 +14,3 @@ export function isWorkspaceActive(workspacePath: string) {
     if (!workspacePath) return false;
     return activeWorkspaces.has(workspacePath);
 }
-

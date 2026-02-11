@@ -21,4 +21,3 @@ export const helloRoutes = {
         });
     },
 } as const;
-

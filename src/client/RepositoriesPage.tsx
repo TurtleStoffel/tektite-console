@@ -20,9 +20,7 @@ export function RepositoriesPage({ drawerToggleId }: RepositoriesPageProps) {
         if (!res.ok) {
             throw new Error(payload?.error || "Failed to load repositories.");
         }
-        const list = Array.isArray(payload?.data)
-            ? (payload.data as RepositorySummary[])
-            : [];
+        const list = Array.isArray(payload?.data) ? (payload.data as RepositorySummary[]) : [];
         console.info(`[repositories] loaded ${list.length} repositories.`);
         return list;
     }, []);

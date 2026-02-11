@@ -1,9 +1,14 @@
-import type { Server } from "bun";
 import fs from "node:fs";
 import path from "node:path";
+import type { Server } from "bun";
+import {
+    getDevServerLogs,
+    isDevInstallRunning,
+    isDevServerRunning,
+    startDevServer,
+} from "../devServer";
 import { isWorktreeDir } from "../git";
 import { isWorkspaceActive } from "../workspaceActivity";
-import { getDevServerLogs, isDevInstallRunning, isDevServerRunning, startDevServer } from "../devServer";
 import { isWithinRoot } from "./pathUtils";
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
@@ -24,18 +29,24 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                 const worktreePath = path.resolve(rawPath);
                 const allowed = isWithinRoot(worktreePath, clonesDir);
                 if (!allowed) {
-                    return new Response(JSON.stringify({ error: "Worktree path is outside configured folders." }), {
-                        status: 403,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Worktree path is outside configured folders." }),
+                        {
+                            status: 403,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 const exists = fs.existsSync(worktreePath);
                 if (!exists) {
-                    return new Response(JSON.stringify({ error: "Worktree path does not exist." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Worktree path does not exist." }),
+                        {
+                            status: 404,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (!isWorktreeDir(worktreePath)) {
@@ -80,17 +91,23 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                 const worktreePath = path.resolve(rawPath);
                 const allowed = isWithinRoot(worktreePath, clonesDir);
                 if (!allowed) {
-                    return new Response(JSON.stringify({ error: "Worktree path is outside configured folders." }), {
-                        status: 403,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Worktree path is outside configured folders." }),
+                        {
+                            status: 403,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (!fs.existsSync(worktreePath)) {
-                    return new Response(JSON.stringify({ error: "Worktree path does not exist." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Worktree path does not exist." }),
+                        {
+                            status: 404,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (!isWorktreeDir(worktreePath)) {
@@ -116,7 +133,8 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                     const result = startDevServer(worktreePath);
                     return Response.json(result);
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to start dev server.";
+                    const message =
+                        error instanceof Error ? error.message : "Failed to start dev server.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
                         headers: { "Content-Type": "application/json" },

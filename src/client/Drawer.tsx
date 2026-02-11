@@ -35,7 +35,11 @@ export function Drawer({ side, children, drawerToggleId = "sidebar-drawer" }: Dr
             <div className="drawer-content">{children(drawerToggleId)}</div>
 
             <div className="drawer-side">
-                <label htmlFor={drawerToggleId} className="drawer-overlay" aria-label="close sidebar"></label>
+                <label
+                    htmlFor={drawerToggleId}
+                    className="drawer-overlay"
+                    aria-label="close sidebar"
+                ></label>
                 <div
                     className="min-h-full bg-base-200 border-r border-base-300 p-6 space-y-6 relative"
                     style={{ width: `${drawerWidth}px` }}

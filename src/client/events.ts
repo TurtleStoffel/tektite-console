@@ -22,4 +22,3 @@ export function subscribeSelectedRepo(handler: (detail: SelectedRepoEventDetail)
     window.addEventListener(SELECTED_REPO_EVENT, listener);
     return () => window.removeEventListener(SELECTED_REPO_EVENT, listener);
 }
-

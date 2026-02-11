@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Markdown } from "./Markdown";
 import { emitSelectedRepo } from "./events";
+import { Markdown } from "./Markdown";
 import { ClonesSection } from "./project-details/ClonesSection";
 import {
     buildPreviewTargets,
@@ -53,7 +53,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const showProductionClone = useMemo(() => {
         return shouldShowProductionClone(project);
-    }, [project?.consoleRepositoryUrl, project?.url]);
+    }, [project?.consoleRepositoryUrl, project?.url, project]);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project, showProductionClone);
@@ -62,6 +62,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         project?.productionClone?.path,
         project?.productionClone?.port,
         showProductionClone,
+        project,
     ]);
 
     useEffect(() => {
@@ -161,9 +162,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load repositories.");
             }
-            const list = Array.isArray(payload?.data)
-                ? (payload.data as RepositorySummary[])
-                : [];
+            const list = Array.isArray(payload?.data) ? (payload.data as RepositorySummary[]) : [];
             setRepositories(list);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load repositories.";
@@ -183,9 +182,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load documents.");
             }
-            const list = Array.isArray(payload?.data)
-                ? (payload.data as DocumentSummary[])
-                : [];
+            const list = Array.isArray(payload?.data) ? (payload.data as DocumentSummary[]) : [];
             setDocuments(list);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load documents.";
@@ -366,7 +363,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }, 1500);
 
         return () => window.clearInterval(interval);
-    }, [productionLogsOpen, project?.url]);
+    }, [productionLogsOpen, refreshProductionLogs]);
 
     useEffect(() => {
         if (!devLogsTarget?.path) return;
@@ -377,7 +374,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }, 1500);
 
         return () => window.clearInterval(interval);
-    }, [devLogsTarget?.path]);
+    }, [devLogsTarget?.path, refreshDevLogs]);
 
     useEffect(() => {
         void loadRepositories();
@@ -404,9 +401,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [id, loadDocuments]);
 
     const availableRepositories = useMemo(() => {
-        return repositories.filter(
-            (repo) => !repo.projectId || repo.id === project?.repositoryId,
-        );
+        return repositories.filter((repo) => !repo.projectId || repo.id === project?.repositoryId);
     }, [repositories, project?.repositoryId]);
 
     const currentRepositoryId = project?.repositoryId ?? "";
@@ -479,9 +474,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 <select
                                     className="select select-bordered"
                                     value={repositorySelection}
-                                    onChange={(event) =>
-                                        setRepositorySelection(event.target.value)
-                                    }
+                                    onChange={(event) => setRepositorySelection(event.target.value)}
                                     disabled={repositoriesLoading || updatingRepository}
                                 >
                                     <option value="">
@@ -501,9 +494,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     type="button"
                                     className="btn btn-primary btn-sm"
                                     onClick={() =>
-                                        void updateRepository(
-                                            repositorySelection.trim() || null,
-                                        )
+                                        void updateRepository(repositorySelection.trim() || null)
                                     }
                                     disabled={
                                         updatingRepository ||

@@ -26,11 +26,14 @@ function renderInline(text: string) {
     escaped = escaped.replaceAll(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
     escaped = escaped.replaceAll(/\*([^*]+?)\*/g, "<em>$1</em>");
 
-    escaped = escaped.replaceAll(/\[([^\]]+?)\]\(([^)]+?)\)/g, (_match, label: string, url: string) => {
-        const safe = safeHttpUrl(url.trim());
-        if (!safe) return label;
-        return `<a href="${escapeHtml(safe)}" target="_blank" rel="noreferrer" class="link link-hover">${escapeHtml(label)}</a>`;
-    });
+    escaped = escaped.replaceAll(
+        /\[([^\]]+?)\]\(([^)]+?)\)/g,
+        (_match, label: string, url: string) => {
+            const safe = safeHttpUrl(url.trim());
+            if (!safe) return label;
+            return `<a href="${escapeHtml(safe)}" target="_blank" rel="noreferrer" class="link link-hover">${escapeHtml(label)}</a>`;
+        },
+    );
 
     return escaped;
 }
@@ -41,7 +44,10 @@ function markdownToHtml(markdown: string) {
     let index = 0;
 
     const flushParagraph = (paragraphLines: string[]) => {
-        const text = paragraphLines.map((line) => line.trim()).filter(Boolean).join(" ");
+        const text = paragraphLines
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .join(" ");
         if (!text) return;
         chunks.push(`<p>${renderInline(text)}</p>`);
     };
@@ -59,7 +65,9 @@ function markdownToHtml(markdown: string) {
         if (headingMatch) {
             const level = headingMatch[1]?.length ?? 1;
             const text = headingMatch[2] ?? "";
-            chunks.push(`<h${level} class="font-semibold text-sm mt-1">${renderInline(text)}</h${level}>`);
+            chunks.push(
+                `<h${level} class="font-semibold text-sm mt-1">${renderInline(text)}</h${level}>`,
+            );
             index += 1;
             continue;
         }
@@ -97,4 +105,3 @@ export function Markdown({ markdown, className }: { markdown: string; className?
     const html = useMemo(() => markdownToHtml(markdown), [markdown]);
     return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
-

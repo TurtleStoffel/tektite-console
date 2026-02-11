@@ -40,7 +40,10 @@ export function shouldShowProductionClone(project: ProjectDetailsPayload | null)
     return true;
 }
 
-export function buildPreviewTargets(project: ProjectDetailsPayload | null, showProductionClone: boolean): PreviewTarget[] {
+export function buildPreviewTargets(
+    project: ProjectDetailsPayload | null,
+    showProductionClone: boolean,
+): PreviewTarget[] {
     const targets: PreviewTarget[] = [];
 
     for (const clone of project?.clones ?? []) {
@@ -81,7 +84,6 @@ export function prBadgeClass(state: PullRequestState): string {
             return "badge-error";
         case "none":
             return "badge-ghost";
-        case "unknown":
         default:
             return "badge-outline";
     }
@@ -99,7 +101,6 @@ export function prBadgeLabel(prStatus: NonNullable<ProjectDetailsClonePrStatus>)
             return "PR closed";
         case "none":
             return "No PR";
-        case "unknown":
         default:
             return "PR ?";
     }

@@ -14,7 +14,6 @@ function getBadgeClass(nodeEnv: string) {
             return "badge-success";
         case "test":
             return "badge-info";
-        case "development":
         default:
             return "badge-warning";
     }
@@ -29,14 +28,17 @@ export function EnvIndicator() {
 
         const load = async () => {
             try {
-                const response = await fetch("/api/env", { headers: { Accept: "application/json" } });
+                const response = await fetch("/api/env", {
+                    headers: { Accept: "application/json" },
+                });
                 if (!response.ok) {
                     throw new Error(`Failed to load env: HTTP ${response.status}`);
                 }
                 const json = (await response.json()) as EnvResponse;
                 if (!cancelled) setEnv(json);
             } catch (error) {
-                if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error));
+                if (!cancelled)
+                    setLoadError(error instanceof Error ? error.message : String(error));
             }
         };
 

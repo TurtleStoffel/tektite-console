@@ -1,6 +1,6 @@
 import type { Server } from "bun";
-import { ensureClonesDir, prepareWorktree } from "../git";
 import { streamCodexRun } from "../codex";
+import { ensureClonesDir, prepareWorktree } from "../git";
 
 export function createExecuteRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;
@@ -25,7 +25,9 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                           ? payload.prompt.trim()
                           : "";
                 const repositoryUrl =
-                    typeof payload?.repository?.url === "string" ? payload.repository.url.trim() : "";
+                    typeof payload?.repository?.url === "string"
+                        ? payload.repository.url.trim()
+                        : "";
 
                 if (!basePrompt) {
                     return new Response(JSON.stringify({ error: "Command text is required." }), {
@@ -35,19 +37,28 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                 }
 
                 if (!repositoryUrl) {
-                    return new Response(JSON.stringify({ error: "Select a repository before executing." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Select a repository before executing." }),
+                        {
+                            status: 400,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 try {
                     await ensureClonesDir(clonesDir);
                     const { worktreePath } = await prepareWorktree(repositoryUrl, clonesDir);
-                    return streamCodexRun({ prompt: basePrompt, workingDirectory: worktreePath, clonesDir });
+                    return streamCodexRun({
+                        prompt: basePrompt,
+                        workingDirectory: worktreePath,
+                        clonesDir,
+                    });
                 } catch (error) {
                     const message =
-                        error instanceof Error ? error.message : "Failed to prepare repository for execution.";
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to prepare repository for execution.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
                         headers: { "Content-Type": "application/json" },
@@ -57,4 +68,3 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
         },
     } as const;
 }
-

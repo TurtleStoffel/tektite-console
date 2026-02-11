@@ -36,7 +36,9 @@ export function createGithubRoutes() {
                 } catch (error) {
                     console.error("Failed to fetch GitHub repos from gh CLI:", error);
                     const message =
-                        error instanceof Error ? error.message : "Unknown error while reading gh CLI output.";
+                        error instanceof Error
+                            ? error.message
+                            : "Unknown error while reading gh CLI output.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
                         headers: { "Content-Type": "application/json" },

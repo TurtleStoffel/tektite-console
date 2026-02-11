@@ -1,6 +1,12 @@
-import { Codex, type Thread, type ThreadEvent, type ThreadItem, type Usage } from "@openai/codex-sdk";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+import {
+    Codex,
+    type Thread,
+    type ThreadEvent,
+    type ThreadItem,
+    type Usage,
+} from "@openai/codex-sdk";
 import { finalizeGitState } from "./git";
 import { markWorkspaceActive, markWorkspaceInactive } from "./workspaceActivity";
 
@@ -71,7 +77,10 @@ export function readThreadMap(clonesDir: string): Record<string, ThreadMetadata>
                         typeof (value as { lastEvent?: unknown }).lastEvent === "string"
                             ? (value as { lastEvent: string }).lastEvent
                             : undefined;
-                    return [key, { threadId, lastMessage, lastEvent } satisfies ThreadMetadata] as const;
+                    return [
+                        key,
+                        { threadId, lastMessage, lastEvent } satisfies ThreadMetadata,
+                    ] as const;
                 }
 
                 return null;
@@ -209,7 +218,9 @@ function mapEventChunk(
     }
 
     if (
-        (event.type === "item.started" || event.type === "item.updated" || event.type === "item.completed") &&
+        (event.type === "item.started" ||
+            event.type === "item.updated" ||
+            event.type === "item.completed") &&
         event.item
     ) {
         send({ type: "item", eventType: event.type, item: event.item });
@@ -260,7 +271,12 @@ function startThread(workingDirectory: string, threadId?: string | null): Thread
     });
 }
 
-export function streamCodexRun(options: { prompt: string; workingDirectory: string; threadId?: string | null; clonesDir: string }) {
+export function streamCodexRun(options: {
+    prompt: string;
+    workingDirectory: string;
+    threadId?: string | null;
+    clonesDir: string;
+}) {
     const { prompt, workingDirectory, threadId, clonesDir } = options;
     const augmentedPrompt = appendCommitInstruction(prompt);
     const threadMap = readThreadMap(clonesDir);
@@ -268,11 +284,11 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
     const thread = startThread(workingDirectory, mappedThreadId);
 
     let cancelled = false;
-    let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+    let _controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
 
     const stream = new ReadableStream({
         start: async (controller) => {
-            controllerRef = controller;
+            _controllerRef = controller;
             markWorkspaceActive(workingDirectory);
 
             const send = (chunk: StreamChunk) => {
@@ -309,14 +325,25 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
                         recordThreadId(clonesDir, workingDirectory, event.thread_id);
                     }
 
-                    if (event.type === "item.started" || event.type === "item.updated" || event.type === "item.completed") {
+                    if (
+                        event.type === "item.started" ||
+                        event.type === "item.updated" ||
+                        event.type === "item.completed"
+                    ) {
                         recordLastEvent(clonesDir, workingDirectory, summary);
-                        if (event.item?.type === "agent_message" && typeof event.item.text === "string") {
+                        if (
+                            event.item?.type === "agent_message" &&
+                            typeof event.item.text === "string"
+                        ) {
                             recordLastMessage(clonesDir, workingDirectory, event.item.text);
                         }
                     }
 
-                    if (event.type === "turn.completed" || event.type === "turn.failed" || event.type === "error") {
+                    if (
+                        event.type === "turn.completed" ||
+                        event.type === "turn.failed" ||
+                        event.type === "error"
+                    ) {
                         recordLastEvent(clonesDir, workingDirectory, summary);
                     }
                 }
@@ -337,13 +364,13 @@ export function streamCodexRun(options: { prompt: string; workingDirectory: stri
                 send({ type: "error", error: message });
             } finally {
                 closeStream();
-                controllerRef = null;
+                _controllerRef = null;
                 markWorkspaceInactive(workingDirectory);
             }
         },
         cancel: () => {
             cancelled = true;
-            controllerRef = null;
+            _controllerRef = null;
             // eslint-disable-next-line no-console
             console.log("[codex] stream cancelled by client");
             markWorkspaceInactive(workingDirectory);

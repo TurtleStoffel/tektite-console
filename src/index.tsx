@@ -15,8 +15,8 @@ import { createProjectRoutes } from "./backend/routes/projects";
 import { createRepositoryRoutes } from "./backend/routes/repositories";
 import { initStorage } from "./backend/storage";
 import { startPullRequestCleanup } from "./backend/worktreeCleanup";
-import { TEKTITE_PORT_FILE } from "./constants";
 import index from "./client/index.html";
+import { TEKTITE_PORT_FILE } from "./constants";
 
 const portEnv = process.env.PORT ? Number(process.env.PORT) : undefined;
 const PORT = Number.isFinite(portEnv) ? portEnv : findFirstFreePort(3000);

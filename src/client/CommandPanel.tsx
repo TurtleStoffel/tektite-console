@@ -61,14 +61,20 @@ export function CommandPanel() {
     }, []);
 
     const updateRun = (runId: string, patch: Partial<CommandRun>) => {
-        setRuns((prevRuns) => prevRuns.map((run) => (run.id === runId ? { ...run, ...patch } : run)));
+        setRuns((prevRuns) =>
+            prevRuns.map((run) => (run.id === runId ? { ...run, ...patch } : run)),
+        );
     };
 
     const cancelRun = (runId: string) => {
         const controller = abortControllersRef.current.get(runId);
         if (!controller) return;
         controller.abort();
-        updateRun(runId, { status: "cancelled", message: "Execution cancelled.", finishedAt: Date.now() });
+        updateRun(runId, {
+            status: "cancelled",
+            message: "Execution cancelled.",
+            finishedAt: Date.now(),
+        });
         console.log(`[command-panel] cancelled run ${runId}`);
     };
 
@@ -86,7 +92,9 @@ export function CommandPanel() {
 
         setValidationMessage(null);
 
-        const runId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const runId =
+            globalThis.crypto?.randomUUID?.() ??
+            `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const startedAt = Date.now();
 
         setRuns((prevRuns) => [
@@ -229,18 +237,29 @@ export function CommandPanel() {
             console.log(`[command-panel] finished run ${runId}`);
         } catch (error) {
             if (abortController.signal.aborted) {
-                updateRun(runId, { status: "cancelled", message: "Execution cancelled.", finishedAt: Date.now() });
+                updateRun(runId, {
+                    status: "cancelled",
+                    message: "Execution cancelled.",
+                    finishedAt: Date.now(),
+                });
                 return;
             }
-            const message = error instanceof Error ? error.message : "Unexpected error while executing.";
-            updateRun(runId, { status: "error", message: `Error: ${message}`, finishedAt: Date.now() });
+            const message =
+                error instanceof Error ? error.message : "Unexpected error while executing.";
+            updateRun(runId, {
+                status: "error",
+                message: `Error: ${message}`,
+                finishedAt: Date.now(),
+            });
             console.warn(`[command-panel] run ${runId} failed`, error);
         } finally {
             abortControllersRef.current.delete(runId);
         }
     };
 
-    const runningCount = runs.filter((run) => run.status === "running" || run.status === "starting").length;
+    const runningCount = runs.filter(
+        (run) => run.status === "running" || run.status === "starting",
+    ).length;
     const canExecute = Boolean(commandInput.trim()) && Boolean(selectedRepoUrl);
 
     return (
@@ -253,11 +272,18 @@ export function CommandPanel() {
                 <div className="text-sm text-base-content/70">
                     <span className="font-semibold">Active repository:</span>{" "}
                     {selectedRepoUrl ? (
-                        <a href={selectedRepoUrl} className="link link-hover break-all" target="_blank" rel="noreferrer">
+                        <a
+                            href={selectedRepoUrl}
+                            className="link link-hover break-all"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             {selectedRepoUrl}
                         </a>
                     ) : (
-                        <span className="text-base-content/60">Open a project to select a repository to run Codex.</span>
+                        <span className="text-base-content/60">
+                            Open a project to select a repository to run Codex.
+                        </span>
                     )}
                 </div>
             </div>
@@ -269,7 +295,11 @@ export function CommandPanel() {
                     onChange={(event) => setCommandInput(event.target.value)}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
-                    <button className="btn btn-primary" onClick={handleExecute} disabled={!canExecute}>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleExecute}
+                        disabled={!canExecute}
+                    >
                         Execute{runningCount > 0 ? ` (${runningCount} running)` : ""}
                     </button>
                     {runs.length > 0 && (
@@ -290,23 +320,32 @@ export function CommandPanel() {
                         </button>
                     )}
                 </div>
-                {validationMessage && <p className="text-sm text-base-content/70">{validationMessage}</p>}
+                {validationMessage && (
+                    <p className="text-sm text-base-content/70">{validationMessage}</p>
+                )}
                 {runs.length > 0 && (
                     <div className="space-y-2">
                         {runs.map((run) => {
-                            const isRunActive = run.status === "starting" || run.status === "running";
+                            const isRunActive =
+                                run.status === "starting" || run.status === "running";
                             return (
                                 <div key={run.id} className="card card-compact bg-base-200/60">
                                     <div className="card-body">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className={createRunStatusBadge(run.status)}>{run.status}</span>
+                                                    <span
+                                                        className={createRunStatusBadge(run.status)}
+                                                    >
+                                                        {run.status}
+                                                    </span>
                                                     <span className="font-mono text-xs text-base-content/70 break-all">
                                                         {run.repoUrl}
                                                     </span>
                                                 </div>
-                                                <div className="font-mono text-sm break-words">{run.command}</div>
+                                                <div className="font-mono text-sm break-words">
+                                                    {run.command}
+                                                </div>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2">
                                                 {run.threadId && (
@@ -325,7 +364,9 @@ export function CommandPanel() {
                                                 )}
                                             </div>
                                         </div>
-                                        <p className="text-sm text-base-content/70 whitespace-pre-wrap">{run.message}</p>
+                                        <p className="text-sm text-base-content/70 whitespace-pre-wrap">
+                                            {run.message}
+                                        </p>
                                     </div>
                                 </div>
                             );

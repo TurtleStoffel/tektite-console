@@ -29,7 +29,8 @@ function serializeError(error: unknown) {
 
     const details: Record<string, unknown> = { message };
     if (name) details.name = name;
-    if (typeof anyError?.code === "string" || typeof anyError?.code === "number") details.code = anyError.code;
+    if (typeof anyError?.code === "string" || typeof anyError?.code === "number")
+        details.code = anyError.code;
     if (typeof anyError?.signal === "string") details.signal = anyError.signal;
     if (typeof anyError?.cmd === "string") details.cmd = anyError.cmd;
     if (typeof anyError?.stderr === "string") details.stderr = anyError.stderr.slice(0, 8000);
@@ -37,7 +38,6 @@ function serializeError(error: unknown) {
 
     return details;
 }
-
 
 function logInfo(message: string, meta?: Record<string, unknown>) {
     if (meta) {
@@ -243,7 +243,10 @@ async function readRemoteBranchUpdateStatus(dir: string): Promise<RemoteBranchUp
             };
         }
     } catch (error) {
-        logWarn("unexpected error while checking remote branch status", { dir, error: serializeError(error) });
+        logWarn("unexpected error while checking remote branch status", {
+            dir,
+            error: serializeError(error),
+        });
         return { status: "unknown", checkedAt };
     }
 }
@@ -263,7 +266,18 @@ export async function getRemoteBranchUpdateStatus(
 
     logInfo("cache miss", { dir, key, ttlMs });
     const value = await readRemoteBranchUpdateStatus(dir);
-    logInfo("status result", { dir, key, status: value.status, branch: value.branch, upstream: value.upstream, aheadCount: value.aheadCount, behindCount: value.behindCount, fetched: value.fetched, error: value.error, checkedAt: value.checkedAt });
+    logInfo("status result", {
+        dir,
+        key,
+        status: value.status,
+        branch: value.branch,
+        upstream: value.upstream,
+        aheadCount: value.aheadCount,
+        behindCount: value.behindCount,
+        fetched: value.fetched,
+        error: value.error,
+        checkedAt: value.checkedAt,
+    });
 
     cache.set(key, { value, expiresAt: now + ttlMs });
     return value;

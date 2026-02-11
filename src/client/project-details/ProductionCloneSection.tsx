@@ -53,16 +53,19 @@ export function ProductionCloneSection({
                     <div className="space-y-1 min-w-0">
                         {project.productionClone ? (
                             <>
-                                <div className="font-mono text-xs break-all">{project.productionClone.path}</div>
-                                {project.productionClone.commitHash && project.productionClone.commitDescription && (
-                                    <div className="text-xs text-base-content/70 break-all">
-                                        <span className="font-mono">
-                                            {project.productionClone.commitHash.slice(0, 12)}
-                                        </span>
-                                        <span className="mx-2">—</span>
-                                        <span>{project.productionClone.commitDescription}</span>
-                                    </div>
-                                )}
+                                <div className="font-mono text-xs break-all">
+                                    {project.productionClone.path}
+                                </div>
+                                {project.productionClone.commitHash &&
+                                    project.productionClone.commitDescription && (
+                                        <div className="text-xs text-base-content/70 break-all">
+                                            <span className="font-mono">
+                                                {project.productionClone.commitHash.slice(0, 12)}
+                                            </span>
+                                            <span className="mx-2">—</span>
+                                            <span>{project.productionClone.commitDescription}</span>
+                                        </div>
+                                    )}
                             </>
                         ) : (
                             <div className="text-sm text-base-content/70">
@@ -82,15 +85,18 @@ export function ProductionCloneSection({
                             </div>
                         )}
 
-                        {project.productionClone && typeof project.productionClone.hasChanges === "boolean" && (
-                            <div
-                                className={`badge badge-outline ${
-                                    project.productionClone.hasChanges ? "badge-warning" : "badge-success"
-                                }`}
-                            >
-                                {project.productionClone.hasChanges ? "changes" : "clean"}
-                            </div>
-                        )}
+                        {project.productionClone &&
+                            typeof project.productionClone.hasChanges === "boolean" && (
+                                <div
+                                    className={`badge badge-outline ${
+                                        project.productionClone.hasChanges
+                                            ? "badge-warning"
+                                            : "badge-success"
+                                    }`}
+                                >
+                                    {project.productionClone.hasChanges ? "changes" : "clean"}
+                                </div>
+                            )}
 
                         {project.productionClone && (
                             <div className="badge badge-outline">
@@ -99,7 +105,9 @@ export function ProductionCloneSection({
                         )}
 
                         {typeof project.productionClone?.port === "number" && (
-                            <div className="badge badge-success badge-outline">port {project.productionClone.port}</div>
+                            <div className="badge badge-success badge-outline">
+                                port {project.productionClone.port}
+                            </div>
                         )}
 
                         {typeof project.productionClone?.port === "number" && (
@@ -119,7 +127,9 @@ export function ProductionCloneSection({
                             disabled={Boolean(startingDevKey) || startingProduction}
                             onClick={onStartProductionServer}
                         >
-                            {startingProduction && <span className="loading loading-spinner loading-xs" />}
+                            {startingProduction && (
+                                <span className="loading loading-spinner loading-xs" />
+                            )}
                             {startingProduction ? "Starting" : "Run production"}
                         </button>
 
@@ -133,11 +143,17 @@ export function ProductionCloneSection({
                                 {openingVSCodePath === project.productionClone.path && (
                                     <span className="loading loading-spinner loading-xs" />
                                 )}
-                                {openingVSCodePath === project.productionClone.path ? "Opening" : "Open VSCode"}
+                                {openingVSCodePath === project.productionClone.path
+                                    ? "Opening"
+                                    : "Open VSCode"}
                             </button>
                         )}
 
-                        <button type="button" className="btn btn-outline btn-sm" onClick={onToggleProductionLogs}>
+                        <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={onToggleProductionLogs}
+                        >
                             {productionLogsOpen ? "Hide logs" : "Show logs"}
                         </button>
                     </div>
@@ -157,7 +173,9 @@ export function ProductionCloneSection({
                                     {productionLogsMeta.exists ? "cloned" : "missing"}
                                 </div>
                                 {productionLogsMeta.installing && (
-                                    <div className="badge badge-warning badge-outline">installing</div>
+                                    <div className="badge badge-warning badge-outline">
+                                        installing
+                                    </div>
                                 )}
                                 {productionLogsMeta.running && (
                                     <div className="badge badge-success badge-outline">running</div>

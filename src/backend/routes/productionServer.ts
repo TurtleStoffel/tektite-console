@@ -1,9 +1,12 @@
-import type { Server } from "bun";
-import path from "node:path";
 import fs from "node:fs";
+import type { Server } from "bun";
 import { ensureProductionClone, getProductionClonePath } from "../productionClone";
-import { isProductionInstallRunning, isProductionServerRunning, startProductionServer } from "../productionServer";
-import { getProductionServerLogs } from "../productionServer";
+import {
+    getProductionServerLogs,
+    isProductionInstallRunning,
+    isProductionServerRunning,
+    startProductionServer,
+} from "../productionServer";
 import { isWorkspaceActive } from "../workspaceActivity";
 import { isWithinRoot } from "./pathUtils";
 
@@ -24,10 +27,15 @@ export function createProductionServerRoutes(options: { productionDir: string })
 
                 const clonePath = getProductionClonePath(repositoryUrl, productionDir);
                 if (!isWithinRoot(clonePath, productionDir)) {
-                    return new Response(JSON.stringify({ error: "Production clone path is outside configured folder." }), {
-                        status: 403,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({
+                            error: "Production clone path is outside configured folder.",
+                        }),
+                        {
+                            status: 403,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 const exists = fs.existsSync(clonePath);
@@ -55,7 +63,8 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     });
                 }
 
-                const repositoryUrl = typeof body?.repositoryUrl === "string" ? body.repositoryUrl.trim() : "";
+                const repositoryUrl =
+                    typeof body?.repositoryUrl === "string" ? body.repositoryUrl.trim() : "";
                 if (!repositoryUrl) {
                     return new Response(JSON.stringify({ error: "Repository URL is required." }), {
                         status: 400,
@@ -68,7 +77,10 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     const result = await ensureProductionClone({ repositoryUrl, productionDir });
                     clonePath = result.clonePath;
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to prepare production clone.";
+                    const message =
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to prepare production clone.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
                         headers: { "Content-Type": "application/json" },
@@ -76,17 +88,25 @@ export function createProductionServerRoutes(options: { productionDir: string })
                 }
 
                 if (!isWithinRoot(clonePath, productionDir)) {
-                    return new Response(JSON.stringify({ error: "Production clone path is outside configured folder." }), {
-                        status: 403,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({
+                            error: "Production clone path is outside configured folder.",
+                        }),
+                        {
+                            status: 403,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (!fs.existsSync(clonePath)) {
-                    return new Response(JSON.stringify({ error: "Production clone path does not exist." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Production clone path does not exist." }),
+                        {
+                            status: 404,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (isProductionServerRunning(clonePath) || isProductionInstallRunning(clonePath)) {
@@ -95,17 +115,23 @@ export function createProductionServerRoutes(options: { productionDir: string })
                 }
 
                 if (isWorkspaceActive(clonePath)) {
-                    return new Response(JSON.stringify({ error: "Production clone is already active." }), {
-                        status: 409,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Production clone is already active." }),
+                        {
+                            status: 409,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 try {
                     const result = startProductionServer(clonePath);
                     return Response.json({ ...result, path: clonePath });
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to start production server.";
+                    const message =
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to start production server.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
                         headers: { "Content-Type": "application/json" },

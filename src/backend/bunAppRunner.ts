@@ -109,7 +109,10 @@ export function createBunAppRunner(options: {
         const install = installs.get(workspacePath);
         if (install && !isPidAlive(install.pid)) {
             installs.delete(workspacePath);
-            appendLogLine(workspacePath, `[system] ${options.label} install process no longer running`);
+            appendLogLine(
+                workspacePath,
+                `[system] ${options.label} install process no longer running`,
+            );
             if (!servers.has(workspacePath)) {
                 markWorkspaceInactive(workspacePath);
             }
@@ -160,8 +163,10 @@ export function createBunAppRunner(options: {
         installs.set(workspacePath, install);
         markWorkspaceActive(workspacePath);
         appendLogLine(workspacePath, "[system] running bun install");
-        if (install.stdout) void consumeStream({ workspacePath, stream: install.stdout, streamName: "stdout" });
-        if (install.stderr) void consumeStream({ workspacePath, stream: install.stderr, streamName: "stderr" });
+        if (install.stdout)
+            void consumeStream({ workspacePath, stream: install.stdout, streamName: "stdout" });
+        if (install.stderr)
+            void consumeStream({ workspacePath, stream: install.stderr, streamName: "stderr" });
 
         void install.exited.then((code) => {
             const current = installs.get(workspacePath);
@@ -169,7 +174,10 @@ export function createBunAppRunner(options: {
             installs.delete(workspacePath);
 
             if (code !== 0) {
-                appendLogLine(workspacePath, `[system] bun install failed (exit ${code ?? "unknown"})`);
+                appendLogLine(
+                    workspacePath,
+                    `[system] bun install failed (exit ${code ?? "unknown"})`,
+                );
                 if (!servers.has(workspacePath)) markWorkspaceInactive(workspacePath);
                 return;
             }
@@ -198,9 +206,17 @@ export function createBunAppRunner(options: {
 
         appendLogLine(workspacePath, `[system] started ${options.label}`);
         if (serverProcess.stdout)
-            void consumeStream({ workspacePath, stream: serverProcess.stdout, streamName: "stdout" });
+            void consumeStream({
+                workspacePath,
+                stream: serverProcess.stdout,
+                streamName: "stdout",
+            });
         if (serverProcess.stderr)
-            void consumeStream({ workspacePath, stream: serverProcess.stderr, streamName: "stderr" });
+            void consumeStream({
+                workspacePath,
+                stream: serverProcess.stderr,
+                streamName: "stderr",
+            });
 
         void serverProcess.exited.then(() => {
             const current = servers.get(workspacePath);
@@ -214,7 +230,10 @@ export function createBunAppRunner(options: {
         return { status: "started", pid: serverProcess.pid };
     }
 
-    function start(workspacePath: string, flags?: { skipInstall?: boolean }): BunAppRunnerStartResult {
+    function start(
+        workspacePath: string,
+        flags?: { skipInstall?: boolean },
+    ): BunAppRunnerStartResult {
         reconcileProcesses(workspacePath);
 
         const existingServer = servers.get(workspacePath);
@@ -232,4 +251,3 @@ export function createBunAppRunner(options: {
 
     return { getLogs, start, isServerRunning, isInstallRunning };
 }
-

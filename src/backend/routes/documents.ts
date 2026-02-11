@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { z } from "zod";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { asc, eq } from "drizzle-orm";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import { z } from "zod";
 import type * as schema from "../db/local/schema";
 import { documents, projects } from "../db/local/schema";
 
@@ -119,7 +119,8 @@ export function createDocumentRoutes(options: { db: Db }) {
                 }
 
                 const documentId = randomUUID();
-                await db.insert(documents)
+                await db
+                    .insert(documents)
                     .values({
                         id: documentId,
                         projectId,
@@ -194,7 +195,8 @@ export function createDocumentRoutes(options: { db: Db }) {
                 const body = parsed.data;
 
                 const documentId = randomUUID();
-                await db.insert(documents)
+                await db
+                    .insert(documents)
                     .values({
                         id: documentId,
                         projectId,
@@ -267,7 +269,8 @@ export function createDocumentRoutes(options: { db: Db }) {
                     }
                 }
 
-                await db.update(documents)
+                await db
+                    .update(documents)
                     .set({ markdown: body.markdown, projectId })
                     .where(eq(documents.id, documentId))
                     .execute();

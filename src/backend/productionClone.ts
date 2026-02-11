@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import { TEKTITE_PORT_FILE } from "../constants";
 import { execAsync } from "./exec";
 import { cleanRepositoryUrl, cloneRepository, detectRepoChanges, sanitizeRepoName } from "./git";
@@ -23,7 +23,9 @@ export function getProductionClonePath(repositoryUrl: string, productionDir: str
     return path.join(productionDir, repoName);
 }
 
-async function readHeadCommitSummary(dir: string): Promise<{ hash: string | null; description: string | null }> {
+async function readHeadCommitSummary(
+    dir: string,
+): Promise<{ hash: string | null; description: string | null }> {
     try {
         const { stdout } = await execAsync("git log -1 --pretty=format:%H%n%s", {
             cwd: dir,
@@ -71,7 +73,10 @@ export async function getProductionCloneInfo(options: {
         };
     }
 
-    const [hasChanges, head] = await Promise.all([detectRepoChanges(clonePath), readHeadCommitSummary(clonePath)]);
+    const [hasChanges, head] = await Promise.all([
+        detectRepoChanges(clonePath),
+        readHeadCommitSummary(clonePath),
+    ]);
     return {
         path: clonePath,
         exists: true,

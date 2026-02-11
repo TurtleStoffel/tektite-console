@@ -1,5 +1,5 @@
 import { SQL } from "bun";
-import { drizzle, type BunSQLDatabase } from "drizzle-orm/bun-sql";
+import { type BunSQLDatabase, drizzle } from "drizzle-orm/bun-sql";
 
 export type SupabaseStorage = {
     db: BunSQLDatabase<Record<string, never>>;

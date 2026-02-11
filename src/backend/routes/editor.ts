@@ -1,6 +1,6 @@
-import type { Server } from "bun";
 import fs from "node:fs";
 import path from "node:path";
+import type { Server } from "bun";
 import { execFileAsync } from "../exec";
 import { isWithinRoot } from "./pathUtils";
 
@@ -29,12 +29,16 @@ export function createEditorRoutes(options: { clonesDir: string; productionDir: 
                 }
 
                 const folderPath = path.resolve(rawPath);
-                const allowed = isWithinRoot(folderPath, clonesDir) || isWithinRoot(folderPath, productionDir);
+                const allowed =
+                    isWithinRoot(folderPath, clonesDir) || isWithinRoot(folderPath, productionDir);
                 if (!allowed) {
-                    return new Response(JSON.stringify({ error: "Folder path is outside configured folders." }), {
-                        status: 403,
-                        headers: { "Content-Type": "application/json" },
-                    });
+                    return new Response(
+                        JSON.stringify({ error: "Folder path is outside configured folders." }),
+                        {
+                            status: 403,
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
                 }
 
                 if (!fs.existsSync(folderPath)) {
@@ -48,7 +52,8 @@ export function createEditorRoutes(options: { clonesDir: string; productionDir: 
                     await execFileAsync("code", ["."], { cwd: folderPath, timeout: 10_000 });
                     return Response.json({ ok: true });
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : "Failed to open VSCode.";
+                    const message =
+                        error instanceof Error ? error.message : "Failed to open VSCode.";
                     if (message.includes("ENOENT") || message.includes("not found")) {
                         return new Response(
                             JSON.stringify({
@@ -66,4 +71,3 @@ export function createEditorRoutes(options: { clonesDir: string; productionDir: 
         },
     } as const;
 }
-

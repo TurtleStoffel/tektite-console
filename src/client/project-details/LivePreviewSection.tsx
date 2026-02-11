@@ -38,7 +38,12 @@ export function LivePreviewSection({
                                 </option>
                             ))}
                         </select>
-                        <a className="btn btn-outline btn-sm" href={previewUrl} target="_blank" rel="noreferrer">
+                        <a
+                            className="btn btn-outline btn-sm"
+                            href={previewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             Open
                         </a>
                     </div>

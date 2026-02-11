@@ -1,9 +1,9 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { randomUUID } from "node:crypto";
 import { asc, eq, min } from "drizzle-orm";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { GithubRepo } from "../../shared/github";
 import type * as schema from "../db/local/schema";
 import { projects, repositories } from "../db/local/schema";
-import type { GithubRepo } from "../../shared/github";
 
 async function fetchGithubRepos(): Promise<GithubRepo[]> {
     const repoFields = ["name", "owner", "description", "visibility", "url", "updatedAt"].join(",");
@@ -83,7 +83,10 @@ export function createRepositoryRoutes(options: { db: Db }) {
                         if (!name) {
                             continue;
                         }
-                        await db.insert(repositories).values({ id: randomUUID(), name, url }).execute();
+                        await db
+                            .insert(repositories)
+                            .values({ id: randomUUID(), name, url })
+                            .execute();
                         existingUrls.add(url);
                         insertedCount += 1;
                     }
