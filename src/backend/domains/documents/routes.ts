@@ -1,12 +1,11 @@
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
 import type * as schema from "../../db/local/schema";
+import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
 import { createDocumentsService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
 type Db = BunSQLiteDatabase<typeof schema>;
-
-const jsonHeaders = { "Content-Type": "application/json" };
 
 const createDocumentSchema = z.object({
     markdown: z.string(),
@@ -17,37 +16,8 @@ const updateDocumentSchema = z.object({
     markdown: z.string(),
     projectId: z.string().optional().nullable(),
 });
-
-async function parseJsonBody<T extends z.ZodTypeAny>(
-    req: Request,
-    schema: T,
-    context: string,
-): Promise<{ data: z.infer<T> } | { response: Response }> {
-    let body: unknown;
-    try {
-        body = await req.json();
-    } catch (error) {
-        console.warn("[documents] invalid json payload", { context, error });
-        return {
-            response: new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                status: 400,
-                headers: jsonHeaders,
-            }),
-        };
-    }
-
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) {
-        console.warn("[documents] invalid request body", { context, issues: parsed.error.issues });
-        return {
-            response: new Response(
-                JSON.stringify({ error: "Invalid request payload.", issues: parsed.error.issues }),
-                { status: 400, headers: jsonHeaders },
-            ),
-        };
-    }
-    return { data: parsed.data };
-}
+const requiredProjectIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const requiredDocumentIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
 export function createDocumentRoutes(options: { db: Db }) {
     const service = createDocumentsService({ db: options.db });
@@ -59,7 +29,12 @@ export function createDocumentRoutes(options: { db: Db }) {
                 return Response.json({ data });
             },
             async POST(req: RouteRequest) {
-                const parsed = await parseJsonBody(req, createDocumentSchema, "documents:create");
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: createDocumentSchema,
+                    domain: "documents",
+                    context: "documents:create",
+                });
                 if ("response" in parsed) return parsed.response;
 
                 const result = await service.createDocument(parsed.data);
@@ -74,13 +49,16 @@ export function createDocumentRoutes(options: { db: Db }) {
         },
         "/api/projects/:id/documents": {
             async GET(req: RouteRequest) {
-                const projectId = req.params.id ?? null;
-                if (!projectId) {
-                    return new Response(JSON.stringify({ error: "Project id is required." }), {
-                        status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: requiredProjectIdParamSchema,
+                    domain: "documents",
+                    context: "project-documents:get",
+                    errorMessage: "Project id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const projectId = parsedParams.data.id;
                 const result = await service.listProjectDocuments(projectId);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
@@ -91,19 +69,23 @@ export function createDocumentRoutes(options: { db: Db }) {
                 return Response.json({ data: result });
             },
             async POST(req: RouteRequest) {
-                const projectId = req.params.id ?? null;
-                if (!projectId) {
-                    return new Response(JSON.stringify({ error: "Project id is required." }), {
-                        status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: requiredProjectIdParamSchema,
+                    domain: "documents",
+                    context: "project-documents:create",
+                    errorMessage: "Project id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
 
-                const parsed = await parseJsonBody(
+                const projectId = parsedParams.data.id;
+
+                const parsed = await parseJsonBody({
                     req,
-                    createProjectDocumentSchema,
-                    "project-documents:create",
-                );
+                    schema: createProjectDocumentSchema,
+                    domain: "documents",
+                    context: "project-documents:create",
+                });
                 if ("response" in parsed) return parsed.response;
 
                 const result = await service.createProjectDocument({
@@ -121,13 +103,16 @@ export function createDocumentRoutes(options: { db: Db }) {
         },
         "/api/documents/:id": {
             async GET(req: RouteRequest) {
-                const documentId = req.params.id ?? null;
-                if (!documentId) {
-                    return new Response(JSON.stringify({ error: "Document id is required." }), {
-                        status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: requiredDocumentIdParamSchema,
+                    domain: "documents",
+                    context: "documents:get",
+                    errorMessage: "Document id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const documentId = parsedParams.data.id;
                 const result = await service.getDocument(documentId);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
@@ -138,14 +123,22 @@ export function createDocumentRoutes(options: { db: Db }) {
                 return Response.json(result);
             },
             async PUT(req: RouteRequest) {
-                const documentId = req.params.id ?? null;
-                if (!documentId) {
-                    return new Response(JSON.stringify({ error: "Document id is required." }), {
-                        status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
-                const parsed = await parseJsonBody(req, updateDocumentSchema, "documents:update");
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: requiredDocumentIdParamSchema,
+                    domain: "documents",
+                    context: "documents:update",
+                    errorMessage: "Document id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const documentId = parsedParams.data.id;
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: updateDocumentSchema,
+                    domain: "documents",
+                    context: "documents:update",
+                });
                 if ("response" in parsed) return parsed.response;
 
                 const result = await service.updateDocument({
@@ -162,13 +155,16 @@ export function createDocumentRoutes(options: { db: Db }) {
                 return Response.json(result);
             },
             async DELETE(req: RouteRequest) {
-                const documentId = req.params.id ?? null;
-                if (!documentId) {
-                    return new Response(JSON.stringify({ error: "Document id is required." }), {
-                        status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: requiredDocumentIdParamSchema,
+                    domain: "documents",
+                    context: "documents:delete",
+                    errorMessage: "Document id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const documentId = parsedParams.data.id;
                 return Response.json(await service.deleteDocument(documentId));
             },
         },

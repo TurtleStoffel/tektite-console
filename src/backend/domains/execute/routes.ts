@@ -1,5 +1,18 @@
 import type { Server } from "bun";
+import { z } from "zod";
+import { jsonHeaders, parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
+
+const executePayloadSchema = z
+    .object({
+        command: z.string().trim().min(1).optional(),
+        prompt: z.string().trim().min(1).optional(),
+        repository: z.object({ url: z.string().trim().min(1) }),
+    })
+    .refine((value) => Boolean(value.command ?? value.prompt), {
+        message: "Command text is required.",
+        path: ["command"],
+    });
 
 export function createExecuteRoutes(options: { clonesDir: string }) {
     const service = createExecuteService({ clonesDir: options.clonesDir });
@@ -7,48 +20,16 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
     return {
         "/api/execute": {
             async POST(req: Server.Request) {
-                let payload: unknown;
-                try {
-                    payload = await req.json();
-                } catch {
-                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: executePayloadSchema,
+                    domain: "execute",
+                    context: "execute:create",
+                });
+                if ("response" in parsed) return parsed.response;
 
-                const parsedPayload = payload as {
-                    command?: unknown;
-                    prompt?: unknown;
-                    repository?: { url?: unknown };
-                };
-                const basePrompt =
-                    typeof parsedPayload.command === "string"
-                        ? parsedPayload.command.trim()
-                        : typeof parsedPayload.prompt === "string"
-                          ? parsedPayload.prompt.trim()
-                          : "";
-                const repositoryUrl =
-                    typeof parsedPayload.repository?.url === "string"
-                        ? parsedPayload.repository.url.trim()
-                        : "";
-
-                if (!basePrompt) {
-                    return new Response(JSON.stringify({ error: "Command text is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-
-                if (!repositoryUrl) {
-                    return new Response(
-                        JSON.stringify({ error: "Select a repository before executing." }),
-                        {
-                            status: 400,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
+                const basePrompt = parsed.data.command ?? parsed.data.prompt;
+                const repositoryUrl = parsed.data.repository.url;
 
                 try {
                     return await service.execute({ prompt: basePrompt, repositoryUrl });
@@ -59,7 +40,7 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                             : "Failed to prepare repository for execution.";
                     return new Response(JSON.stringify({ error: message }), {
                         status: 500,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
             },

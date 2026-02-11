@@ -1,5 +1,10 @@
 import type { Server } from "bun";
+import { z } from "zod";
+import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
 import { createWorktreesService } from "./service";
+
+const worktreePathBodySchema = z.object({ path: z.string().trim().min(1) });
+const worktreePathQuerySchema = z.object({ path: z.string().trim().min(1) });
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
     const service = createWorktreesService({ clonesDir: options.clonesDir });
@@ -8,19 +13,20 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
         "/api/worktrees/dev-logs": {
             async GET(req: Server.Request) {
                 const url = new URL(req.url);
-                const rawPath = url.searchParams.get("path")?.trim() ?? "";
-                if (!rawPath) {
-                    return new Response(JSON.stringify({ error: "Worktree path is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                const parsedQuery = parseInput({
+                    input: { path: url.searchParams.get("path") },
+                    schema: worktreePathQuerySchema,
+                    domain: "worktrees",
+                    context: "worktrees:dev-logs",
+                    errorMessage: "Worktree path is required.",
+                });
+                if ("response" in parsedQuery) return parsedQuery.response;
 
-                const result = service.getDevLogs(rawPath);
+                const result = service.getDevLogs(parsedQuery.data.path);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
 
@@ -30,30 +36,19 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
 
         "/api/worktrees/dev-server": {
             async POST(req: Server.Request) {
-                let body: unknown;
-                try {
-                    body = await req.json();
-                } catch {
-                    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: worktreePathBodySchema,
+                    domain: "worktrees",
+                    context: "worktrees:dev-server:start",
+                });
+                if ("response" in parsed) return parsed.response;
 
-                const parsedBody = body as { path?: unknown };
-                const rawPath = typeof parsedBody.path === "string" ? parsedBody.path.trim() : "";
-                if (!rawPath) {
-                    return new Response(JSON.stringify({ error: "Worktree path is required." }), {
-                        status: 400,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-
-                const result = service.startDevServer(rawPath);
+                const result = service.startDevServer(parsed.data.path);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
 
