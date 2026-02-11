@@ -11,7 +11,8 @@
         "dev": "NODE_ENV=development env -u DATA_DIR -u CLONES_DIR bun --hot src/index.tsx",
         "start": "NODE_ENV=production bun src/index.tsx",
         "build": "bun run build.ts",
-        "format": "biome format --write src/"
+        "format": "biome format --write src/",
+        "lint": "biome check src/"
     },
     "dependencies": {
         "@openai/codex-sdk": "^0.98.0",

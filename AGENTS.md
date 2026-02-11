@@ -29,3 +29,8 @@
   - Routes define the APIs.
   - Services define the business logic.
   - Repositories interact with the database.
+
+## Completion Checklist
+- When you are finished, run `bun run format`.
+- Then run `bun run lint`.
+- Fix any issues reported by either command before considering the task complete.
