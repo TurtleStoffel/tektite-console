@@ -1,22 +1,67 @@
 import { Result } from "typescript-result";
-import * as repository from "./repository";
+import { streamCodexRun } from "../../codex";
+import { ensureClonesDir, prepareWorktree } from "../../git";
 
-export type ExecuteServiceError = repository.ExecuteRepositoryError;
+export class ExecutePrepareError extends Error {
+    readonly type = "execute-prepare-error";
+
+    constructor(message: string, options?: { cause?: unknown }) {
+        super(message, options);
+        this.name = "ExecutePrepareError";
+    }
+}
+
+export class ExecuteStreamError extends Error {
+    readonly type = "execute-stream-error";
+
+    constructor(message: string, options?: { cause?: unknown }) {
+        super(message, options);
+        this.name = "ExecuteStreamError";
+    }
+}
+
+export type ExecuteServiceError = ExecutePrepareError | ExecuteStreamError;
 
 export function createExecuteService(options: { clonesDir: string }) {
     const { clonesDir } = options;
 
     return {
         async execute(input: { prompt: string; repositoryUrl: string }) {
-            const preparedResult = await repository.prepare(clonesDir, input.repositoryUrl);
+            const preparedResult = await Result.try(
+                async () => {
+                    await ensureClonesDir(clonesDir);
+                    return prepareWorktree(input.repositoryUrl, clonesDir);
+                },
+                (error) => {
+                    console.warn("[execute] failed to prepare worktree", {
+                        repositoryUrl: input.repositoryUrl,
+                        error,
+                    });
+                    return new ExecutePrepareError("Failed to prepare repository for execution.", {
+                        cause: error,
+                    });
+                },
+            );
             if (!preparedResult.ok) {
                 return Result.error(preparedResult.error);
             }
 
-            const streamResult = repository.stream(
-                clonesDir,
-                input.prompt,
-                preparedResult.value.worktreePath,
+            const streamResult = Result.try(
+                () =>
+                    streamCodexRun({
+                        prompt: input.prompt,
+                        workingDirectory: preparedResult.value.worktreePath,
+                        clonesDir,
+                    }),
+                (error) => {
+                    console.warn("[execute] failed to initialize execution stream", {
+                        workingDirectory: preparedResult.value.worktreePath,
+                        error,
+                    });
+                    return new ExecuteStreamError("Failed to start execution stream.", {
+                        cause: error,
+                    });
+                },
             );
             if (!streamResult.ok) {
                 return Result.error(streamResult.error);

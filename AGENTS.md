@@ -28,7 +28,7 @@
 - Use the standard 3-layer architecture:
   - Routes define the APIs.
   - Services define the business logic.
-  - Repositories interact with the database.
+  - Repositories interact with the database only.
 
 ## Completion Checklist
 - When you are finished, run `bun run format`.

@@ -1,11 +1,13 @@
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../../db/local/schema";
+import { createGithubService } from "../github/service";
 import * as repository from "./repository";
 
 type Db = BunSQLiteDatabase<typeof schema>;
 
 export function createRepositoriesService(options: { db: Db }) {
     const { db } = options;
+    const githubService = createGithubService();
 
     return {
         async listRepositories() {
@@ -20,7 +22,7 @@ export function createRepositoriesService(options: { db: Db }) {
 
         async syncRepositories() {
             console.info("[repositories] syncing from GitHub");
-            const repos = await repository.fetchGithubRepos();
+            const repos = await githubService.listRepos();
             const existingUrls = await repository.listExistingRepositoryUrls(db);
 
             let insertedCount = 0;

@@ -11,7 +11,7 @@
 - Follow 3 layers:
   - Routes define APIs and request/response contracts.
   - Services implement business logic and orchestration.
-  - Repositories handle database and persistence concerns.
+  - Repositories handle database persistence only.
 - Use functional core / imperative shell:
   - Imperative shell: route handlers and top-level service functions handle IO, logging, and orchestration.
   - Functional core: pure business logic functions transform validated inputs into domain decisions.
