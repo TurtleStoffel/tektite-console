@@ -1,15 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { TEKTITE_PORT_FILE } from "../constants";
-import { execAsync } from "./exec";
+import { TEKTITE_PORT_FILE } from "../../../constants";
+import { execAsync } from "../../exec";
 import {
     cleanRepositoryUrl,
     detectRepoChanges,
     getPullRequestStatus,
     isWorktreeDir,
     sanitizeRepoName,
-} from "./git";
-import { isWorkspaceActive } from "./workspaceActivity";
+} from "../../git";
+import { isWorkspaceActive } from "../../workspaceActivity";
 
 export type CloneLocation = "clonesDir";
 

@@ -1,4 +1,4 @@
-import { execAsync } from "./exec";
+import { execAsync } from "../../exec";
 
 export type RemoteBranchUpdateStatus = {
     status: "upToDate" | "behind" | "ahead" | "diverged" | "noUpstream" | "notGit" | "unknown";

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { normalizeRepoUrl } from "../shared/normalizeRepoUrl";
+import { normalizeRepoUrl } from "../../../shared/normalizeRepoUrl";
 
 type PackageJson = {
     repository?: string | { url?: string };
@@ -12,7 +12,7 @@ export function getConsoleRepositoryUrl(): string | null {
     if (cached !== undefined) return cached;
 
     try {
-        const packageJsonPath = fileURLToPath(new URL("../../package.json", import.meta.url));
+        const packageJsonPath = fileURLToPath(new URL("../../../../package.json", import.meta.url));
         const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as PackageJson;
 
         const repository =
@@ -25,7 +25,8 @@ export function getConsoleRepositoryUrl(): string | null {
         cached = normalizeRepoUrl(repository);
         return cached;
     } catch (error) {
-        console.error(`Failed to read repository ${error.message}`);
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Failed to read repository ${message}`);
         cached = null;
         return cached;
     }

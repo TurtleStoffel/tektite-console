@@ -1,4 +1,4 @@
-import { createBunAppRunner } from "./bunAppRunner";
+import { createBunAppRunner } from "../../bunAppRunner";
 
 const runner = createBunAppRunner({
     label: "dev server",

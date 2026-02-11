@@ -1,15 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Server } from "bun";
+import { isWorktreeDir } from "../../git";
+import { isWithinRoot } from "../../http/pathUtils";
+import { isWorkspaceActive } from "../../workspaceActivity";
 import {
     getDevServerLogs,
     isDevInstallRunning,
     isDevServerRunning,
     startDevServer,
-} from "../../devServer";
-import { isWorktreeDir } from "../../git";
-import { isWithinRoot } from "../../http/pathUtils";
-import { isWorkspaceActive } from "../../workspaceActivity";
+} from "./devServer";
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;

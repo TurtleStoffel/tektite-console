@@ -1,10 +1,15 @@
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { TEKTITE_PORT_FILE } from "../constants";
-import { execAsync } from "./exec";
-import { cleanRepositoryUrl, cloneRepository, detectRepoChanges, sanitizeRepoName } from "./git";
-import { isWorkspaceActive } from "./workspaceActivity";
+import { TEKTITE_PORT_FILE } from "../../../constants";
+import { execAsync } from "../../exec";
+import {
+    cleanRepositoryUrl,
+    cloneRepository,
+    detectRepoChanges,
+    sanitizeRepoName,
+} from "../../git";
+import { isWorkspaceActive } from "../../workspaceActivity";
 
 export type ProductionCloneInfo = {
     path: string;

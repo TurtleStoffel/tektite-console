@@ -3,12 +3,12 @@ import path from "node:path";
 import type { Server } from "bun";
 import { and, asc, eq, ne } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { findRepositoryClones } from "../../cloneDiscovery";
-import { getConsoleRepositoryUrl } from "../../consoleRepository";
+import { getProductionCloneInfo } from "@/backend/domains/production/service";
 import type * as schema from "../../db/local/schema";
 import { projects, repositories } from "../../db/local/schema";
-import { getProductionCloneInfo } from "../../productionClone";
-import { getRemoteBranchUpdateStatus } from "../../remoteUpdates";
+import { findRepositoryClones } from "./cloneDiscovery";
+import { getConsoleRepositoryUrl } from "./consoleRepository";
+import { getRemoteBranchUpdateStatus } from "./remoteUpdates";
 
 export function createProjectRoutes(options: {
     db: BunSQLiteDatabase<typeof schema>;
