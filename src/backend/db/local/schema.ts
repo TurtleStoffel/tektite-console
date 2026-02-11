@@ -1,12 +1,12 @@
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const repositories = pgTable("repositories", {
+export const repositories = sqliteTable("repositories", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     url: text("url").notNull(),
 });
 
-export const projects = pgTable("projects", {
+export const projects = sqliteTable("projects", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     repositoryId: text("repository_id").references(() => repositories.id, {
@@ -14,7 +14,7 @@ export const projects = pgTable("projects", {
     }),
 });
 
-export const documents = pgTable("documents", {
+export const documents = sqliteTable("documents", {
     id: text("id").primaryKey(),
     projectId: text("project_id").references(() => projects.id, {
         onDelete: "set null",

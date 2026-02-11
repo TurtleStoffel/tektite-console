@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { asc, eq } from "drizzle-orm";
-import type * as schema from "../db/schema";
-import { documents, projects } from "../db/schema";
+import type * as schema from "../db/local/schema";
+import { documents, projects } from "../db/local/schema";
 
 type RouteRequest = Request & { params: Record<string, string> };
 
@@ -61,7 +61,7 @@ async function parseJsonBody<T extends z.ZodTypeAny>(
     return { data: parsed.data };
 }
 
-type Db = BunSQLDatabase<typeof schema>;
+type Db = BunSQLiteDatabase<typeof schema>;
 
 async function findProject(db: Db, projectId: string) {
     const rows = await db

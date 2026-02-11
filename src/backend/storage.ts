@@ -1,15 +1,29 @@
-import { SQL } from "bun";
-import { drizzle, type BunSQLDatabase } from "drizzle-orm/bun-sql";
-import * as schema from "./db/schema";
+import type { SQL } from "bun";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import { initLocalStorage } from "./db/local/storage";
+import type * as localSchema from "./db/local/schema";
+import { initSupabaseStorage } from "./db/supabase/storage";
 
 export type Storage = {
-    db: BunSQLDatabase<typeof schema>;
+    localDb: BunSQLiteDatabase<typeof localSchema>;
+    supabaseDb: BunSQLDatabase<Record<string, never>>;
+    supabaseSql: SQL;
 };
 
-export async function initStorage(databaseUrl: string): Promise<Storage> {
-    const sql = new SQL(databaseUrl);
-    const db = drizzle(sql, { schema });
+export async function initStorage(options: {
+    localDatabasePath: string;
+    supabaseDatabaseUrl: string;
+}): Promise<Storage> {
+    const { localDatabasePath, supabaseDatabaseUrl } = options;
+    const [{ db: localDb }, { db: supabaseDb, sql: supabaseSql }] = await Promise.all([
+        initLocalStorage(localDatabasePath),
+        initSupabaseStorage(supabaseDatabaseUrl),
+    ]);
 
-    console.info("[storage] initialized postgres database");
-    return { db };
+    console.info("[storage] initialized split database storage", {
+        local: "sqlite",
+        remote: "supabase",
+    });
+    return { localDb, supabaseDb, supabaseSql };
 }

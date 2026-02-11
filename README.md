@@ -18,6 +18,18 @@ To run for production:
 bun start
 ```
 
+## Environment
+
+Server startup requires:
+
+- `CLONES_DIR` (path to local clone workspace)
+- `SUPABASE_DATABASE_URL` (Postgres connection string for Supabase)
+
+Local SQLite storage defaults to `./.tektite.sqlite` and can be overridden with:
+
+- `SQLITE_PATH` (full sqlite file path), or
+- `DATA_DIR` (uses `<DATA_DIR>/tektite.sqlite`)
+
 ## GitHub CLI
 
 Some repo/PR features use the GitHub CLI (`gh`). Install it and ensure you’re authenticated:

@@ -1,8 +1,8 @@
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { randomUUID } from "node:crypto";
 import { asc, eq, min } from "drizzle-orm";
-import type * as schema from "../db/schema";
-import { projects, repositories } from "../db/schema";
+import type * as schema from "../db/local/schema";
+import { projects, repositories } from "../db/local/schema";
 import type { GithubRepo } from "../../types/github";
 
 async function fetchGithubRepos(): Promise<GithubRepo[]> {
@@ -31,7 +31,7 @@ async function fetchGithubRepos(): Promise<GithubRepo[]> {
     }
 }
 
-type Db = BunSQLDatabase<typeof schema>;
+type Db = BunSQLiteDatabase<typeof schema>;
 
 export function createRepositoryRoutes(options: { db: Db }) {
     const { db } = options;

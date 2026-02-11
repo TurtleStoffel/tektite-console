@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Server } from "bun";
-import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { findRepositoryClones } from "../cloneDiscovery";
 import { getConsoleRepositoryUrl } from "../consoleRepository";
 import { getProductionCloneInfo } from "../productionClone";
 import { getRemoteBranchUpdateStatus } from "../remoteUpdates";
-import type * as schema from "../db/schema";
-import { projects, repositories } from "../db/schema";
+import type * as schema from "../db/local/schema";
+import { projects, repositories } from "../db/local/schema";
 
 export function createProjectRoutes(options: {
-    db: BunSQLDatabase<typeof schema>;
+    db: BunSQLiteDatabase<typeof schema>;
     clonesDir: string;
     productionDir: string;
 }) {

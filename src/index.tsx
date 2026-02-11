@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { serve } from "bun";
 import { ensureClonesDir } from "./backend/git";
@@ -32,9 +32,19 @@ function resolvePathFromEnv(raw: string): string {
     return path.resolve(expandHome(raw.trim()));
 }
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-    throw new Error("Missing required env var: DATABASE_URL.");
+const rawSqlitePath = process.env.SQLITE_PATH?.trim();
+const rawDataDir = process.env.DATA_DIR?.trim();
+const databasePath = rawSqlitePath
+    ? resolvePathFromEnv(rawSqlitePath)
+    : rawDataDir
+      ? path.join(resolvePathFromEnv(rawDataDir), "tektite.sqlite")
+      : path.resolve(".tektite.sqlite");
+mkdirSync(path.dirname(databasePath), { recursive: true });
+console.info("[storage] using sqlite database path", { databasePath });
+
+const supabaseDatabaseUrl = process.env.SUPABASE_DATABASE_URL?.trim();
+if (!supabaseDatabaseUrl) {
+    throw new Error("Missing required env var: SUPABASE_DATABASE_URL.");
 }
 
 const clonesDirValue = process.env.CLONES_DIR;
@@ -46,7 +56,14 @@ const productionDir = path.join(path.dirname(clonesDir), "production");
 
 void ensureClonesDir(clonesDir);
 void ensureClonesDir(productionDir);
-const { db } = await initStorage(databaseUrl);
+const { localDb } = await initStorage({
+    localDatabasePath: databasePath,
+    supabaseDatabaseUrl,
+});
+console.info("[storage] dual database mode enabled", {
+    local: "sqlite",
+    remote: "supabase",
+});
 
 startPullRequestCleanup({ clonesDir });
 
@@ -130,9 +147,9 @@ const server = serve({
     routes: withCorsRoutes({
         ...envRoutes,
         ...createGithubRoutes(),
-        ...createDocumentRoutes({ db }),
-        ...createProjectRoutes({ db, clonesDir, productionDir }),
-        ...createRepositoryRoutes({ db }),
+        ...createDocumentRoutes({ db: localDb }),
+        ...createProjectRoutes({ db: localDb, clonesDir, productionDir }),
+        ...createRepositoryRoutes({ db: localDb }),
         ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),
         ...createDevServerRoutes({ clonesDir }),
