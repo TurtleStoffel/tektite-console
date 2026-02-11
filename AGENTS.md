@@ -33,4 +33,5 @@
 ## Completion Checklist
 - When you are finished, run `bun run format`.
 - Then run `bun run lint`.
+- Do not run `format` and `lint` in parallel; run them sequentially to avoid stale-file race conditions.
 - Fix any issues reported by either command before considering the task complete.

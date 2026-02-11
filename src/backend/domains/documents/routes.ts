@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import type * as schema from "../db/local/schema";
-import { documents, projects } from "../db/local/schema";
+import type * as schema from "../../db/local/schema";
+import { documents, projects } from "../../db/local/schema";
 
 type RouteRequest = Request & { params: Record<string, string> };
 

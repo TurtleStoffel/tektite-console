@@ -6,10 +6,10 @@ import {
     isDevInstallRunning,
     isDevServerRunning,
     startDevServer,
-} from "../devServer";
-import { isWorktreeDir } from "../git";
-import { isWorkspaceActive } from "../workspaceActivity";
-import { isWithinRoot } from "./pathUtils";
+} from "../../devServer";
+import { isWorktreeDir } from "../../git";
+import { isWithinRoot } from "../../http/pathUtils";
+import { isWorkspaceActive } from "../../workspaceActivity";
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;

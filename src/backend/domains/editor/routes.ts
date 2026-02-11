@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Server } from "bun";
-import { execFileAsync } from "../exec";
-import { isWithinRoot } from "./pathUtils";
+import { execFileAsync } from "../../exec";
+import { isWithinRoot } from "../../http/pathUtils";
 
 export function createEditorRoutes(options: { clonesDir: string; productionDir: string }) {
     const { clonesDir, productionDir } = options;

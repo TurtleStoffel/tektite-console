@@ -1,6 +1,6 @@
 import type { Server } from "bun";
-import { streamCodexRun } from "../codex";
-import { ensureClonesDir, prepareWorktree } from "../git";
+import { streamCodexRun } from "../../codex";
+import { ensureClonesDir, prepareWorktree } from "../../git";
 
 export function createExecuteRoutes(options: { clonesDir: string }) {
     const { clonesDir } = options;

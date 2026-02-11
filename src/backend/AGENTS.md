@@ -1,7 +1,7 @@
 # Backend Guidelines
 
 ## Structure
-- `src/backend/routes/*`: HTTP API route handlers.
+- `src/backend/domains/*`: domain modules (route handlers and domain logic).
 - `src/backend/db/*`: database schema and storage adapters.
 - `src/backend/storage.ts`: storage initialization and wiring.
 - `src/backend/*`: backend services and infrastructure modules.

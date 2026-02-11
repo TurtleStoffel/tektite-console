@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import type { Server } from "bun";
-import { ensureProductionClone, getProductionClonePath } from "../productionClone";
+import { isWithinRoot } from "../../http/pathUtils";
+import { ensureProductionClone, getProductionClonePath } from "../../productionClone";
 import {
     getProductionServerLogs,
     isProductionInstallRunning,
     isProductionServerRunning,
     startProductionServer,
-} from "../productionServer";
-import { isWorkspaceActive } from "../workspaceActivity";
-import { isWithinRoot } from "./pathUtils";
+} from "../../productionServer";
+import { isWorkspaceActive } from "../../workspaceActivity";
 
 export function createProductionServerRoutes(options: { productionDir: string }) {
     const { productionDir } = options;
