@@ -6,7 +6,6 @@ import { createEditorRoutes } from "./backend/domains/editor/routes";
 import { envRoutes } from "./backend/domains/env/routes";
 import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createGithubRoutes } from "./backend/domains/github/routes";
-import { helloRoutes } from "./backend/domains/hello/routes";
 import { createProductionServerRoutes } from "./backend/domains/production/routes";
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
@@ -155,7 +154,6 @@ const server = serve({
         ...createDocumentRoutes({ db: localDb }),
         ...createProjectRoutes({ db: localDb, clonesDir, productionDir }),
         ...createRepositoryRoutes({ db: localDb }),
-        ...helloRoutes,
         ...createExecuteRoutes({ clonesDir }),
         ...createDevServerRoutes({ clonesDir }),
         ...createProductionServerRoutes({ productionDir }),
