@@ -1,9 +1,8 @@
 import type { Server } from "bun";
-import { streamCodexRun } from "../../codex";
-import { ensureClonesDir, prepareWorktree } from "../../git";
+import { createExecuteService } from "./service";
 
 export function createExecuteRoutes(options: { clonesDir: string }) {
-    const { clonesDir } = options;
+    const service = createExecuteService({ clonesDir: options.clonesDir });
 
     return {
         "/api/execute": {
@@ -52,13 +51,7 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                 }
 
                 try {
-                    await ensureClonesDir(clonesDir);
-                    const { worktreePath } = await prepareWorktree(repositoryUrl, clonesDir);
-                    return streamCodexRun({
-                        prompt: basePrompt,
-                        workingDirectory: worktreePath,
-                        clonesDir,
-                    });
+                    return await service.execute({ prompt: basePrompt, repositoryUrl });
                 } catch (error) {
                     const message =
                         error instanceof Error

@@ -1,18 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { Server } from "bun";
-import { isWorktreeDir } from "../../git";
-import { isWithinRoot } from "../../http/pathUtils";
-import { isWorkspaceActive } from "../../workspaceActivity";
-import {
-    getDevServerLogs,
-    isDevInstallRunning,
-    isDevServerRunning,
-    startDevServer,
-} from "./devServer";
+import { createWorktreesService } from "./service";
 
 export function createDevServerRoutes(options: { clonesDir: string }) {
-    const { clonesDir } = options;
+    const service = createWorktreesService({ clonesDir: options.clonesDir });
 
     return {
         "/api/worktrees/dev-logs": {
@@ -26,45 +16,15 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                     });
                 }
 
-                const worktreePath = path.resolve(rawPath);
-                const allowed = isWithinRoot(worktreePath, clonesDir);
-                if (!allowed) {
-                    return new Response(
-                        JSON.stringify({ error: "Worktree path is outside configured folders." }),
-                        {
-                            status: 403,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                const exists = fs.existsSync(worktreePath);
-                if (!exists) {
-                    return new Response(
-                        JSON.stringify({ error: "Worktree path does not exist." }),
-                        {
-                            status: 404,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                if (!isWorktreeDir(worktreePath)) {
-                    return new Response(JSON.stringify({ error: "Path is not a git worktree." }), {
-                        status: 400,
+                const result = service.getDevLogs(rawPath);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
                         headers: { "Content-Type": "application/json" },
                     });
                 }
 
-                const logs = getDevServerLogs(worktreePath);
-                return Response.json({
-                    path: worktreePath,
-                    exists,
-                    running: logs.running,
-                    installing: logs.installing,
-                    lines: logs.lines,
-                    partial: logs.partial,
-                });
+                return Response.json(result);
             },
         },
 
@@ -89,58 +49,15 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                     });
                 }
 
-                const worktreePath = path.resolve(rawPath);
-                const allowed = isWithinRoot(worktreePath, clonesDir);
-                if (!allowed) {
-                    return new Response(
-                        JSON.stringify({ error: "Worktree path is outside configured folders." }),
-                        {
-                            status: 403,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                if (!fs.existsSync(worktreePath)) {
-                    return new Response(
-                        JSON.stringify({ error: "Worktree path does not exist." }),
-                        {
-                            status: 404,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                if (!isWorktreeDir(worktreePath)) {
-                    return new Response(JSON.stringify({ error: "Path is not a git worktree." }), {
-                        status: 400,
+                const result = service.startDevServer(rawPath);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
                         headers: { "Content-Type": "application/json" },
                     });
                 }
 
-                if (isDevServerRunning(worktreePath) || isDevInstallRunning(worktreePath)) {
-                    const result = startDevServer(worktreePath);
-                    return Response.json(result);
-                }
-
-                if (isWorkspaceActive(worktreePath)) {
-                    return new Response(JSON.stringify({ error: "Worktree is already active." }), {
-                        status: 409,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
-
-                try {
-                    const result = startDevServer(worktreePath);
-                    return Response.json(result);
-                } catch (error) {
-                    const message =
-                        error instanceof Error ? error.message : "Failed to start dev server.";
-                    return new Response(JSON.stringify({ error: message }), {
-                        status: 500,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                return Response.json(result);
             },
         },
     } as const;

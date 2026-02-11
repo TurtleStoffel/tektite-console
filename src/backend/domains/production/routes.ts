@@ -1,17 +1,8 @@
-import fs from "node:fs";
 import type { Server } from "bun";
-import { isWithinRoot } from "../../http/pathUtils";
-import { isWorkspaceActive } from "../../workspaceActivity";
-import { ensureProductionClone, getProductionClonePath } from "./productionClone";
-import {
-    getProductionServerLogs,
-    isProductionInstallRunning,
-    isProductionServerRunning,
-    startProductionServer,
-} from "./productionServer";
+import { createProductionService } from "./service";
 
 export function createProductionServerRoutes(options: { productionDir: string }) {
-    const { productionDir } = options;
+    const service = createProductionService({ productionDir: options.productionDir });
 
     return {
         "/api/production/logs": {
@@ -25,29 +16,15 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     });
                 }
 
-                const clonePath = getProductionClonePath(repositoryUrl, productionDir);
-                if (!isWithinRoot(clonePath, productionDir)) {
-                    return new Response(
-                        JSON.stringify({
-                            error: "Production clone path is outside configured folder.",
-                        }),
-                        {
-                            status: 403,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
+                const result = await service.getLogs(repositoryUrl);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: { "Content-Type": "application/json" },
+                    });
                 }
 
-                const exists = fs.existsSync(clonePath);
-                const logs = getProductionServerLogs(clonePath);
-                return Response.json({
-                    path: clonePath,
-                    exists,
-                    running: logs.running,
-                    installing: logs.installing,
-                    lines: logs.lines,
-                    partial: logs.partial,
-                });
+                return Response.json(result);
             },
         },
 
@@ -75,71 +52,15 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     });
                 }
 
-                let clonePath: string;
-                try {
-                    const result = await ensureProductionClone({ repositoryUrl, productionDir });
-                    clonePath = result.clonePath;
-                } catch (error) {
-                    const message =
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to prepare production clone.";
-                    return new Response(JSON.stringify({ error: message }), {
-                        status: 500,
+                const result = await service.start(repositoryUrl);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
                         headers: { "Content-Type": "application/json" },
                     });
                 }
 
-                if (!isWithinRoot(clonePath, productionDir)) {
-                    return new Response(
-                        JSON.stringify({
-                            error: "Production clone path is outside configured folder.",
-                        }),
-                        {
-                            status: 403,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                if (!fs.existsSync(clonePath)) {
-                    return new Response(
-                        JSON.stringify({ error: "Production clone path does not exist." }),
-                        {
-                            status: 404,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                if (isProductionServerRunning(clonePath) || isProductionInstallRunning(clonePath)) {
-                    const result = startProductionServer(clonePath);
-                    return Response.json({ ...result, path: clonePath });
-                }
-
-                if (isWorkspaceActive(clonePath)) {
-                    return new Response(
-                        JSON.stringify({ error: "Production clone is already active." }),
-                        {
-                            status: 409,
-                            headers: { "Content-Type": "application/json" },
-                        },
-                    );
-                }
-
-                try {
-                    const result = startProductionServer(clonePath);
-                    return Response.json({ ...result, path: clonePath });
-                } catch (error) {
-                    const message =
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to start production server.";
-                    return new Response(JSON.stringify({ error: message }), {
-                        status: 500,
-                        headers: { "Content-Type": "application/json" },
-                    });
-                }
+                return Response.json(result);
             },
         },
     } as const;

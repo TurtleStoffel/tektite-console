@@ -1,11 +1,10 @@
-import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
 import type * as schema from "../../db/local/schema";
-import { documents, projects } from "../../db/local/schema";
+import { createDocumentsService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
+type Db = BunSQLiteDatabase<typeof schema>;
 
 const jsonHeaders = { "Content-Type": "application/json" };
 
@@ -13,11 +12,7 @@ const createDocumentSchema = z.object({
     markdown: z.string(),
     projectId: z.string().optional().nullable(),
 });
-
-const createProjectDocumentSchema = z.object({
-    markdown: z.string(),
-});
-
+const createProjectDocumentSchema = z.object({ markdown: z.string() });
 const updateDocumentSchema = z.object({
     markdown: z.string(),
     projectId: z.string().optional().nullable(),
@@ -43,93 +38,38 @@ async function parseJsonBody<T extends z.ZodTypeAny>(
 
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-        console.warn("[documents] invalid request body", {
-            context,
-            issues: parsed.error.issues,
-        });
+        console.warn("[documents] invalid request body", { context, issues: parsed.error.issues });
         return {
             response: new Response(
                 JSON.stringify({ error: "Invalid request payload.", issues: parsed.error.issues }),
-                {
-                    status: 400,
-                    headers: jsonHeaders,
-                },
+                { status: 400, headers: jsonHeaders },
             ),
         };
     }
-
     return { data: parsed.data };
 }
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-async function findProject(db: Db, projectId: string) {
-    const rows = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(eq(projects.id, projectId))
-        .execute();
-    return rows[0] ?? null;
-}
-
 export function createDocumentRoutes(options: { db: Db }) {
-    const { db } = options;
+    const service = createDocumentsService({ db: options.db });
 
     return {
         "/api/documents": {
             async GET() {
-                const rows = await db
-                    .select({
-                        id: documents.id,
-                        projectId: documents.projectId,
-                        markdown: documents.markdown,
-                        projectName: projects.name,
-                    })
-                    .from(documents)
-                    .leftJoin(projects, eq(documents.projectId, projects.id))
-                    .orderBy(asc(projects.name), asc(documents.id))
-                    .execute();
-
-                const result = rows.map((row) => ({
-                    id: row.id,
-                    projectId: row.projectId,
-                    projectName: row.projectName,
-                    markdown: row.markdown,
-                }));
-
-                return Response.json({ data: result });
+                const data = await service.listDocuments();
+                return Response.json({ data });
             },
             async POST(req: RouteRequest) {
                 const parsed = await parseJsonBody(req, createDocumentSchema, "documents:create");
-                if ("response" in parsed) {
-                    return parsed.response;
-                }
-                const body = parsed.data;
-                const rawProjectId =
-                    typeof body?.projectId === "string" ? body.projectId.trim() : "";
-                const projectId = rawProjectId.length > 0 ? rawProjectId : null;
-                if (projectId) {
-                    const project = await findProject(db, projectId);
-                    if (!project) {
-                        return new Response(JSON.stringify({ error: "Project not found." }), {
-                            status: 404,
-                            headers: { "Content-Type": "application/json" },
-                        });
-                    }
-                }
+                if ("response" in parsed) return parsed.response;
 
-                const documentId = randomUUID();
-                await db
-                    .insert(documents)
-                    .values({
-                        id: documentId,
-                        projectId,
-                        markdown: body.markdown,
-                    })
-                    .execute();
-                console.info("[documents] created", { documentId, projectId });
-
-                return Response.json({ id: documentId, projectId, markdown: body.markdown });
+                const result = await service.createDocument(parsed.data);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json(result);
             },
         },
         "/api/projects/:id/documents": {
@@ -138,34 +78,16 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if (!projectId) {
                     return new Response(JSON.stringify({ error: "Project id is required." }), {
                         status: 400,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
-                const project = await findProject(db, projectId);
-                if (!project) {
-                    return new Response(JSON.stringify({ error: "Project not found." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
+                const result = await service.listProjectDocuments(projectId);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
                     });
                 }
-
-                const rows = await db
-                    .select({
-                        id: documents.id,
-                        projectId: documents.projectId,
-                        markdown: documents.markdown,
-                    })
-                    .from(documents)
-                    .where(eq(documents.projectId, projectId))
-                    .orderBy(asc(documents.id))
-                    .execute();
-
-                const result = rows.map((row) => ({
-                    id: row.id,
-                    projectId: row.projectId,
-                    markdown: row.markdown,
-                }));
-
                 return Response.json({ data: result });
             },
             async POST(req: RouteRequest) {
@@ -173,13 +95,6 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if (!projectId) {
                     return new Response(JSON.stringify({ error: "Project id is required." }), {
                         status: 400,
-                        headers: jsonHeaders,
-                    });
-                }
-                const project = await findProject(db, projectId);
-                if (!project) {
-                    return new Response(JSON.stringify({ error: "Project not found." }), {
-                        status: 404,
                         headers: jsonHeaders,
                     });
                 }
@@ -189,23 +104,19 @@ export function createDocumentRoutes(options: { db: Db }) {
                     createProjectDocumentSchema,
                     "project-documents:create",
                 );
-                if ("response" in parsed) {
-                    return parsed.response;
+                if ("response" in parsed) return parsed.response;
+
+                const result = await service.createProjectDocument({
+                    projectId,
+                    markdown: parsed.data.markdown,
+                });
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
                 }
-                const body = parsed.data;
-
-                const documentId = randomUUID();
-                await db
-                    .insert(documents)
-                    .values({
-                        id: documentId,
-                        projectId,
-                        markdown: body.markdown,
-                    })
-                    .execute();
-                console.info("[documents] created", { documentId, projectId });
-
-                return Response.json({ id: documentId, projectId, markdown: body.markdown });
+                return Response.json(result);
             },
         },
         "/api/documents/:id": {
@@ -214,32 +125,17 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if (!documentId) {
                     return new Response(JSON.stringify({ error: "Document id is required." }), {
                         status: 400,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
-                const row = await db
-                    .select({
-                        id: documents.id,
-                        projectId: documents.projectId,
-                        markdown: documents.markdown,
-                    })
-                    .from(documents)
-                    .where(eq(documents.id, documentId))
-                    .execute();
-
-                const document = row[0] ?? null;
-                if (!document) {
-                    return new Response(JSON.stringify({ error: "Document not found." }), {
-                        status: 404,
-                        headers: { "Content-Type": "application/json" },
+                const result = await service.getDocument(documentId);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
                     });
                 }
-
-                return Response.json({
-                    id: document.id,
-                    projectId: document.projectId,
-                    markdown: document.markdown,
-                });
+                return Response.json(result);
             },
             async PUT(req: RouteRequest) {
                 const documentId = req.params.id ?? null;
@@ -249,63 +145,31 @@ export function createDocumentRoutes(options: { db: Db }) {
                         headers: jsonHeaders,
                     });
                 }
-
                 const parsed = await parseJsonBody(req, updateDocumentSchema, "documents:update");
-                if ("response" in parsed) {
-                    return parsed.response;
-                }
-                const body = parsed.data;
+                if ("response" in parsed) return parsed.response;
 
-                const rawProjectId =
-                    typeof body?.projectId === "string" ? body.projectId.trim() : "";
-                const projectId = rawProjectId.length > 0 ? rawProjectId : null;
-                if (projectId) {
-                    const project = await findProject(db, projectId);
-                    if (!project) {
-                        return new Response(JSON.stringify({ error: "Project not found." }), {
-                            status: 404,
-                            headers: { "Content-Type": "application/json" },
-                        });
-                    }
-                }
-
-                await db
-                    .update(documents)
-                    .set({ markdown: body.markdown, projectId })
-                    .where(eq(documents.id, documentId))
-                    .execute();
-
-                const row = await db
-                    .select({
-                        id: documents.id,
-                        projectId: documents.projectId,
-                        markdown: documents.markdown,
-                    })
-                    .from(documents)
-                    .where(eq(documents.id, documentId))
-                    .execute();
-                console.info("[documents] updated", { documentId });
-
-                const document = row[0] ?? null;
-                return Response.json({
-                    id: document?.id ?? documentId,
-                    projectId: document?.projectId ?? projectId,
-                    markdown: document?.markdown ?? body.markdown,
+                const result = await service.updateDocument({
+                    documentId,
+                    markdown: parsed.data.markdown,
+                    projectId: parsed.data.projectId,
                 });
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json(result);
             },
             async DELETE(req: RouteRequest) {
                 const documentId = req.params.id ?? null;
                 if (!documentId) {
                     return new Response(JSON.stringify({ error: "Document id is required." }), {
                         status: 400,
-                        headers: { "Content-Type": "application/json" },
+                        headers: jsonHeaders,
                     });
                 }
-
-                await db.delete(documents).where(eq(documents.id, documentId)).execute();
-
-                console.info("[documents] deleted", { documentId });
-                return Response.json({ id: documentId });
+                return Response.json(await service.deleteDocument(documentId));
             },
         },
     } as const;
