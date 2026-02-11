@@ -70,7 +70,7 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
 
         "/api/worktrees/dev-server": {
             async POST(req: Server.Request) {
-                let body: any;
+                let body: unknown;
                 try {
                     body = await req.json();
                 } catch {
@@ -80,7 +80,8 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
                     });
                 }
 
-                const rawPath = typeof body?.path === "string" ? body.path.trim() : "";
+                const parsedBody = body as { path?: unknown };
+                const rawPath = typeof parsedBody.path === "string" ? parsedBody.path.trim() : "";
                 if (!rawPath) {
                     return new Response(JSON.stringify({ error: "Worktree path is required." }), {
                         status: 400,

@@ -23,18 +23,18 @@ const LOG_PREFIX = "[remote-updates]";
 function serializeError(error: unknown) {
     if (!error) return { message: "unknown error" };
 
-    const anyError = error as any;
+    const maybeError = error as Record<string, unknown>;
     const message = error instanceof Error ? error.message : String(error);
     const name = error instanceof Error ? error.name : undefined;
 
     const details: Record<string, unknown> = { message };
     if (name) details.name = name;
-    if (typeof anyError?.code === "string" || typeof anyError?.code === "number")
-        details.code = anyError.code;
-    if (typeof anyError?.signal === "string") details.signal = anyError.signal;
-    if (typeof anyError?.cmd === "string") details.cmd = anyError.cmd;
-    if (typeof anyError?.stderr === "string") details.stderr = anyError.stderr.slice(0, 8000);
-    if (typeof anyError?.stdout === "string") details.stdout = anyError.stdout.slice(0, 8000);
+    if (typeof maybeError?.code === "string" || typeof maybeError?.code === "number")
+        details.code = maybeError.code;
+    if (typeof maybeError?.signal === "string") details.signal = maybeError.signal;
+    if (typeof maybeError?.cmd === "string") details.cmd = maybeError.cmd;
+    if (typeof maybeError?.stderr === "string") details.stderr = maybeError.stderr.slice(0, 8000);
+    if (typeof maybeError?.stdout === "string") details.stdout = maybeError.stdout.slice(0, 8000);
 
     return details;
 }

@@ -44,7 +44,7 @@ export function createProjectRoutes(options: {
                 return Response.json({ data: normalized });
             },
             async POST(req: Server.Request) {
-                let body: any;
+                let body: unknown;
                 try {
                     body = await req.json();
                 } catch {
@@ -54,7 +54,8 @@ export function createProjectRoutes(options: {
                     });
                 }
 
-                const name = typeof body?.name === "string" ? body.name.trim() : "";
+                const parsedBody = body as { name?: unknown; repositoryId?: unknown };
+                const name = typeof parsedBody.name === "string" ? parsedBody.name.trim() : "";
                 if (!name) {
                     return new Response(JSON.stringify({ error: "Project name is required." }), {
                         status: 400,
@@ -63,7 +64,9 @@ export function createProjectRoutes(options: {
                 }
 
                 const repositoryId =
-                    typeof body?.repositoryId === "string" ? body.repositoryId.trim() : "";
+                    typeof parsedBody.repositoryId === "string"
+                        ? parsedBody.repositoryId.trim()
+                        : "";
                 let repository: { id: string; url: string } | null = null;
                 if (repositoryId) {
                     const repositoriesRows = await db
@@ -208,7 +211,7 @@ export function createProjectRoutes(options: {
                     });
                 }
 
-                let body: any;
+                let body: unknown;
                 try {
                     body = await req.json();
                 } catch {
@@ -218,8 +221,11 @@ export function createProjectRoutes(options: {
                     });
                 }
 
+                const parsedBody = body as { repositoryId?: unknown };
                 const rawRepositoryId =
-                    typeof body?.repositoryId === "string" ? body.repositoryId.trim() : null;
+                    typeof parsedBody.repositoryId === "string"
+                        ? parsedBody.repositoryId.trim()
+                        : null;
                 const repositoryId =
                     rawRepositoryId && rawRepositoryId.length > 0 ? rawRepositoryId : null;
 

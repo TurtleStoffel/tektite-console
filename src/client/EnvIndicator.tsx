@@ -75,7 +75,6 @@ export function EnvIndicator() {
             <span
                 className={`badge badge-outline badge-sm ${getBadgeClass(nodeEnv)}`}
                 title={title}
-                aria-label={title}
             >
                 {nodeEnv}
             </span>

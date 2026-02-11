@@ -45,7 +45,8 @@ export function Drawer({ side, children, drawerToggleId = "sidebar-drawer" }: Dr
                     style={{ width: `${drawerWidth}px` }}
                 >
                     {side}
-                    <div
+                    <button
+                        type="button"
                         className="absolute top-0 right-0 h-full w-1 cursor-col-resize"
                         onMouseDown={(event) => {
                             event.preventDefault();

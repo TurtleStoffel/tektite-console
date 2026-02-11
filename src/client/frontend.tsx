@@ -20,7 +20,11 @@ const queryClient = new QueryClient({
 });
 
 function start() {
-    const root = createRoot(document.getElementById("root")!);
+    const rootElement = document.getElementById("root");
+    if (!rootElement) {
+        throw new Error("Missing root element with id 'root'.");
+    }
+    const root = createRoot(rootElement);
     root.render(
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>

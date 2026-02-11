@@ -10,7 +10,7 @@ export function createEditorRoutes(options: { clonesDir: string; productionDir: 
     return {
         "/api/editor/open-vscode": {
             async POST(req: Server.Request) {
-                let body: any;
+                let body: unknown;
                 try {
                     body = await req.json();
                 } catch {
@@ -20,7 +20,8 @@ export function createEditorRoutes(options: { clonesDir: string; productionDir: 
                     });
                 }
 
-                const rawPath = typeof body?.path === "string" ? body.path.trim() : "";
+                const parsedBody = body as { path?: unknown };
+                const rawPath = typeof parsedBody.path === "string" ? parsedBody.path.trim() : "";
                 if (!rawPath) {
                     return new Response(JSON.stringify({ error: "Folder path is required." }), {
                         status: 400,

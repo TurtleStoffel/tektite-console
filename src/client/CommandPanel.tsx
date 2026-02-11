@@ -297,6 +297,7 @@ export function CommandPanel() {
                 <div className="flex flex-wrap gap-2 mt-2">
                     <button
                         className="btn btn-primary"
+                        type="button"
                         onClick={handleExecute}
                         disabled={!canExecute}
                     >

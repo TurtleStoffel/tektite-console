@@ -8,7 +8,8 @@ import type {
 } from "./types";
 
 export function parseLogsPayload(payload: unknown): ParsedLogsPayload {
-    const maybePayload = payload as any;
+    const maybePayload =
+        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
     const lines = Array.isArray(maybePayload?.lines)
         ? (maybePayload.lines as unknown[]).filter((line) => typeof line === "string")
         : [];

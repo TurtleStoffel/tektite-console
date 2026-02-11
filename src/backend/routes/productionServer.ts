@@ -53,7 +53,7 @@ export function createProductionServerRoutes(options: { productionDir: string })
 
         "/api/production/start": {
             async POST(req: Server.Request) {
-                let body: any;
+                let body: unknown;
                 try {
                     body = await req.json();
                 } catch {
@@ -63,8 +63,11 @@ export function createProductionServerRoutes(options: { productionDir: string })
                     });
                 }
 
+                const parsedBody = body as { repositoryUrl?: unknown };
                 const repositoryUrl =
-                    typeof body?.repositoryUrl === "string" ? body.repositoryUrl.trim() : "";
+                    typeof parsedBody.repositoryUrl === "string"
+                        ? parsedBody.repositoryUrl.trim()
+                        : "";
                 if (!repositoryUrl) {
                     return new Response(JSON.stringify({ error: "Repository URL is required." }), {
                         status: 400,

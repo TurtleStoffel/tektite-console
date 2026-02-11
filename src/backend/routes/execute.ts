@@ -8,7 +8,7 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
     return {
         "/api/execute": {
             async POST(req: Server.Request) {
-                let payload: any;
+                let payload: unknown;
                 try {
                     payload = await req.json();
                 } catch {
@@ -18,15 +18,20 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                     });
                 }
 
+                const parsedPayload = payload as {
+                    command?: unknown;
+                    prompt?: unknown;
+                    repository?: { url?: unknown };
+                };
                 const basePrompt =
-                    typeof payload?.command === "string"
-                        ? payload.command.trim()
-                        : typeof payload?.prompt === "string"
-                          ? payload.prompt.trim()
+                    typeof parsedPayload.command === "string"
+                        ? parsedPayload.command.trim()
+                        : typeof parsedPayload.prompt === "string"
+                          ? parsedPayload.prompt.trim()
                           : "";
                 const repositoryUrl =
-                    typeof payload?.repository?.url === "string"
-                        ? payload.repository.url.trim()
+                    typeof parsedPayload.repository?.url === "string"
+                        ? parsedPayload.repository.url.trim()
                         : "";
 
                 if (!basePrompt) {

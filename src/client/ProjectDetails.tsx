@@ -87,8 +87,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                 if (!active) return;
                 setError(message);
             } finally {
-                if (!active) return;
-                setLoading(false);
+                if (active) setLoading(false);
             }
         };
 
@@ -238,7 +237,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
-    const refreshDevLogs = async (worktreePath: string) => {
+    const refreshDevLogs = useCallback(async (worktreePath: string) => {
         try {
             const res = await fetch(
                 `/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`,
@@ -254,7 +253,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             const message = err instanceof Error ? err.message : "Failed to load dev logs.";
             setActionError(message);
         }
-    };
+    }, []);
 
     const startProductionServer = async () => {
         if (!project?.url) {
@@ -284,7 +283,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
-    const refreshProductionLogs = async () => {
+    const refreshProductionLogs = useCallback(async () => {
         if (!project?.url) {
             setActionError("No repository linked to this project yet.");
             return;
@@ -304,7 +303,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             const message = err instanceof Error ? err.message : "Failed to load production logs.";
             setActionError(message);
         }
-    };
+    }, [project?.url]);
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;

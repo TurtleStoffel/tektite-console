@@ -467,6 +467,8 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                 className={`relative flex-1 overflow-hidden rounded-2xl border border-base-300 bg-base-100 shadow-inner ${
                     isSpacePressed ? "cursor-grab" : "cursor-default"
                 }`}
+                role="application"
+                aria-label="Canvas workspace"
                 style={{ touchAction: "none" }}
                 onContextMenu={handleContextMenu}
                 onWheel={handleWheel}
@@ -490,7 +492,10 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
                         overflow: "visible",
                     }}
                 >
-                    <svg className="absolute left-0 top-0 h-full w-full overflow-visible">
+                    <svg
+                        className="absolute left-0 top-0 h-full w-full overflow-visible"
+                        aria-hidden="true"
+                    >
                         {edgeLines.map((edge) => (
                             <line
                                 key={edge.id}

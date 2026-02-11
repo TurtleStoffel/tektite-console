@@ -96,8 +96,12 @@ const corsPreflightResponse = () =>
         },
     });
 
-const wrapRouteHandler = (handler: (...args: any[]) => any) => {
-    return async (...args: any[]) => {
+type RouteHandler = (...args: unknown[]) => unknown | Promise<unknown>;
+type RouteMethodMap = Record<string, unknown>;
+type RouteTable = Record<string, unknown>;
+
+const wrapRouteHandler = (handler: RouteHandler) => {
+    return async (...args: unknown[]) => {
         const req = args[0] as Request | undefined;
         if (req?.method === "OPTIONS") {
             return corsPreflightResponse();
@@ -108,25 +112,26 @@ const wrapRouteHandler = (handler: (...args: any[]) => any) => {
     };
 };
 
-const withCorsRoutes = <T extends Record<string, any>>(routes: T): T => {
+const withCorsRoutes = <T extends RouteTable>(routes: T): T => {
     const entries = Object.entries(routes).map(([route, handler]) => {
         if (!route.startsWith("/api/")) {
             return [route, handler];
         }
 
         if (typeof handler === "function") {
-            return [route, wrapRouteHandler(handler)];
+            return [route, wrapRouteHandler(handler as RouteHandler)];
         }
 
         if (handler && typeof handler === "object") {
-            const wrapped: Record<string, any> = {};
-            for (const [method, methodHandler] of Object.entries(handler)) {
+            const methodHandlers = handler as RouteMethodMap;
+            const wrapped: RouteMethodMap = {};
+            for (const [method, methodHandler] of Object.entries(methodHandlers)) {
                 wrapped[method] =
                     typeof methodHandler === "function"
-                        ? wrapRouteHandler(methodHandler)
+                        ? wrapRouteHandler(methodHandler as RouteHandler)
                         : methodHandler;
             }
-            if (!("OPTIONS" in handler)) {
+            if (!("OPTIONS" in methodHandlers)) {
                 wrapped.OPTIONS = corsPreflightResponse;
             }
             return [route, wrapped];
