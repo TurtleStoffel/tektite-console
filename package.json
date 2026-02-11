@@ -25,6 +25,7 @@
         "react-router-dom": "^7.13.0",
         "reactflow": "^11.11.4",
         "tailwindcss": "^4.1.18",
+        "typescript-result": "^3.5.2",
         "zod": "^3.25.76"
     },
     "devDependencies": {

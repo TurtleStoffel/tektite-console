@@ -1,6 +1,6 @@
 import type { Server } from "bun";
 import { z } from "zod";
-import { jsonHeaders, parseJsonBody } from "../../http/validation";
+import { parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
 
 const executePayloadSchema = z
@@ -31,18 +31,14 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                 const basePrompt = parsed.data.command ?? parsed.data.prompt;
                 const repositoryUrl = parsed.data.repository.url;
 
-                try {
-                    return await service.execute({ prompt: basePrompt, repositoryUrl });
-                } catch (error) {
-                    const message =
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to prepare repository for execution.";
-                    return new Response(JSON.stringify({ error: message }), {
+                const result = await service.execute({ prompt: basePrompt, repositoryUrl });
+                if (result.error) {
+                    return new Response(JSON.stringify({ error: result.error.message }), {
                         status: 500,
-                        headers: jsonHeaders,
                     });
                 }
+
+                return result.value;
             },
         },
     } as const;
