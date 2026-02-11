@@ -1,4 +1,4 @@
-import type { GithubRepo } from "../../types/github";
+import type { GithubRepo } from "../../shared/github";
 
 async function fetchGithubRepos(): Promise<GithubRepo[]> {
     const repoFields = ["name", "owner", "description", "visibility", "url", "updatedAt"].join(",");

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { normalizeRepoUrl } from "../utils/normalizeRepoUrl";
+import { normalizeRepoUrl } from "../shared/normalizeRepoUrl";
 
 type PackageJson = {
     repository?: string | { url?: string };

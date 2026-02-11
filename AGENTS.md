@@ -1,7 +1,16 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/index.tsx` boots the React app with Bun; `src/App.tsx` is the primary UI surface.
+- `src/index.tsx` is the Bun server entrypoint.
+- `src/client/frontend.tsx` boots the React app.
+- `src/client/App.tsx` is the primary UI surface.
+- `src/backend/*` contains backend routes, business logic, and storage integrations.
+- `src/shared/*` contains shared modules used by both client and backend.
+
+## Shared Code Rules
+- Put code in `src/shared/*` only when both client and backend use it.
+- If code is frontend-only, keep it in `src/client/*`.
+- If code is backend-only, keep it in `src/backend/*`.
 
 ## Coding Style
 - Language: TypeScript + React function components
