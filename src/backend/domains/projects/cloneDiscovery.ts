@@ -9,7 +9,7 @@ import {
     isWorktreeDir,
     sanitizeRepoName,
 } from "../../git";
-import { isWorkspaceActive } from "../../workspaceActivity";
+import { getTerminalSessionByWorkspacePath } from "../worktrees/terminal";
 
 export type CloneLocation = "clonesDir";
 
@@ -211,7 +211,7 @@ export async function findRepositoryClones(options: {
                 commitHash: hash,
                 commitDescription: description,
                 isWorktree,
-                inUse: isWorktree ? isWorkspaceActive(clone.path) : false,
+                inUse: isWorktree ? Boolean(getTerminalSessionByWorkspacePath(clone.path)) : false,
                 hasChanges,
                 prStatus,
             };

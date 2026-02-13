@@ -7,7 +7,6 @@ import {
     getProductionClonePath,
 } from "./productionClone";
 import {
-    getProductionServerLogs,
     isProductionInstallRunning,
     isProductionServerRunning,
     startProductionServer,
@@ -23,10 +22,6 @@ export function isWithinProductionDir(productionDir: string, clonePath: string) 
 
 export function cloneExists(clonePath: string) {
     return fs.existsSync(clonePath);
-}
-
-export function getLogs(clonePath: string) {
-    return getProductionServerLogs(clonePath);
 }
 
 export function ensureClone(productionDir: string, repositoryUrl: string) {

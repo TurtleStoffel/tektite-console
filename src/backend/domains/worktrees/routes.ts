@@ -13,52 +13,6 @@ export function createDevServerRoutes(options: { clonesDir: string; productionDi
     });
 
     return {
-        "/api/worktrees/dev-logs": {
-            async GET(req: Server.Request) {
-                const url = new URL(req.url);
-                const parsedQuery = parseInput({
-                    input: { path: url.searchParams.get("path") },
-                    schema: worktreePathQuerySchema,
-                    domain: "worktrees",
-                    context: "worktrees:dev-logs",
-                    errorMessage: "Worktree path is required.",
-                });
-                if ("response" in parsedQuery) return parsedQuery.response;
-
-                const result = service.getDevLogs(parsedQuery.data.path);
-                if ("error" in result) {
-                    return new Response(JSON.stringify({ error: result.error }), {
-                        status: result.status,
-                        headers: jsonHeaders,
-                    });
-                }
-
-                return Response.json(result);
-            },
-        },
-
-        "/api/worktrees/dev-server": {
-            async POST(req: Server.Request) {
-                const parsed = await parseJsonBody({
-                    req,
-                    schema: worktreePathBodySchema,
-                    domain: "worktrees",
-                    context: "worktrees:dev-server:start",
-                });
-                if ("response" in parsed) return parsed.response;
-
-                const result = service.startDevServer(parsed.data.path);
-                if ("error" in result) {
-                    return new Response(JSON.stringify({ error: result.error }), {
-                        status: result.status,
-                        headers: jsonHeaders,
-                    });
-                }
-
-                return Response.json(result);
-            },
-        },
-
         "/api/worktrees/dev-terminal/start": {
             async POST(req: Server.Request) {
                 const parsed = await parseJsonBody({

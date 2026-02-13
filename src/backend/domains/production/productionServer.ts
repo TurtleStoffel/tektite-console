@@ -14,10 +14,6 @@ export function isProductionInstallRunning(clonePath: string) {
     return runner.isInstallRunning(clonePath);
 }
 
-export function getProductionServerLogs(clonePath: string) {
-    return runner.getLogs(clonePath);
-}
-
 export function startProductionServer(clonePath: string) {
     return runner.start(clonePath);
 }

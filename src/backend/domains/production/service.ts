@@ -4,27 +4,6 @@ export function createProductionService(options: { productionDir: string }) {
     const { productionDir } = options;
 
     return {
-        async getLogs(repositoryUrl: string) {
-            const clonePath = repository.getClonePath(productionDir, repositoryUrl);
-            if (!repository.isWithinProductionDir(productionDir, clonePath)) {
-                return {
-                    error: "Production clone path is outside configured folder.",
-                    status: 403 as const,
-                };
-            }
-
-            const exists = repository.cloneExists(clonePath);
-            const logs = repository.getLogs(clonePath);
-            return {
-                path: clonePath,
-                exists,
-                running: logs.running,
-                installing: logs.installing,
-                lines: logs.lines,
-                partial: logs.partial,
-            };
-        },
-
         async start(repositoryUrl: string) {
             let clonePath: string;
             try {
