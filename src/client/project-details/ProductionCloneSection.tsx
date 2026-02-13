@@ -33,6 +33,17 @@ export function ProductionCloneSection({
     onToggleProductionTerminal,
 }: ProductionCloneSectionProps) {
     if (!showProductionClone) return null;
+    const hasProductionSession = Boolean(productionTerminalSessionId);
+    const isStartingProductionTerminal =
+        Boolean(project.productionClone?.path) &&
+        startingDevKey === `production:${project.productionClone.path}`;
+    const terminalButtonLabel = isStartingProductionTerminal
+        ? "Opening"
+        : productionTerminalOpen
+          ? "Hide terminal"
+          : hasProductionSession
+            ? "Show terminal"
+            : "Open terminal";
 
     return (
         <>
@@ -135,17 +146,22 @@ export function ProductionCloneSection({
                                 type="button"
                                 className="btn btn-outline btn-sm"
                                 disabled={Boolean(startingDevKey)}
-                                onClick={() =>
-                                    onOpenProductionTerminal(project.productionClone?.path ?? "")
-                                }
+                                onClick={() => {
+                                    if (productionTerminalOpen) {
+                                        onToggleProductionTerminal();
+                                        return;
+                                    }
+                                    if (hasProductionSession) {
+                                        onToggleProductionTerminal();
+                                        return;
+                                    }
+                                    onOpenProductionTerminal(project.productionClone?.path ?? "");
+                                }}
                             >
-                                {startingDevKey ===
-                                    `production:${project.productionClone.path}` && (
+                                {isStartingProductionTerminal && (
                                     <span className="loading loading-spinner loading-xs" />
                                 )}
-                                {startingDevKey === `production:${project.productionClone.path}`
-                                    ? "Opening"
-                                    : "Open terminal"}
+                                {terminalButtonLabel}
                             </button>
                         )}
 
@@ -164,14 +180,6 @@ export function ProductionCloneSection({
                                     : "Open VSCode"}
                             </button>
                         )}
-
-                        <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            onClick={onToggleProductionTerminal}
-                        >
-                            {productionTerminalOpen ? "Hide terminal" : "Show terminal"}
-                        </button>
                     </div>
                 </div>
             </div>

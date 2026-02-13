@@ -103,6 +103,15 @@ function CloneCard({
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
     const devTerminalOpen = devTerminalTarget?.key === actionKey;
+    const hasDevTerminalSession = Boolean(devTerminalSessionId);
+
+    const terminalButtonLabel = isStarting
+        ? "Opening"
+        : devTerminalOpen
+          ? "Hide terminal"
+          : hasDevTerminalSession
+            ? "Show terminal"
+            : "Open terminal";
 
     return (
         <div className="space-y-2">
@@ -185,24 +194,20 @@ function CloneCard({
                         type="button"
                         className="btn btn-outline btn-sm"
                         disabled={Boolean(startingDevKey)}
-                        onClick={() => onOpenDevTerminal(clone.path, actionKey)}
-                    >
-                        {isStarting && <span className="loading loading-spinner loading-xs" />}
-                        {isStarting ? "Opening" : "Open terminal"}
-                    </button>
-
-                    <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
                         onClick={() => {
                             if (devTerminalOpen) {
                                 onToggleDevTerminal(null);
                                 return;
                             }
-                            onToggleDevTerminal({ key: actionKey, path: clone.path });
+                            if (hasDevTerminalSession) {
+                                onToggleDevTerminal({ key: actionKey, path: clone.path });
+                                return;
+                            }
+                            onOpenDevTerminal(clone.path, actionKey);
                         }}
                     >
-                        {devTerminalOpen ? "Hide terminal" : "Show terminal"}
+                        {isStarting && <span className="loading loading-spinner loading-xs" />}
+                        {terminalButtonLabel}
                     </button>
                 </div>
             </div>
