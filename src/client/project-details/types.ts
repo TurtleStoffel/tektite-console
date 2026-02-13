@@ -26,6 +26,9 @@ export type ProjectDetailsClone = {
     inUse: boolean;
     hasChanges?: boolean;
     prStatus?: ProjectDetailsClonePrStatus;
+    codexThreadId?: string | null;
+    codexLastMessage?: string | null;
+    codexLastEvent?: string | null;
 };
 
 export type ProjectDetailsProductionClone = {

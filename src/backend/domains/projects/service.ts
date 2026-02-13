@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { getProductionCloneInfo } from "@/backend/domains/production/service";
+import { readThreadMap } from "../../codex";
 import type * as schema from "../../db/local/schema";
 import { findRepositoryClones } from "./cloneDiscovery";
 import { getConsoleRepositoryUrl } from "./consoleRepository";
@@ -71,15 +72,25 @@ export function createProjectsService(options: {
                       getProductionCloneInfo({ repositoryUrl, productionDir }),
                   ])
                 : [[], null];
+            const threadMap = readThreadMap(clonesDir);
+            const clonesWithCodex = clones.map((clone) => {
+                const thread = threadMap[clone.path];
+                return {
+                    ...clone,
+                    codexThreadId: thread?.threadId ?? null,
+                    codexLastMessage: thread?.lastMessage ?? null,
+                    codexLastEvent: thread?.lastEvent ?? null,
+                };
+            });
 
             let remoteBranch = null;
             const serverCwd = process.cwd();
-            const serverCwdClone = clones.find(
+            const serverCwdClone = clonesWithCodex.find(
                 (clone) => serverCwd === clone.path || serverCwd.startsWith(clone.path + path.sep),
             );
-            const inUseClone = clones.find((clone) => clone.inUse);
-            const anyWorktreeClone = clones.find((clone) => clone.isWorktree);
-            const nonWorktreeClone = clones.find((clone) => clone.isWorktree === false);
+            const inUseClone = clonesWithCodex.find((clone) => clone.inUse);
+            const anyWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree);
+            const nonWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree === false);
 
             const productionCloneChoice = productionClone?.exists
                 ? { path: productionClone.path, reason: "productionClone" }
@@ -102,7 +113,7 @@ export function createProjectsService(options: {
                     remoteCheckPath,
                     reason: remoteCheckChoice?.reason,
                     serverCwd,
-                    cloneCount: clones.length,
+                    cloneCount: clonesWithCodex.length,
                     productionCloneExists: productionClone?.exists ?? false,
                 });
                 try {
@@ -123,7 +134,7 @@ export function createProjectsService(options: {
                 repositoryId: project.repositoryId ?? null,
                 url: repositoryUrl,
                 consoleRepositoryUrl,
-                clones,
+                clones: clonesWithCodex,
                 productionClone,
                 remoteBranch,
             };

@@ -215,6 +215,28 @@ function CloneCard({
             {devTerminalOpen && devTerminalSessionId && (
                 <DevTerminalPanel sessionId={devTerminalSessionId} />
             )}
+
+            {clone.isWorktree &&
+                (clone.codexThreadId || clone.codexLastMessage || clone.codexLastEvent) && (
+                    <div className="p-3 border border-base-300 rounded-xl bg-base-200/50 space-y-1">
+                        <div className="text-xs font-semibold text-base-content/70">Codex log</div>
+                        {clone.codexThreadId && (
+                            <div className="font-mono text-xs text-base-content/70 break-all">
+                                thread: {clone.codexThreadId}
+                            </div>
+                        )}
+                        {clone.codexLastEvent && (
+                            <div className="text-xs text-base-content/70 break-all">
+                                event: {clone.codexLastEvent}
+                            </div>
+                        )}
+                        {clone.codexLastMessage && (
+                            <div className="text-sm break-words whitespace-pre-wrap">
+                                {clone.codexLastMessage}
+                            </div>
+                        )}
+                    </div>
+                )}
         </div>
     );
 }
