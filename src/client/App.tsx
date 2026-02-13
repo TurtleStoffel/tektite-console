@@ -1,4 +1,5 @@
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import CanvasPage from "./CanvasPage";
 import DocumentsPage from "./DocumentsPage";
 import EnvIndicator from "./EnvIndicator";
@@ -9,32 +10,75 @@ import "./index.css";
 
 export function App() {
     const entityDrawerId = "entities-drawer";
+    const [headerVariant, setHeaderVariant] = useState<"v1" | "v2" | "v3">("v1");
+    const navItemClassName = "btn btn-sm btn-ghost text-base-content/70 hover:text-base-content";
+
+    const headerClassName = useMemo(() => {
+        switch (headerVariant) {
+            case "v2":
+                return "border-b border-base-300 bg-base-100";
+            case "v3":
+                return "border-b border-base-300 bg-base-200";
+            default:
+                return "border-b border-base-300 bg-base-100/80 backdrop-blur";
+        }
+    }, [headerVariant]);
+
+    const navLinks = [
+        { to: "/", label: "Projects" },
+        { to: "/repositories", label: "Repositories" },
+        { to: "/documents", label: "Documents" },
+        { to: "/canvas", label: "Canvas" },
+    ];
 
     return (
         <div className="drawer drawer-end">
             <input id={entityDrawerId} type="checkbox" className="drawer-toggle" />
             <div className="drawer-content">
-                <EnvIndicator />
-                <label
-                    htmlFor={entityDrawerId}
-                    className="btn btn-ghost btn-square fixed top-6 right-6 z-50"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 6h16M4 12h16M4 18h16"
-                        />
-                    </svg>
-                </label>
+                <header className={`sticky top-0 z-50 ${headerClassName}`}>
+                    <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
+                            {navLinks.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    end={item.to === "/"}
+                                    className={({ isActive }) =>
+                                        `${navItemClassName} ${isActive ? "btn-active text-base-content" : ""}`
+                                    }
+                                >
+                                    {item.label}
+                                </NavLink>
+                            ))}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <div className="join">
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs join-item ${headerVariant === "v1" ? "btn-active" : ""}`}
+                                    onClick={() => setHeaderVariant("v1")}
+                                >
+                                    V1
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs join-item ${headerVariant === "v2" ? "btn-active" : ""}`}
+                                    onClick={() => setHeaderVariant("v2")}
+                                >
+                                    V2
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-xs join-item ${headerVariant === "v3" ? "btn-active" : ""}`}
+                                    onClick={() => setHeaderVariant("v3")}
+                                >
+                                    V3
+                                </button>
+                            </div>
+                            <EnvIndicator />
+                        </div>
+                    </div>
+                </header>
                 <Routes>
                     <Route path="/" element={<ProjectsPage drawerToggleId={entityDrawerId} />} />
                     <Route
@@ -72,18 +116,11 @@ export function App() {
                         </label>
                     </div>
                     <ul className="menu p-0">
-                        <li>
-                            <Link to="/">Projects</Link>
-                        </li>
-                        <li>
-                            <Link to="/repositories">Repositories</Link>
-                        </li>
-                        <li>
-                            <Link to="/documents">Documents</Link>
-                        </li>
-                        <li>
-                            <Link to="/canvas">Canvas</Link>
-                        </li>
+                        {navLinks.map((item) => (
+                            <li key={item.to}>
+                                <Link to={item.to}>{item.label}</Link>
+                            </li>
+                        ))}
                     </ul>
                 </aside>
             </div>
