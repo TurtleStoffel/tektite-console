@@ -10,6 +10,13 @@ import { createProductionServerRoutes } from "./backend/domains/production/route
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
 import { createDevServerRoutes } from "./backend/domains/worktrees/routes";
+import {
+    attachSocketToTerminalSession,
+    detachSocketFromTerminalSession,
+    getTerminalSessionById,
+    handleTerminalSocketMessage,
+    type TerminalSocketData,
+} from "./backend/domains/worktrees/terminal";
 import { ensureClonesDir } from "./backend/git";
 import { findFirstFreePort } from "./backend/port";
 import { initStorage } from "./backend/storage";
@@ -71,6 +78,10 @@ const corsHeaders = {
     "Access-Control-Allow-Origin": corsOrigin,
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+const jsonHeaders = {
+    ...corsHeaders,
+    "Content-Type": "application/json",
 };
 
 const withCorsResponse = (response: Response) => {
@@ -162,6 +173,61 @@ const server = serve({
         // Serve index.html for all unmatched routes.
         "/*": index,
     }),
+
+    fetch(req, server) {
+        const url = new URL(req.url);
+        if (url.pathname !== "/api/worktrees/dev-terminal/ws") {
+            return new Response("Not Found", { status: 404 });
+        }
+
+        const sessionId = url.searchParams.get("sessionId")?.trim();
+        if (!sessionId) {
+            return new Response(JSON.stringify({ error: "sessionId is required." }), {
+                status: 400,
+                headers: jsonHeaders,
+            });
+        }
+        const session = getTerminalSessionById(sessionId);
+        if (!session) {
+            return new Response(JSON.stringify({ error: "Terminal session not found." }), {
+                status: 404,
+                headers: jsonHeaders,
+            });
+        }
+
+        const upgraded = server.upgrade<TerminalSocketData>(req, {
+            data: { sessionId: session.id },
+        });
+        if (!upgraded) {
+            return new Response(JSON.stringify({ error: "Failed to upgrade websocket." }), {
+                status: 500,
+                headers: jsonHeaders,
+            });
+        }
+        return undefined;
+    },
+
+    websocket: {
+        open(socket) {
+            const sessionId = socket.data.sessionId;
+            const session = attachSocketToTerminalSession(sessionId, socket);
+            if (!session) {
+                socket.close();
+            }
+        },
+        message(socket, message) {
+            const sessionId = socket.data.sessionId;
+            const session = getTerminalSessionById(sessionId);
+            if (!session) {
+                socket.close();
+                return;
+            }
+            handleTerminalSocketMessage(session, message);
+        },
+        close(socket) {
+            detachSocketFromTerminalSession(socket.data.sessionId, socket);
+        },
+    },
 
     development: process.env.NODE_ENV !== "production" && {
         // Enable browser hot reloading in development

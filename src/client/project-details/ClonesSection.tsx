@@ -1,3 +1,4 @@
+import { DevTerminalPanel } from "../DevTerminalPanel";
 import { LogsPanel } from "../LogsPanel";
 
 import { prBadgeClass, prBadgeLabel } from "./helpers";
@@ -12,6 +13,9 @@ type ClonesSectionProps = {
     devLogsTarget: { key: string; path: string } | null;
     devLogs: string[] | null;
     devLogsMeta: LogsMeta | null;
+    devServerMode: "logs" | "terminal";
+    onChangeDevServerMode: (mode: "logs" | "terminal") => void;
+    devTerminalSessions: Record<string, string | null>;
     onOpenInVSCode: (folderPath: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
@@ -28,6 +32,9 @@ export function ClonesSection({
     devLogsTarget,
     devLogs,
     devLogsMeta,
+    devServerMode,
+    onChangeDevServerMode,
+    devTerminalSessions,
     onOpenInVSCode,
     onStartDevServer,
     onRefreshDevLogs,
@@ -38,7 +45,19 @@ export function ClonesSection({
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold">Local clones</div>
-                <span className="text-xs text-base-content/60">{clones?.length ?? 0}</span>
+                <div className="flex items-center gap-2">
+                    <select
+                        className="select select-bordered select-xs"
+                        value={devServerMode}
+                        onChange={(event) =>
+                            onChangeDevServerMode(event.target.value as "logs" | "terminal")
+                        }
+                    >
+                        <option value="logs">Classic logs</option>
+                        <option value="terminal">Interactive terminal</option>
+                    </select>
+                    <span className="text-xs text-base-content/60">{clones?.length ?? 0}</span>
+                </div>
             </div>
 
             {actionError && (
@@ -72,6 +91,8 @@ export function ClonesSection({
                             devLogsTarget={devLogsTarget}
                             devLogs={devLogs}
                             devLogsMeta={devLogsMeta}
+                            devServerMode={devServerMode}
+                            devTerminalSessionId={devTerminalSessions[clone.path] ?? null}
                             onOpenInVSCode={onOpenInVSCode}
                             onStartDevServer={onStartDevServer}
                             onRefreshDevLogs={onRefreshDevLogs}
@@ -93,6 +114,8 @@ type CloneCardProps = {
     devLogsTarget: { key: string; path: string } | null;
     devLogs: string[] | null;
     devLogsMeta: LogsMeta | null;
+    devServerMode: "logs" | "terminal";
+    devTerminalSessionId: string | null;
     onOpenInVSCode: (folderPath: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
@@ -108,6 +131,8 @@ function CloneCard({
     devLogsTarget,
     devLogs,
     devLogsMeta,
+    devServerMode,
+    devTerminalSessionId,
     onOpenInVSCode,
     onStartDevServer,
     onRefreshDevLogs,
@@ -209,7 +234,13 @@ function CloneCard({
                                 onClearDevLogs();
                             }}
                         >
-                            {devLogsOpen ? "Hide logs" : "Show logs"}
+                            {devLogsOpen
+                                ? devServerMode === "terminal"
+                                    ? "Hide terminal"
+                                    : "Hide logs"
+                                : devServerMode === "terminal"
+                                  ? "Show terminal"
+                                  : "Show logs"}
                         </button>
                     )}
 
@@ -227,31 +258,36 @@ function CloneCard({
                 </div>
             </div>
 
-            {devLogsOpen && (
-                <LogsPanel
-                    title="Dev logs"
-                    logs={devLogs}
-                    emptyText="No logs yet. Click “Run dev” to start."
-                    onRefresh={() => onRefreshDevLogs(clone.path)}
-                    badges={
-                        devLogsMeta ? (
-                            <>
-                                <div className="badge badge-outline">
-                                    {devLogsMeta.exists ? "worktree" : "missing"}
-                                </div>
-                                {devLogsMeta.installing && (
-                                    <div className="badge badge-warning badge-outline">
-                                        installing
+            {devLogsOpen &&
+                (devServerMode === "terminal" && devTerminalSessionId ? (
+                    <DevTerminalPanel sessionId={devTerminalSessionId} />
+                ) : (
+                    <LogsPanel
+                        title="Dev logs"
+                        logs={devLogs}
+                        emptyText="No logs yet. Click “Run dev” to start."
+                        onRefresh={() => onRefreshDevLogs(clone.path)}
+                        badges={
+                            devLogsMeta ? (
+                                <>
+                                    <div className="badge badge-outline">
+                                        {devLogsMeta.exists ? "worktree" : "missing"}
                                     </div>
-                                )}
-                                {devLogsMeta.running && (
-                                    <div className="badge badge-success badge-outline">running</div>
-                                )}
-                            </>
-                        ) : null
-                    }
-                />
-            )}
+                                    {devLogsMeta.installing && (
+                                        <div className="badge badge-warning badge-outline">
+                                            installing
+                                        </div>
+                                    )}
+                                    {devLogsMeta.running && (
+                                        <div className="badge badge-success badge-outline">
+                                            running
+                                        </div>
+                                    )}
+                                </>
+                            ) : null
+                        }
+                    />
+                ))}
         </div>
     );
 }

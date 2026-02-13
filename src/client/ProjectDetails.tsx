@@ -40,6 +40,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [devLogsTarget, setDevLogsTarget] = useState<LogsTarget | null>(null);
     const [devLogs, setDevLogs] = useState<string[] | null>(null);
     const [devLogsMeta, setDevLogsMeta] = useState<LogsMeta | null>(null);
+    const [devServerMode, setDevServerMode] = useState<"logs" | "terminal">("logs");
+    const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
+        {},
+    );
     const [actionError, setActionError] = useState<string | null>(null);
     const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
     const [repositoriesLoading, setRepositoriesLoading] = useState(false);
@@ -211,6 +215,34 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const startDevTerminal = async (worktreePath: string, key: string) => {
+        setActionError(null);
+        setStartingDevKey(key);
+        setDevLogsTarget({ key, path: worktreePath });
+        try {
+            const res = await fetch("/api/worktrees/dev-terminal/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: worktreePath }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to start terminal.");
+            }
+            const sessionId = typeof payload?.sessionId === "string" ? payload.sessionId : null;
+            setDevTerminalSessions((prev) => ({
+                ...prev,
+                [worktreePath]: sessionId,
+            }));
+            await refreshProject();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to start terminal.";
+            setActionError(message);
+        } finally {
+            setStartingDevKey(null);
+        }
+    };
+
     const openInVSCode = async (folderPath: string) => {
         setActionError(null);
         setOpeningVSCodePath(folderPath);
@@ -246,6 +278,24 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setDevLogsMeta(parsed.meta);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load dev logs.";
+            setActionError(message);
+        }
+    }, []);
+
+    const refreshDevTerminalSession = useCallback(async (worktreePath: string) => {
+        try {
+            const res = await fetch(
+                `/api/worktrees/dev-terminal?path=${encodeURIComponent(worktreePath)}`,
+            );
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load terminal session.");
+            }
+            const sessionId =
+                typeof payload?.session?.sessionId === "string" ? payload.session.sessionId : null;
+            setDevTerminalSessions((prev) => ({ ...prev, [worktreePath]: sessionId }));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load terminal session.";
             setActionError(message);
         }
     }, []);
@@ -360,7 +410,19 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [productionLogsOpen, refreshProductionLogs]);
 
     useEffect(() => {
+        const stored = window.localStorage.getItem("devServerMode");
+        if (stored === "terminal" || stored === "logs") {
+            setDevServerMode(stored);
+        }
+    }, []);
+
+    useEffect(() => {
+        window.localStorage.setItem("devServerMode", devServerMode);
+    }, [devServerMode]);
+
+    useEffect(() => {
         if (!devLogsTarget?.path) return;
+        if (devServerMode === "terminal") return;
         void refreshDevLogs(devLogsTarget.path);
 
         const interval = window.setInterval(() => {
@@ -368,7 +430,13 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }, 1500);
 
         return () => window.clearInterval(interval);
-    }, [devLogsTarget?.path, refreshDevLogs]);
+    }, [devLogsTarget?.path, refreshDevLogs, devServerMode]);
+
+    useEffect(() => {
+        if (!devLogsTarget?.path) return;
+        if (devServerMode !== "terminal") return;
+        void refreshDevTerminalSession(devLogsTarget.path);
+    }, [devLogsTarget?.path, devServerMode, refreshDevTerminalSession]);
 
     useEffect(() => {
         void loadRepositories();
@@ -614,8 +682,15 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             devLogsTarget={devLogsTarget}
                             devLogs={devLogs}
                             devLogsMeta={devLogsMeta}
+                            devServerMode={devServerMode}
+                            onChangeDevServerMode={setDevServerMode}
+                            devTerminalSessions={devTerminalSessions}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
-                            onStartDevServer={(path, key) => void startDevServer(path, key)}
+                            onStartDevServer={(path, key) =>
+                                devServerMode === "terminal"
+                                    ? void startDevTerminal(path, key)
+                                    : void startDevServer(path, key)
+                            }
                             onRefreshDevLogs={(path) => void refreshDevLogs(path)}
                             onToggleDevLogs={(nextTarget) => setDevLogsTarget(nextTarget)}
                             onClearDevLogs={() => {
