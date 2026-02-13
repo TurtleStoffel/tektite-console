@@ -243,6 +243,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const openProductionTerminal = async (clonePath: string) => {
+        const key = `production:${clonePath}`;
+        await startDevTerminal(clonePath, key);
+        setProductionLogsOpen(true);
+    };
+
     const openInVSCode = async (folderPath: string) => {
         setActionError(null);
         setOpeningVSCodePath(folderPath);
@@ -686,6 +692,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             onChangeDevServerMode={setDevServerMode}
                             devTerminalSessions={devTerminalSessions}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
+                            onOpenDevTerminal={(path, key) => void startDevTerminal(path, key)}
                             onStartDevServer={(path, key) =>
                                 devServerMode === "terminal"
                                     ? void startDevTerminal(path, key)
@@ -710,6 +717,13 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             productionLogsOpen={productionLogsOpen}
                             productionLogs={productionLogs}
                             productionLogsMeta={productionLogsMeta}
+                            devServerMode={devServerMode}
+                            productionTerminalSessionId={
+                                project.productionClone?.path
+                                    ? (devTerminalSessions[project.productionClone.path] ?? null)
+                                    : null
+                            }
+                            onOpenProductionTerminal={(path) => void openProductionTerminal(path)}
                             onStartProductionServer={() => void startProductionServer()}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
                             onToggleProductionLogs={() => setProductionLogsOpen((prev) => !prev)}

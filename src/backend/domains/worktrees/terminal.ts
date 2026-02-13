@@ -28,7 +28,7 @@ const sessionsById = new Map<string, TerminalSession>();
 const sessionIdByWorkspace = new Map<string, string>();
 
 function getStartCommand() {
-    return "if [ -f package.json ] && [ ! -d node_modules ]; then bun install; fi; NODE_ENV=development bun run dev";
+    return "if [ -f package.json ] && [ ! -d node_modules ]; then bun install; fi; if [ -f package.json ] && grep -q '\"dev\"' package.json; then NODE_ENV=development bun run dev; else echo '[system] No dev script found. You are in an interactive shell.'; fi";
 }
 
 function closeSession(session: TerminalSession) {
@@ -42,7 +42,7 @@ function closeSession(session: TerminalSession) {
 
 function createTerminalSession(workspacePath: string): TerminalSession {
     const normalizedWorkspacePath = path.resolve(workspacePath);
-    const pty = spawn(["/bin/sh", "-lc", getStartCommand()], {
+    const pty = spawn("/bin/sh", ["-i"], {
         cwd: normalizedWorkspacePath,
         env: {
             ...Bun.env,
@@ -77,6 +77,8 @@ function createTerminalSession(workspacePath: string): TerminalSession {
         }
         closeSession(session);
     });
+
+    pty.write(`${getStartCommand()}\n`);
 
     return session;
 }

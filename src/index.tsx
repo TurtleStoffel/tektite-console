@@ -166,7 +166,7 @@ const server = serve({
         ...createProjectRoutes({ db: localDb, clonesDir, productionDir }),
         ...createRepositoryRoutes({ db: localDb }),
         ...createExecuteRoutes({ clonesDir }),
-        ...createDevServerRoutes({ clonesDir }),
+        ...createDevServerRoutes({ clonesDir, productionDir }),
         ...createProductionServerRoutes({ productionDir }),
         ...createEditorRoutes({ clonesDir, productionDir }),
 

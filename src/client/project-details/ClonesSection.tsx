@@ -16,6 +16,7 @@ type ClonesSectionProps = {
     devServerMode: "logs" | "terminal";
     onChangeDevServerMode: (mode: "logs" | "terminal") => void;
     devTerminalSessions: Record<string, string | null>;
+    onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onOpenInVSCode: (folderPath: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
@@ -36,6 +37,7 @@ export function ClonesSection({
     onChangeDevServerMode,
     devTerminalSessions,
     onOpenInVSCode,
+    onOpenDevTerminal,
     onStartDevServer,
     onRefreshDevLogs,
     onToggleDevLogs,
@@ -94,6 +96,7 @@ export function ClonesSection({
                             devServerMode={devServerMode}
                             devTerminalSessionId={devTerminalSessions[clone.path] ?? null}
                             onOpenInVSCode={onOpenInVSCode}
+                            onOpenDevTerminal={onOpenDevTerminal}
                             onStartDevServer={onStartDevServer}
                             onRefreshDevLogs={onRefreshDevLogs}
                             onToggleDevLogs={onToggleDevLogs}
@@ -117,6 +120,7 @@ type CloneCardProps = {
     devServerMode: "logs" | "terminal";
     devTerminalSessionId: string | null;
     onOpenInVSCode: (folderPath: string) => void;
+    onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
     onToggleDevLogs: (nextTarget: { key: string; path: string } | null) => void;
@@ -134,6 +138,7 @@ function CloneCard({
     devServerMode,
     devTerminalSessionId,
     onOpenInVSCode,
+    onOpenDevTerminal,
     onStartDevServer,
     onRefreshDevLogs,
     onToggleDevLogs,
@@ -221,30 +226,38 @@ function CloneCard({
                         {isOpeningVSCode ? "Opening" : "Open VSCode"}
                     </button>
 
-                    {clone.isWorktree && (
-                        <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            onClick={() => {
-                                if (devLogsOpen) {
-                                    onToggleDevLogs(null);
-                                    return;
-                                }
-                                onToggleDevLogs({ key: actionKey, path: clone.path });
-                                onClearDevLogs();
-                            }}
-                        >
-                            {devLogsOpen
-                                ? devServerMode === "terminal"
-                                    ? "Hide terminal"
-                                    : "Hide logs"
-                                : devServerMode === "terminal"
-                                  ? "Show terminal"
-                                  : "Show logs"}
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        disabled={Boolean(startingDevKey)}
+                        onClick={() => onOpenDevTerminal(clone.path, actionKey)}
+                    >
+                        {isStarting && <span className="loading loading-spinner loading-xs" />}
+                        {isStarting ? "Opening" : "Open terminal"}
+                    </button>
 
-                    {showRunDev && (
+                    <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => {
+                            if (devLogsOpen) {
+                                onToggleDevLogs(null);
+                                return;
+                            }
+                            onToggleDevLogs({ key: actionKey, path: clone.path });
+                            onClearDevLogs();
+                        }}
+                    >
+                        {devLogsOpen
+                            ? devServerMode === "terminal"
+                                ? "Hide terminal"
+                                : "Hide logs"
+                            : devServerMode === "terminal"
+                              ? "Show terminal"
+                              : "Show logs"}
+                    </button>
+
+                    {devServerMode === "terminal" ? null : showRunDev ? (
                         <button
                             type="button"
                             className="btn btn-primary btn-sm"
@@ -254,7 +267,7 @@ function CloneCard({
                             {isStarting && <span className="loading loading-spinner loading-xs" />}
                             {isStarting ? "Starting" : "Run dev"}
                         </button>
-                    )}
+                    ) : null}
                 </div>
             </div>
 

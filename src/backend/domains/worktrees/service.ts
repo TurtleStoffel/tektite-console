@@ -2,13 +2,16 @@ import path from "node:path";
 import * as repository from "./repository";
 import { getTerminalSessionByWorkspacePath, startOrReuseTerminal } from "./terminal";
 
-export function createWorktreesService(options: { clonesDir: string }) {
-    const { clonesDir } = options;
+export function createWorktreesService(options: { clonesDir: string; productionDir?: string }) {
+    const allowedRoots = [
+        options.clonesDir,
+        ...(options.productionDir ? [options.productionDir] : []),
+    ];
 
     return {
         getDevLogs(rawPath: string) {
             const worktreePath = path.resolve(rawPath);
-            if (!repository.isWithinClonesDir(clonesDir, worktreePath)) {
+            if (!repository.isWithinAnyRoot(allowedRoots, worktreePath)) {
                 return {
                     error: "Worktree path is outside configured folders.",
                     status: 403 as const,
@@ -17,8 +20,8 @@ export function createWorktreesService(options: { clonesDir: string }) {
             if (!repository.exists(worktreePath)) {
                 return { error: "Worktree path does not exist.", status: 404 as const };
             }
-            if (!repository.isWorktree(worktreePath)) {
-                return { error: "Path is not a git worktree.", status: 400 as const };
+            if (!repository.isGitRepository(worktreePath)) {
+                return { error: "Path is not a git clone.", status: 400 as const };
             }
 
             const logs = repository.getLogs(worktreePath);
@@ -34,7 +37,7 @@ export function createWorktreesService(options: { clonesDir: string }) {
 
         startDevServer(rawPath: string) {
             const worktreePath = path.resolve(rawPath);
-            if (!repository.isWithinClonesDir(clonesDir, worktreePath)) {
+            if (!repository.isWithinAnyRoot(allowedRoots, worktreePath)) {
                 return {
                     error: "Worktree path is outside configured folders.",
                     status: 403 as const,
@@ -43,8 +46,8 @@ export function createWorktreesService(options: { clonesDir: string }) {
             if (!repository.exists(worktreePath)) {
                 return { error: "Worktree path does not exist.", status: 404 as const };
             }
-            if (!repository.isWorktree(worktreePath)) {
-                return { error: "Path is not a git worktree.", status: 400 as const };
+            if (!repository.isGitRepository(worktreePath)) {
+                return { error: "Path is not a git clone.", status: 400 as const };
             }
 
             if (
@@ -69,7 +72,7 @@ export function createWorktreesService(options: { clonesDir: string }) {
 
         startDevTerminal(rawPath: string) {
             const worktreePath = path.resolve(rawPath);
-            if (!repository.isWithinClonesDir(clonesDir, worktreePath)) {
+            if (!repository.isWithinAnyRoot(allowedRoots, worktreePath)) {
                 return {
                     error: "Worktree path is outside configured folders.",
                     status: 403 as const,
@@ -78,8 +81,8 @@ export function createWorktreesService(options: { clonesDir: string }) {
             if (!repository.exists(worktreePath)) {
                 return { error: "Worktree path does not exist.", status: 404 as const };
             }
-            if (!repository.isWorktree(worktreePath)) {
-                return { error: "Path is not a git worktree.", status: 400 as const };
+            if (!repository.isGitRepository(worktreePath)) {
+                return { error: "Path is not a git clone.", status: 400 as const };
             }
 
             try {
@@ -93,7 +96,7 @@ export function createWorktreesService(options: { clonesDir: string }) {
 
         getDevTerminal(rawPath: string) {
             const worktreePath = path.resolve(rawPath);
-            if (!repository.isWithinClonesDir(clonesDir, worktreePath)) {
+            if (!repository.isWithinAnyRoot(allowedRoots, worktreePath)) {
                 return {
                     error: "Worktree path is outside configured folders.",
                     status: 403 as const,
@@ -102,8 +105,8 @@ export function createWorktreesService(options: { clonesDir: string }) {
             if (!repository.exists(worktreePath)) {
                 return { error: "Worktree path does not exist.", status: 404 as const };
             }
-            if (!repository.isWorktree(worktreePath)) {
-                return { error: "Path is not a git worktree.", status: 400 as const };
+            if (!repository.isGitRepository(worktreePath)) {
+                return { error: "Path is not a git clone.", status: 400 as const };
             }
 
             const session = getTerminalSessionByWorkspacePath(worktreePath);

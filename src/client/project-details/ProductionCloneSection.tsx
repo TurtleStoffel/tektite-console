@@ -1,3 +1,4 @@
+import { DevTerminalPanel } from "../DevTerminalPanel";
 import { LogsPanel } from "../LogsPanel";
 
 import type { LogsMeta, ProjectDetailsPayload } from "./types";
@@ -13,6 +14,9 @@ type ProductionCloneSectionProps = {
     productionLogsOpen: boolean;
     productionLogs: string[] | null;
     productionLogsMeta: LogsMeta | null;
+    devServerMode: "logs" | "terminal";
+    productionTerminalSessionId: string | null;
+    onOpenProductionTerminal: (path: string) => void;
     onStartProductionServer: () => void;
     onOpenInVSCode: (folderPath: string) => void;
     onToggleProductionLogs: () => void;
@@ -30,6 +34,9 @@ export function ProductionCloneSection({
     productionLogsOpen,
     productionLogs,
     productionLogsMeta,
+    devServerMode,
+    productionTerminalSessionId,
+    onOpenProductionTerminal,
     onStartProductionServer,
     onOpenInVSCode,
     onToggleProductionLogs,
@@ -137,6 +144,25 @@ export function ProductionCloneSection({
                             <button
                                 type="button"
                                 className="btn btn-outline btn-sm"
+                                disabled={Boolean(startingDevKey)}
+                                onClick={() =>
+                                    onOpenProductionTerminal(project.productionClone?.path ?? "")
+                                }
+                            >
+                                {startingDevKey ===
+                                    `production:${project.productionClone.path}` && (
+                                    <span className="loading loading-spinner loading-xs" />
+                                )}
+                                {startingDevKey === `production:${project.productionClone.path}`
+                                    ? "Opening"
+                                    : "Open terminal"}
+                            </button>
+                        )}
+
+                        {project.productionClone?.path && (
+                            <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
                                 disabled={Boolean(openingVSCodePath)}
                                 onClick={() => onOpenInVSCode(project.productionClone?.path ?? "")}
                             >
@@ -154,37 +180,48 @@ export function ProductionCloneSection({
                             className="btn btn-outline btn-sm"
                             onClick={onToggleProductionLogs}
                         >
-                            {productionLogsOpen ? "Hide logs" : "Show logs"}
+                            {productionLogsOpen
+                                ? devServerMode === "terminal"
+                                    ? "Hide terminal"
+                                    : "Hide logs"
+                                : devServerMode === "terminal"
+                                  ? "Show terminal"
+                                  : "Show logs"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {productionLogsOpen && (
-                <LogsPanel
-                    title="Production logs"
-                    logs={productionLogs}
-                    emptyText="No logs yet. Click “Run production” to start and clone if needed."
-                    onRefresh={onRefreshProductionLogs}
-                    badges={
-                        productionLogsMeta ? (
-                            <>
-                                <div className="badge badge-outline">
-                                    {productionLogsMeta.exists ? "cloned" : "missing"}
-                                </div>
-                                {productionLogsMeta.installing && (
-                                    <div className="badge badge-warning badge-outline">
-                                        installing
+            {productionLogsOpen &&
+                (devServerMode === "terminal" && productionTerminalSessionId ? (
+                    <DevTerminalPanel sessionId={productionTerminalSessionId} />
+                ) : (
+                    <LogsPanel
+                        title="Production logs"
+                        logs={productionLogs}
+                        emptyText="No logs yet. Click “Run production” to start and clone if needed."
+                        onRefresh={onRefreshProductionLogs}
+                        badges={
+                            productionLogsMeta ? (
+                                <>
+                                    <div className="badge badge-outline">
+                                        {productionLogsMeta.exists ? "cloned" : "missing"}
                                     </div>
-                                )}
-                                {productionLogsMeta.running && (
-                                    <div className="badge badge-success badge-outline">running</div>
-                                )}
-                            </>
-                        ) : null
-                    }
-                />
-            )}
+                                    {productionLogsMeta.installing && (
+                                        <div className="badge badge-warning badge-outline">
+                                            installing
+                                        </div>
+                                    )}
+                                    {productionLogsMeta.running && (
+                                        <div className="badge badge-success badge-outline">
+                                            running
+                                        </div>
+                                    )}
+                                </>
+                            ) : null
+                        }
+                    />
+                ))}
         </>
     );
 }

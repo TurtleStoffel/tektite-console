@@ -6,8 +6,11 @@ import { createWorktreesService } from "./service";
 const worktreePathBodySchema = z.object({ path: z.string().trim().min(1) });
 const worktreePathQuerySchema = z.object({ path: z.string().trim().min(1) });
 
-export function createDevServerRoutes(options: { clonesDir: string }) {
-    const service = createWorktreesService({ clonesDir: options.clonesDir });
+export function createDevServerRoutes(options: { clonesDir: string; productionDir: string }) {
+    const service = createWorktreesService({
+        clonesDir: options.clonesDir,
+        productionDir: options.productionDir,
+    });
 
     return {
         "/api/worktrees/dev-logs": {
