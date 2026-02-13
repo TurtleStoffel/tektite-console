@@ -33,6 +33,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
     const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
+    const [updatingCloneKey, setUpdatingCloneKey] = useState<string | null>(null);
     const [startingProduction, setStartingProduction] = useState(false);
     const [productionLogsOpen, setProductionLogsOpen] = useState(false);
     const [productionLogs, setProductionLogs] = useState<string[] | null>(null);
@@ -261,6 +262,30 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         } finally {
             setOpeningVSCodePath(null);
+        }
+    };
+
+    const updateCloneFromOriginMain = async (clonePath: string) => {
+        if (!id) return;
+        const actionKey = `clone:${clonePath}`;
+        setActionError(null);
+        setUpdatingCloneKey(actionKey);
+        try {
+            const res = await fetch(`/api/projects/${id}/update-clone`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: clonePath }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update clone.");
+            }
+            await refreshProject();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to update clone.";
+            setActionError(message);
+        } finally {
+            setUpdatingCloneKey(null);
         }
     };
 
@@ -679,6 +704,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             onDismissActionError={() => setActionError(null)}
                             startingDevKey={startingDevKey}
                             openingVSCodePath={openingVSCodePath}
+                            updatingCloneKey={updatingCloneKey}
                             devLogsTarget={devLogsTarget}
                             devLogs={devLogs}
                             devLogsMeta={devLogsMeta}
@@ -691,6 +717,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     ? void startDevTerminal(path, key)
                                     : void startDevServer(path, key)
                             }
+                            onUpdateClone={(path) => void updateCloneFromOriginMain(path)}
                             onRefreshDevLogs={(path) => void refreshDevLogs(path)}
                             onToggleDevLogs={(nextTarget) => setDevLogsTarget(nextTarget)}
                             onClearDevLogs={() => {

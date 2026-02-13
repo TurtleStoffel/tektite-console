@@ -12,6 +12,9 @@ const createProjectBodySchema = z.object({
 const updateProjectRepositoryBodySchema = z.object({
     repositoryId: z.string().trim().min(1).nullable().optional(),
 });
+const updateCloneBodySchema = z.object({
+    path: z.string().trim().min(1),
+});
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
 export function createProjectRoutes(options: {
@@ -119,6 +122,41 @@ export function createProjectRoutes(options: {
                 const projectId = parsedParams.data.id;
 
                 const result = await service.deleteProject(projectId);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+
+                return Response.json(result);
+            },
+        },
+
+        "/api/projects/:id/update-clone": {
+            async POST(req: Server.Request) {
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: projectIdParamSchema,
+                    domain: "projects",
+                    context: "projects:update-clone",
+                    errorMessage: "Project id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+                const projectId = parsedParams.data.id;
+
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: updateCloneBodySchema,
+                    domain: "projects",
+                    context: "projects:update-clone",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await service.updateCloneFromOriginMain({
+                    projectId,
+                    clonePath: parsedBody.data.path,
+                });
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

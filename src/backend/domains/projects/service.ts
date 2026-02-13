@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { getProductionCloneInfo } from "@/backend/domains/production/service";
+import { execAsync } from "@/backend/exec";
 import type * as schema from "../../db/local/schema";
 import { findRepositoryClones } from "./cloneDiscovery";
 import { getConsoleRepositoryUrl } from "./consoleRepository";
@@ -173,6 +174,43 @@ export function createProjectsService(options: {
 
             console.info("[projects] deleted", { projectId });
             return { id: projectId };
+        },
+
+        async updateCloneFromOriginMain(input: { projectId: string; clonePath: string }) {
+            const project = await repository.findProjectById(db, input.projectId);
+            if (!project) return { error: "Project not found.", status: 404 as const };
+
+            const repositoryUrl = project.url?.trim() || null;
+            if (!repositoryUrl)
+                return { error: "Project has no linked repository.", status: 400 as const };
+
+            const clones = await findRepositoryClones({ repositoryUrl, clonesDir });
+            const clone = clones.find((candidate) => candidate.path === input.clonePath);
+            if (!clone) return { error: "Clone not found for project.", status: 404 as const };
+
+            if (!clone.updateFromOriginMain?.eligible) {
+                return {
+                    error: "Clone is not on main or not strictly behind origin/main.",
+                    status: 409 as const,
+                };
+            }
+
+            console.info("[projects] updating clone from origin/main", {
+                projectId: input.projectId,
+                clonePath: input.clonePath,
+                behindCount: clone.updateFromOriginMain.behindCount,
+            });
+            await execAsync("git pull --ff-only origin main", {
+                cwd: clone.path,
+                timeout: 30_000,
+                maxBuffer: 1024 * 1024 * 10,
+            });
+            console.info("[projects] clone updated from origin/main", {
+                projectId: input.projectId,
+                clonePath: input.clonePath,
+            });
+
+            return { ok: true as const };
         },
     };
 }

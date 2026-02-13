@@ -23,7 +23,53 @@ export type CloneInfo = {
     inUse: boolean;
     hasChanges?: boolean;
     prStatus?: Awaited<ReturnType<typeof getPullRequestStatus>>;
+    updateFromOriginMain?: {
+        eligible: boolean;
+        behindCount: number;
+        checkedAt: string;
+    };
 };
+
+async function readMainBehindOriginMainStatus(
+    dir: string,
+): Promise<{ eligible: boolean; behindCount: number; checkedAt: string }> {
+    const checkedAt = new Date().toISOString();
+    try {
+        const { stdout: branchOut } = await execAsync("git rev-parse --abbrev-ref HEAD", {
+            cwd: dir,
+            timeout: 1500,
+            maxBuffer: 1024 * 1024,
+        });
+        const branch = branchOut.trim();
+        if (branch !== "main") return { eligible: false, behindCount: 0, checkedAt };
+
+        await execAsync("git fetch --quiet --prune origin main", {
+            cwd: dir,
+            timeout: 8000,
+            maxBuffer: 1024 * 1024,
+        });
+
+        const { stdout: countsOut } = await execAsync(
+            "git rev-list --left-right --count origin/main...HEAD",
+            {
+                cwd: dir,
+                timeout: 2500,
+                maxBuffer: 1024 * 1024,
+            },
+        );
+        const [behindRaw, aheadRaw] = countsOut.trim().split(/\s+/);
+        const behindCount = Number.parseInt(behindRaw ?? "0", 10) || 0;
+        const aheadCount = Number.parseInt(aheadRaw ?? "0", 10) || 0;
+        const eligible = behindCount > 0 && aheadCount === 0;
+        return { eligible, behindCount, checkedAt };
+    } catch (error) {
+        console.warn("[clone-discovery] failed to check origin/main update eligibility", {
+            dir,
+            error,
+        });
+        return { eligible: false, behindCount: 0, checkedAt };
+    }
+}
 
 function canonicalRepoId(repoUrl: string): string | null {
     const clean = cleanRepositoryUrl(repoUrl).trim();
@@ -200,9 +246,10 @@ export async function findRepositoryClones(options: {
             }
 
             const { hash, description } = await readHeadCommitSummary(clone.path);
-            const [hasChanges, prStatus] = await Promise.all([
+            const [hasChanges, prStatus, updateFromOriginMain] = await Promise.all([
                 detectRepoChanges(clone.path),
                 isWorktree ? getPullRequestStatus(clone.path) : Promise.resolve(null),
+                readMainBehindOriginMainStatus(clone.path),
             ]);
 
             return {
@@ -214,6 +261,7 @@ export async function findRepositoryClones(options: {
                 inUse: isWorktree ? isWorkspaceActive(clone.path) : false,
                 hasChanges,
                 prStatus,
+                updateFromOriginMain,
             };
         }),
     );

@@ -10,6 +10,7 @@ type ClonesSectionProps = {
     onDismissActionError: () => void;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
+    updatingCloneKey: string | null;
     devLogsTarget: { key: string; path: string } | null;
     devLogs: string[] | null;
     devLogsMeta: LogsMeta | null;
@@ -18,6 +19,7 @@ type ClonesSectionProps = {
     devTerminalSessions: Record<string, string | null>;
     onOpenInVSCode: (folderPath: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
+    onUpdateClone: (worktreePath: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
     onToggleDevLogs: (nextTarget: { key: string; path: string } | null) => void;
     onClearDevLogs: () => void;
@@ -29,6 +31,7 @@ export function ClonesSection({
     onDismissActionError,
     startingDevKey,
     openingVSCodePath,
+    updatingCloneKey,
     devLogsTarget,
     devLogs,
     devLogsMeta,
@@ -37,6 +40,7 @@ export function ClonesSection({
     devTerminalSessions,
     onOpenInVSCode,
     onStartDevServer,
+    onUpdateClone,
     onRefreshDevLogs,
     onToggleDevLogs,
     onClearDevLogs,
@@ -88,6 +92,7 @@ export function ClonesSection({
                             actionKey={`clone:${clone.path}`}
                             startingDevKey={startingDevKey}
                             openingVSCodePath={openingVSCodePath}
+                            updatingCloneKey={updatingCloneKey}
                             devLogsTarget={devLogsTarget}
                             devLogs={devLogs}
                             devLogsMeta={devLogsMeta}
@@ -95,6 +100,7 @@ export function ClonesSection({
                             devTerminalSessionId={devTerminalSessions[clone.path] ?? null}
                             onOpenInVSCode={onOpenInVSCode}
                             onStartDevServer={onStartDevServer}
+                            onUpdateClone={onUpdateClone}
                             onRefreshDevLogs={onRefreshDevLogs}
                             onToggleDevLogs={onToggleDevLogs}
                             onClearDevLogs={onClearDevLogs}
@@ -111,6 +117,7 @@ type CloneCardProps = {
     actionKey: string;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
+    updatingCloneKey: string | null;
     devLogsTarget: { key: string; path: string } | null;
     devLogs: string[] | null;
     devLogsMeta: LogsMeta | null;
@@ -118,6 +125,7 @@ type CloneCardProps = {
     devTerminalSessionId: string | null;
     onOpenInVSCode: (folderPath: string) => void;
     onStartDevServer: (worktreePath: string, key: string) => void;
+    onUpdateClone: (worktreePath: string) => void;
     onRefreshDevLogs: (worktreePath: string) => void;
     onToggleDevLogs: (nextTarget: { key: string; path: string } | null) => void;
     onClearDevLogs: () => void;
@@ -128,6 +136,7 @@ function CloneCard({
     actionKey,
     startingDevKey,
     openingVSCodePath,
+    updatingCloneKey,
     devLogsTarget,
     devLogs,
     devLogsMeta,
@@ -135,6 +144,7 @@ function CloneCard({
     devTerminalSessionId,
     onOpenInVSCode,
     onStartDevServer,
+    onUpdateClone,
     onRefreshDevLogs,
     onToggleDevLogs,
     onClearDevLogs,
@@ -142,7 +152,9 @@ function CloneCard({
     const showRunDev = Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
+    const isUpdatingClone = updatingCloneKey === actionKey;
     const devLogsOpen = devLogsTarget?.key === actionKey;
+    const showUpdateClone = clone.updateFromOriginMain?.eligible === true;
 
     return (
         <div className="space-y-2">
@@ -253,6 +265,22 @@ function CloneCard({
                         >
                             {isStarting && <span className="loading loading-spinner loading-xs" />}
                             {isStarting ? "Starting" : "Run dev"}
+                        </button>
+                    )}
+
+                    {showUpdateClone && (
+                        <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={Boolean(updatingCloneKey)}
+                            onClick={() => onUpdateClone(clone.path)}
+                        >
+                            {isUpdatingClone && (
+                                <span className="loading loading-spinner loading-xs" />
+                            )}
+                            {isUpdatingClone
+                                ? "Updating"
+                                : `Update (${clone.updateFromOriginMain?.behindCount ?? 0})`}
                         </button>
                     )}
                 </div>

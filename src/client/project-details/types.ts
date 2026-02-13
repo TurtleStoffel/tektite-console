@@ -26,6 +26,11 @@ export type ProjectDetailsClone = {
     inUse: boolean;
     hasChanges?: boolean;
     prStatus?: ProjectDetailsClonePrStatus;
+    updateFromOriginMain?: {
+        eligible: boolean;
+        behindCount: number;
+        checkedAt: string;
+    };
 };
 
 export type ProjectDetailsProductionClone = {
