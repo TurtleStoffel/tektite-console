@@ -34,9 +34,7 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     const {
         data: projects = [],
         isLoading,
-        isFetching,
         error: projectsErrorRaw,
-        refetch: refetchProjects,
     } = useQuery<ProjectSummary[]>({
         queryKey: ["projects"],
         queryFn: fetchProjects,
@@ -132,21 +130,13 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
 
             <div className="card bg-base-200 border border-base-300 shadow-md text-left">
                 <div className="card-body space-y-4">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
                         <div className="space-y-1">
                             <h2 className="card-title">New project</h2>
                             <p className="text-sm text-base-content/70">
                                 Optionally link a repository to track the new project.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            onClick={() => void refetchProjects()}
-                            disabled={isFetching}
-                        >
-                            Refresh list
-                        </button>
                     </div>
                     {createError && (
                         <div className="alert alert-error">
