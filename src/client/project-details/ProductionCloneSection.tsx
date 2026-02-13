@@ -1,7 +1,5 @@
 import { DevTerminalPanel } from "../DevTerminalPanel";
-import { LogsPanel } from "../LogsPanel";
-
-import type { LogsMeta, ProjectDetailsPayload } from "./types";
+import type { ProjectDetailsPayload } from "./types";
 
 type ProductionCloneSectionProps = {
     project: ProjectDetailsPayload;
@@ -11,16 +9,12 @@ type ProductionCloneSectionProps = {
     startingDevKey: string | null;
     startingProduction: boolean;
     openingVSCodePath: string | null;
-    productionLogsOpen: boolean;
-    productionLogs: string[] | null;
-    productionLogsMeta: LogsMeta | null;
-    devServerMode: "logs" | "terminal";
+    productionTerminalOpen: boolean;
     productionTerminalSessionId: string | null;
     onOpenProductionTerminal: (path: string) => void;
     onStartProductionServer: () => void;
     onOpenInVSCode: (folderPath: string) => void;
-    onToggleProductionLogs: () => void;
-    onRefreshProductionLogs: () => void;
+    onToggleProductionTerminal: () => void;
 };
 
 export function ProductionCloneSection({
@@ -31,16 +25,12 @@ export function ProductionCloneSection({
     startingDevKey,
     startingProduction,
     openingVSCodePath,
-    productionLogsOpen,
-    productionLogs,
-    productionLogsMeta,
-    devServerMode,
+    productionTerminalOpen,
     productionTerminalSessionId,
     onOpenProductionTerminal,
     onStartProductionServer,
     onOpenInVSCode,
-    onToggleProductionLogs,
-    onRefreshProductionLogs,
+    onToggleProductionTerminal,
 }: ProductionCloneSectionProps) {
     if (!showProductionClone) return null;
 
@@ -178,50 +168,17 @@ export function ProductionCloneSection({
                         <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={onToggleProductionLogs}
+                            onClick={onToggleProductionTerminal}
                         >
-                            {productionLogsOpen
-                                ? devServerMode === "terminal"
-                                    ? "Hide terminal"
-                                    : "Hide logs"
-                                : devServerMode === "terminal"
-                                  ? "Show terminal"
-                                  : "Show logs"}
+                            {productionTerminalOpen ? "Hide terminal" : "Show terminal"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {productionLogsOpen &&
-                (devServerMode === "terminal" && productionTerminalSessionId ? (
-                    <DevTerminalPanel sessionId={productionTerminalSessionId} />
-                ) : (
-                    <LogsPanel
-                        title="Production logs"
-                        logs={productionLogs}
-                        emptyText="No logs yet. Click “Run production” to start and clone if needed."
-                        onRefresh={onRefreshProductionLogs}
-                        badges={
-                            productionLogsMeta ? (
-                                <>
-                                    <div className="badge badge-outline">
-                                        {productionLogsMeta.exists ? "cloned" : "missing"}
-                                    </div>
-                                    {productionLogsMeta.installing && (
-                                        <div className="badge badge-warning badge-outline">
-                                            installing
-                                        </div>
-                                    )}
-                                    {productionLogsMeta.running && (
-                                        <div className="badge badge-success badge-outline">
-                                            running
-                                        </div>
-                                    )}
-                                </>
-                            ) : null
-                        }
-                    />
-                ))}
+            {productionTerminalOpen && productionTerminalSessionId && (
+                <DevTerminalPanel sessionId={productionTerminalSessionId} />
+            )}
         </>
     );
 }

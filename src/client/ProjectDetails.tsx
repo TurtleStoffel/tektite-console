@@ -3,21 +3,17 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import CommandPanel from "./CommandPanel";
 import { Markdown } from "./Markdown";
 import { ClonesSection } from "./project-details/ClonesSection";
-import {
-    buildPreviewTargets,
-    parseLogsPayload,
-    shouldShowProductionClone,
-} from "./project-details/helpers";
+import { buildPreviewTargets, shouldShowProductionClone } from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import { ProductionCloneSection } from "./project-details/ProductionCloneSection";
-import type { LogsMeta, PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
+import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
 import type { RepositorySummary } from "./types/repositories";
 
 type ProjectDetailsProps = {
     drawerToggleId: string;
 };
 
-type LogsTarget = { key: string; path: string };
+type TerminalTarget = { key: string; path: string };
 type DocumentSummary = {
     id: string;
     projectId: string | null;
@@ -34,13 +30,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
     const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
     const [startingProduction, setStartingProduction] = useState(false);
-    const [productionLogsOpen, setProductionLogsOpen] = useState(false);
-    const [productionLogs, setProductionLogs] = useState<string[] | null>(null);
-    const [productionLogsMeta, setProductionLogsMeta] = useState<LogsMeta | null>(null);
-    const [devLogsTarget, setDevLogsTarget] = useState<LogsTarget | null>(null);
-    const [devLogs, setDevLogs] = useState<string[] | null>(null);
-    const [devLogsMeta, setDevLogsMeta] = useState<LogsMeta | null>(null);
-    const [devServerMode, setDevServerMode] = useState<"logs" | "terminal">("logs");
+    const [productionTerminalOpen, setProductionTerminalOpen] = useState(false);
+    const [devTerminalTarget, setDevTerminalTarget] = useState<TerminalTarget | null>(null);
     const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
         {},
     );
@@ -190,35 +181,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     }, [id]);
 
-    const startDevServer = async (worktreePath: string, key: string) => {
-        setActionError(null);
-        setStartingDevKey(key);
-        setDevLogsTarget({ key, path: worktreePath });
-        setDevLogs(null);
-        setDevLogsMeta(null);
-        try {
-            const res = await fetch("/api/worktrees/dev-server", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: worktreePath }),
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to start dev server.");
-            }
-            await refreshProject();
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to start dev server.";
-            setActionError(message);
-        } finally {
-            setStartingDevKey(null);
-        }
-    };
-
     const startDevTerminal = async (worktreePath: string, key: string) => {
         setActionError(null);
         setStartingDevKey(key);
-        setDevLogsTarget({ key, path: worktreePath });
+        setDevTerminalTarget({ key, path: worktreePath });
         try {
             const res = await fetch("/api/worktrees/dev-terminal/start", {
                 method: "POST",
@@ -246,7 +212,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const openProductionTerminal = async (clonePath: string) => {
         const key = `production:${clonePath}`;
         await startDevTerminal(clonePath, key);
-        setProductionLogsOpen(true);
+        setProductionTerminalOpen(true);
     };
 
     const openInVSCode = async (folderPath: string) => {
@@ -269,24 +235,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setOpeningVSCodePath(null);
         }
     };
-
-    const refreshDevLogs = useCallback(async (worktreePath: string) => {
-        try {
-            const res = await fetch(
-                `/api/worktrees/dev-logs?path=${encodeURIComponent(worktreePath)}`,
-            );
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load dev logs.");
-            }
-            const parsed = parseLogsPayload(payload);
-            setDevLogs(parsed.lines);
-            setDevLogsMeta(parsed.meta);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load dev logs.";
-            setActionError(message);
-        }
-    }, []);
 
     const refreshDevTerminalSession = useCallback(async (worktreePath: string) => {
         try {
@@ -323,7 +271,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to start production server.");
             }
-            setProductionLogsOpen(true);
+            setProductionTerminalOpen(true);
             await refreshProject();
         } catch (err) {
             const message =
@@ -333,28 +281,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setStartingProduction(false);
         }
     };
-
-    const refreshProductionLogs = useCallback(async () => {
-        if (!project?.url) {
-            setActionError("No repository linked to this project yet.");
-            return;
-        }
-        try {
-            const res = await fetch(
-                `/api/production/logs?repositoryUrl=${encodeURIComponent(project.url)}`,
-            );
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load production logs.");
-            }
-            const parsed = parseLogsPayload(payload);
-            setProductionLogs(parsed.lines);
-            setProductionLogsMeta(parsed.meta);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load production logs.";
-            setActionError(message);
-        }
-    }, [project?.url]);
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
@@ -405,44 +331,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     };
 
     useEffect(() => {
-        if (!productionLogsOpen) return;
-        void refreshProductionLogs();
-
-        const interval = window.setInterval(() => {
-            void refreshProductionLogs();
-        }, 1500);
-
-        return () => window.clearInterval(interval);
-    }, [productionLogsOpen, refreshProductionLogs]);
-
-    useEffect(() => {
-        const stored = window.localStorage.getItem("devServerMode");
-        if (stored === "terminal" || stored === "logs") {
-            setDevServerMode(stored);
-        }
-    }, []);
-
-    useEffect(() => {
-        window.localStorage.setItem("devServerMode", devServerMode);
-    }, [devServerMode]);
-
-    useEffect(() => {
-        if (!devLogsTarget?.path) return;
-        if (devServerMode === "terminal") return;
-        void refreshDevLogs(devLogsTarget.path);
-
-        const interval = window.setInterval(() => {
-            void refreshDevLogs(devLogsTarget.path);
-        }, 1500);
-
-        return () => window.clearInterval(interval);
-    }, [devLogsTarget?.path, refreshDevLogs, devServerMode]);
-
-    useEffect(() => {
-        if (!devLogsTarget?.path) return;
-        if (devServerMode !== "terminal") return;
-        void refreshDevTerminalSession(devLogsTarget.path);
-    }, [devLogsTarget?.path, devServerMode, refreshDevTerminalSession]);
+        if (!devTerminalTarget?.path) return;
+        void refreshDevTerminalSession(devTerminalTarget.path);
+    }, [devTerminalTarget?.path, refreshDevTerminalSession]);
 
     useEffect(() => {
         void loadRepositories();
@@ -685,25 +576,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             onDismissActionError={() => setActionError(null)}
                             startingDevKey={startingDevKey}
                             openingVSCodePath={openingVSCodePath}
-                            devLogsTarget={devLogsTarget}
-                            devLogs={devLogs}
-                            devLogsMeta={devLogsMeta}
-                            devServerMode={devServerMode}
-                            onChangeDevServerMode={setDevServerMode}
+                            devTerminalTarget={devTerminalTarget}
                             devTerminalSessions={devTerminalSessions}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
                             onOpenDevTerminal={(path, key) => void startDevTerminal(path, key)}
-                            onStartDevServer={(path, key) =>
-                                devServerMode === "terminal"
-                                    ? void startDevTerminal(path, key)
-                                    : void startDevServer(path, key)
-                            }
-                            onRefreshDevLogs={(path) => void refreshDevLogs(path)}
-                            onToggleDevLogs={(nextTarget) => setDevLogsTarget(nextTarget)}
-                            onClearDevLogs={() => {
-                                setDevLogs(null);
-                                setDevLogsMeta(null);
-                            }}
+                            onToggleDevTerminal={(nextTarget) => setDevTerminalTarget(nextTarget)}
                         />
 
                         <ProductionCloneSection
@@ -714,10 +591,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             startingDevKey={startingDevKey}
                             startingProduction={startingProduction}
                             openingVSCodePath={openingVSCodePath}
-                            productionLogsOpen={productionLogsOpen}
-                            productionLogs={productionLogs}
-                            productionLogsMeta={productionLogsMeta}
-                            devServerMode={devServerMode}
+                            productionTerminalOpen={productionTerminalOpen}
                             productionTerminalSessionId={
                                 project.productionClone?.path
                                     ? (devTerminalSessions[project.productionClone.path] ?? null)
@@ -726,8 +600,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             onOpenProductionTerminal={(path) => void openProductionTerminal(path)}
                             onStartProductionServer={() => void startProductionServer()}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
-                            onToggleProductionLogs={() => setProductionLogsOpen((prev) => !prev)}
-                            onRefreshProductionLogs={() => void refreshProductionLogs()}
+                            onToggleProductionTerminal={() =>
+                                setProductionTerminalOpen((prev) => !prev)
+                            }
                         />
 
                         <LivePreviewSection

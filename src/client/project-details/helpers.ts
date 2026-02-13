@@ -1,38 +1,6 @@
 import { normalizeRepoUrl } from "../../shared/normalizeRepoUrl";
 
-import type {
-    ParsedLogsPayload,
-    PreviewTarget,
-    ProjectDetailsClonePrStatus,
-    ProjectDetailsPayload,
-} from "./types";
-
-export function parseLogsPayload(payload: unknown): ParsedLogsPayload {
-    const maybePayload =
-        payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
-    const lines = Array.isArray(maybePayload?.lines)
-        ? (maybePayload.lines as unknown[]).filter((line) => typeof line === "string")
-        : [];
-
-    const partial = maybePayload?.partial;
-    const partialLines: string[] = [];
-    if (partial && typeof partial === "object") {
-        const stdout = typeof partial.stdout === "string" ? partial.stdout : "";
-        const stderr = typeof partial.stderr === "string" ? partial.stderr : "";
-        if (stdout.trim()) partialLines.push(`[stdout] ${stdout.trimEnd()}`);
-        if (stderr.trim()) partialLines.push(`[stderr] ${stderr.trimEnd()}`);
-    }
-
-    return {
-        lines: [...lines, ...partialLines],
-        meta: {
-            path: typeof maybePayload?.path === "string" ? maybePayload.path : null,
-            exists: Boolean(maybePayload?.exists),
-            running: Boolean(maybePayload?.running),
-            installing: Boolean(maybePayload?.installing),
-        },
-    };
-}
+import type { PreviewTarget, ProjectDetailsClonePrStatus, ProjectDetailsPayload } from "./types";
 
 export function shouldShowProductionClone(project: ProjectDetailsPayload | null): boolean {
     const projectRepo = normalizeRepoUrl(project?.url);

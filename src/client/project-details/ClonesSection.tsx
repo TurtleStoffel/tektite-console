@@ -1,8 +1,6 @@
 import { DevTerminalPanel } from "../DevTerminalPanel";
-import { LogsPanel } from "../LogsPanel";
-
 import { prBadgeClass, prBadgeLabel } from "./helpers";
-import type { LogsMeta, ProjectDetailsClone } from "./types";
+import type { ProjectDetailsClone } from "./types";
 
 type ClonesSectionProps = {
     clones: ProjectDetailsClone[] | undefined;
@@ -10,18 +8,11 @@ type ClonesSectionProps = {
     onDismissActionError: () => void;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
-    devLogsTarget: { key: string; path: string } | null;
-    devLogs: string[] | null;
-    devLogsMeta: LogsMeta | null;
-    devServerMode: "logs" | "terminal";
-    onChangeDevServerMode: (mode: "logs" | "terminal") => void;
+    devTerminalTarget: { key: string; path: string } | null;
     devTerminalSessions: Record<string, string | null>;
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onOpenInVSCode: (folderPath: string) => void;
-    onStartDevServer: (worktreePath: string, key: string) => void;
-    onRefreshDevLogs: (worktreePath: string) => void;
-    onToggleDevLogs: (nextTarget: { key: string; path: string } | null) => void;
-    onClearDevLogs: () => void;
+    onToggleDevTerminal: (nextTarget: { key: string; path: string } | null) => void;
 };
 
 export function ClonesSection({
@@ -30,34 +21,17 @@ export function ClonesSection({
     onDismissActionError,
     startingDevKey,
     openingVSCodePath,
-    devLogsTarget,
-    devLogs,
-    devLogsMeta,
-    devServerMode,
-    onChangeDevServerMode,
+    devTerminalTarget,
     devTerminalSessions,
     onOpenInVSCode,
     onOpenDevTerminal,
-    onStartDevServer,
-    onRefreshDevLogs,
-    onToggleDevLogs,
-    onClearDevLogs,
+    onToggleDevTerminal,
 }: ClonesSectionProps) {
     return (
         <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-semibold">Local clones</div>
                 <div className="flex items-center gap-2">
-                    <select
-                        className="select select-bordered select-xs"
-                        value={devServerMode}
-                        onChange={(event) =>
-                            onChangeDevServerMode(event.target.value as "logs" | "terminal")
-                        }
-                    >
-                        <option value="logs">Classic logs</option>
-                        <option value="terminal">Interactive terminal</option>
-                    </select>
                     <span className="text-xs text-base-content/60">{clones?.length ?? 0}</span>
                 </div>
             </div>
@@ -90,17 +64,11 @@ export function ClonesSection({
                             actionKey={`clone:${clone.path}`}
                             startingDevKey={startingDevKey}
                             openingVSCodePath={openingVSCodePath}
-                            devLogsTarget={devLogsTarget}
-                            devLogs={devLogs}
-                            devLogsMeta={devLogsMeta}
-                            devServerMode={devServerMode}
+                            devTerminalTarget={devTerminalTarget}
                             devTerminalSessionId={devTerminalSessions[clone.path] ?? null}
                             onOpenInVSCode={onOpenInVSCode}
                             onOpenDevTerminal={onOpenDevTerminal}
-                            onStartDevServer={onStartDevServer}
-                            onRefreshDevLogs={onRefreshDevLogs}
-                            onToggleDevLogs={onToggleDevLogs}
-                            onClearDevLogs={onClearDevLogs}
+                            onToggleDevTerminal={onToggleDevTerminal}
                         />
                     ))}
                 </div>
@@ -114,17 +82,11 @@ type CloneCardProps = {
     actionKey: string;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
-    devLogsTarget: { key: string; path: string } | null;
-    devLogs: string[] | null;
-    devLogsMeta: LogsMeta | null;
-    devServerMode: "logs" | "terminal";
+    devTerminalTarget: { key: string; path: string } | null;
     devTerminalSessionId: string | null;
     onOpenInVSCode: (folderPath: string) => void;
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
-    onStartDevServer: (worktreePath: string, key: string) => void;
-    onRefreshDevLogs: (worktreePath: string) => void;
-    onToggleDevLogs: (nextTarget: { key: string; path: string } | null) => void;
-    onClearDevLogs: () => void;
+    onToggleDevTerminal: (nextTarget: { key: string; path: string } | null) => void;
 };
 
 function CloneCard({
@@ -132,22 +94,15 @@ function CloneCard({
     actionKey,
     startingDevKey,
     openingVSCodePath,
-    devLogsTarget,
-    devLogs,
-    devLogsMeta,
-    devServerMode,
+    devTerminalTarget,
     devTerminalSessionId,
     onOpenInVSCode,
     onOpenDevTerminal,
-    onStartDevServer,
-    onRefreshDevLogs,
-    onToggleDevLogs,
-    onClearDevLogs,
+    onToggleDevTerminal,
 }: CloneCardProps) {
-    const showRunDev = Boolean(clone.isWorktree) && !clone.inUse && typeof clone.port !== "number";
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
-    const devLogsOpen = devLogsTarget?.key === actionKey;
+    const devTerminalOpen = devTerminalTarget?.key === actionKey;
 
     return (
         <div className="space-y-2">
@@ -240,67 +195,21 @@ function CloneCard({
                         type="button"
                         className="btn btn-outline btn-sm"
                         onClick={() => {
-                            if (devLogsOpen) {
-                                onToggleDevLogs(null);
+                            if (devTerminalOpen) {
+                                onToggleDevTerminal(null);
                                 return;
                             }
-                            onToggleDevLogs({ key: actionKey, path: clone.path });
-                            onClearDevLogs();
+                            onToggleDevTerminal({ key: actionKey, path: clone.path });
                         }}
                     >
-                        {devLogsOpen
-                            ? devServerMode === "terminal"
-                                ? "Hide terminal"
-                                : "Hide logs"
-                            : devServerMode === "terminal"
-                              ? "Show terminal"
-                              : "Show logs"}
+                        {devTerminalOpen ? "Hide terminal" : "Show terminal"}
                     </button>
-
-                    {devServerMode === "terminal" ? null : showRunDev ? (
-                        <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            disabled={Boolean(startingDevKey)}
-                            onClick={() => onStartDevServer(clone.path, actionKey)}
-                        >
-                            {isStarting && <span className="loading loading-spinner loading-xs" />}
-                            {isStarting ? "Starting" : "Run dev"}
-                        </button>
-                    ) : null}
                 </div>
             </div>
 
-            {devLogsOpen &&
-                (devServerMode === "terminal" && devTerminalSessionId ? (
-                    <DevTerminalPanel sessionId={devTerminalSessionId} />
-                ) : (
-                    <LogsPanel
-                        title="Dev logs"
-                        logs={devLogs}
-                        emptyText="No logs yet. Click “Run dev” to start."
-                        onRefresh={() => onRefreshDevLogs(clone.path)}
-                        badges={
-                            devLogsMeta ? (
-                                <>
-                                    <div className="badge badge-outline">
-                                        {devLogsMeta.exists ? "worktree" : "missing"}
-                                    </div>
-                                    {devLogsMeta.installing && (
-                                        <div className="badge badge-warning badge-outline">
-                                            installing
-                                        </div>
-                                    )}
-                                    {devLogsMeta.running && (
-                                        <div className="badge badge-success badge-outline">
-                                            running
-                                        </div>
-                                    )}
-                                </>
-                            ) : null
-                        }
-                    />
-                ))}
+            {devTerminalOpen && devTerminalSessionId && (
+                <DevTerminalPanel sessionId={devTerminalSessionId} />
+            )}
         </div>
     );
 }

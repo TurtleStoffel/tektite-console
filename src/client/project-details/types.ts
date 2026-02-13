@@ -49,18 +49,6 @@ export type ProjectDetailsPayload = {
     clones?: ProjectDetailsClone[];
 };
 
-export type LogsMeta = {
-    path: string | null;
-    exists: boolean;
-    running: boolean;
-    installing: boolean;
-};
-
-export type ParsedLogsPayload = {
-    lines: string[];
-    meta: LogsMeta;
-};
-
 export type PreviewTarget = {
     key: string;
     label: string;
