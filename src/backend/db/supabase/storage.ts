@@ -7,11 +7,12 @@ export type SupabaseStorage = {
 };
 
 export async function initSupabaseStorage(databaseUrl: string): Promise<SupabaseStorage> {
-    const sql = new SQL(databaseUrl);
+    const sql = new SQL(databaseUrl, { prepare: false });
     await sql`select 1 as ok`;
 
     console.info("[storage:supabase] initialized supabase database connection", {
         healthcheck: "ok",
+        preparedStatements: "disabled",
     });
 
     return {
