@@ -19,6 +19,24 @@ export type ProductionCloneInfo = {
     commitDescription: string | null;
     hasChanges: boolean | null;
     inUse: boolean;
+    mainBranchRemote: ProductionMainBranchStatus | null;
+};
+
+export type ProductionMainBranchStatus = {
+    status:
+        | "upToDate"
+        | "behind"
+        | "ahead"
+        | "diverged"
+        | "missingLocalMain"
+        | "missingOriginMain"
+        | "notGit"
+        | "unknown";
+    behindCount?: number;
+    aheadCount?: number;
+    fetched?: boolean;
+    error?: string;
+    checkedAt: string;
 };
 
 export function getProductionClonePath(repositoryUrl: string, productionDir: string) {
@@ -59,6 +77,126 @@ function readPortFile(dir: string): number | null {
     }
 }
 
+async function refExists(dir: string, refName: string): Promise<boolean> {
+    try {
+        await execAsync(`git rev-parse --verify --quiet ${JSON.stringify(refName)}`, {
+            cwd: dir,
+            timeout: 1500,
+            maxBuffer: 1024 * 1024,
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function readMainBranchRemoteStatus(dir: string): Promise<ProductionMainBranchStatus> {
+    const checkedAt = new Date().toISOString();
+
+    try {
+        await execAsync("git rev-parse --is-inside-work-tree", {
+            cwd: dir,
+            timeout: 1500,
+            maxBuffer: 1024 * 1024,
+        });
+    } catch {
+        return { status: "notGit", checkedAt };
+    }
+
+    let fetched = false;
+    let fetchError: string | undefined;
+    try {
+        await execAsync("git fetch --quiet --prune origin main", {
+            cwd: dir,
+            timeout: 8000,
+            maxBuffer: 1024 * 1024,
+        });
+        fetched = true;
+    } catch (error) {
+        fetched = false;
+        fetchError = error instanceof Error ? error.message : String(error);
+        console.warn("[production-clone] fetch origin main failed", { dir, fetchError });
+    }
+
+    const hasLocalMain = await refExists(dir, "refs/heads/main");
+    if (!hasLocalMain) {
+        return {
+            status: "missingLocalMain",
+            fetched,
+            checkedAt,
+            ...(fetchError ? { error: fetchError } : {}),
+        };
+    }
+
+    const hasOriginMain = await refExists(dir, "refs/remotes/origin/main");
+    if (!hasOriginMain) {
+        return {
+            status: "missingOriginMain",
+            fetched,
+            checkedAt,
+            ...(fetchError ? { error: fetchError } : {}),
+        };
+    }
+
+    try {
+        const { stdout } = await execAsync("git rev-list --left-right --count origin/main...main", {
+            cwd: dir,
+            timeout: 2000,
+            maxBuffer: 1024 * 1024,
+        });
+        const parts = stdout.trim().split(/\s+/);
+        const behindCount = Number.parseInt(parts[0] ?? "0", 10) || 0;
+        const aheadCount = Number.parseInt(parts[1] ?? "0", 10) || 0;
+
+        if (behindCount === 0 && aheadCount === 0) {
+            return {
+                status: "upToDate",
+                behindCount,
+                aheadCount,
+                fetched,
+                checkedAt,
+                ...(fetchError ? { error: fetchError } : {}),
+            };
+        }
+        if (behindCount > 0 && aheadCount === 0) {
+            return {
+                status: "behind",
+                behindCount,
+                aheadCount,
+                fetched,
+                checkedAt,
+                ...(fetchError ? { error: fetchError } : {}),
+            };
+        }
+        if (behindCount === 0 && aheadCount > 0) {
+            return {
+                status: "ahead",
+                behindCount,
+                aheadCount,
+                fetched,
+                checkedAt,
+                ...(fetchError ? { error: fetchError } : {}),
+            };
+        }
+        return {
+            status: "diverged",
+            behindCount,
+            aheadCount,
+            fetched,
+            checkedAt,
+            ...(fetchError ? { error: fetchError } : {}),
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+            status: "unknown",
+            fetched,
+            checkedAt,
+            error: fetchError ? `${fetchError}; ${message}` : message,
+        };
+    }
+}
+
 export async function getProductionCloneInfo(options: {
     repositoryUrl: string;
     productionDir: string;
@@ -75,12 +213,14 @@ export async function getProductionCloneInfo(options: {
             commitDescription: null,
             hasChanges: null,
             inUse: false,
+            mainBranchRemote: null,
         };
     }
 
-    const [hasChanges, head] = await Promise.all([
+    const [hasChanges, head, mainBranchRemote] = await Promise.all([
         detectRepoChanges(clonePath),
         readHeadCommitSummary(clonePath),
+        readMainBranchRemoteStatus(clonePath),
     ]);
     return {
         path: clonePath,
@@ -90,6 +230,7 @@ export async function getProductionCloneInfo(options: {
         commitDescription: head.description,
         hasChanges,
         inUse: isWorkspaceActive(clonePath),
+        mainBranchRemote,
     };
 }
 
@@ -104,4 +245,27 @@ export async function ensureProductionClone(options: {
         await cloneRepository(cleanUrl, clonePath);
     }
     return { clonePath };
+}
+
+export async function updateProductionCloneMain(options: {
+    repositoryUrl: string;
+    productionDir: string;
+}): Promise<ProductionCloneInfo> {
+    const clonePath = getProductionClonePath(options.repositoryUrl, options.productionDir);
+    if (!fs.existsSync(clonePath)) {
+        throw new Error("Production clone path does not exist.");
+    }
+
+    await execAsync("git checkout main", {
+        cwd: clonePath,
+        timeout: 10_000,
+        maxBuffer: 1024 * 1024,
+    });
+    await execAsync("git pull --ff-only origin main", {
+        cwd: clonePath,
+        timeout: 20_000,
+        maxBuffer: 1024 * 1024,
+    });
+
+    return getProductionCloneInfo(options);
 }

@@ -9,10 +9,12 @@ type ProductionCloneSectionProps = {
     startingDevKey: string | null;
     startingProduction: boolean;
     openingVSCodePath: string | null;
+    updatingProductionMain: boolean;
     productionTerminalOpen: boolean;
     productionTerminalSessionId: string | null;
     onOpenProductionTerminal: (path: string) => void;
     onStartProductionServer: () => void;
+    onUpdateProductionMain: () => void;
     onOpenInVSCode: (folderPath: string) => void;
     onToggleProductionTerminal: () => void;
 };
@@ -25,14 +27,21 @@ export function ProductionCloneSection({
     startingDevKey,
     startingProduction,
     openingVSCodePath,
+    updatingProductionMain,
     productionTerminalOpen,
     productionTerminalSessionId,
     onOpenProductionTerminal,
     onStartProductionServer,
+    onUpdateProductionMain,
     onOpenInVSCode,
     onToggleProductionTerminal,
 }: ProductionCloneSectionProps) {
     if (!showProductionClone) return null;
+    const productionMainStatus = project.productionClone?.mainBranchRemote;
+    const showUpdateMainButton =
+        productionMainStatus?.status === "behind" &&
+        typeof productionMainStatus.behindCount === "number" &&
+        productionMainStatus.behindCount > 0;
 
     return (
         <>
@@ -101,6 +110,12 @@ export function ProductionCloneSection({
                             </div>
                         )}
 
+                        {showUpdateMainButton && (
+                            <div className="badge badge-warning badge-outline">
+                                behind origin/main by {productionMainStatus.behindCount}
+                            </div>
+                        )}
+
                         {typeof project.productionClone?.port === "number" && (
                             <div className="badge badge-success badge-outline">
                                 port {project.productionClone.port}
@@ -121,7 +136,11 @@ export function ProductionCloneSection({
                         <button
                             type="button"
                             className="btn btn-primary btn-sm"
-                            disabled={Boolean(startingDevKey) || startingProduction}
+                            disabled={
+                                Boolean(startingDevKey) ||
+                                startingProduction ||
+                                updatingProductionMain
+                            }
                             onClick={onStartProductionServer}
                         >
                             {startingProduction && (
@@ -129,6 +148,24 @@ export function ProductionCloneSection({
                             )}
                             {startingProduction ? "Starting" : "Run production"}
                         </button>
+
+                        {showUpdateMainButton && (
+                            <button
+                                type="button"
+                                className="btn btn-warning btn-sm"
+                                disabled={
+                                    Boolean(startingDevKey) ||
+                                    startingProduction ||
+                                    updatingProductionMain
+                                }
+                                onClick={onUpdateProductionMain}
+                            >
+                                {updatingProductionMain && (
+                                    <span className="loading loading-spinner loading-xs" />
+                                )}
+                                {updatingProductionMain ? "Updating" : "Update clone"}
+                            </button>
+                        )}
 
                         {project.productionClone?.path && (
                             <button

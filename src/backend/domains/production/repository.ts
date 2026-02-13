@@ -5,6 +5,7 @@ import {
     ensureProductionClone,
     getProductionCloneInfo,
     getProductionClonePath,
+    updateProductionCloneMain,
 } from "./productionClone";
 import {
     getProductionServerLogs,
@@ -51,4 +52,8 @@ export function startServer(clonePath: string) {
 
 export function readProductionCloneInfo(productionDir: string, repositoryUrl: string) {
     return getProductionCloneInfo({ repositoryUrl, productionDir });
+}
+
+export function updateCloneMain(productionDir: string, repositoryUrl: string) {
+    return updateProductionCloneMain({ repositoryUrl, productionDir });
 }

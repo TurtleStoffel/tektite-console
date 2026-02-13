@@ -30,6 +30,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
     const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
     const [startingProduction, setStartingProduction] = useState(false);
+    const [updatingProductionMain, setUpdatingProductionMain] = useState(false);
     const [productionTerminalOpen, setProductionTerminalOpen] = useState(false);
     const [devTerminalTarget, setDevTerminalTarget] = useState<TerminalTarget | null>(null);
     const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
@@ -279,6 +280,33 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         } finally {
             setStartingProduction(false);
+        }
+    };
+
+    const updateProductionMain = async () => {
+        if (!project?.url) {
+            setActionError("No repository linked to this project yet.");
+            return;
+        }
+        setActionError(null);
+        setUpdatingProductionMain(true);
+        try {
+            const res = await fetch("/api/production/update-main", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ repositoryUrl: project.url }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update production clone.");
+            }
+            await refreshProject();
+        } catch (err) {
+            const message =
+                err instanceof Error ? err.message : "Failed to update production clone.";
+            setActionError(message);
+        } finally {
+            setUpdatingProductionMain(false);
         }
     };
 
@@ -590,6 +618,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             previewHost={previewHost}
                             startingDevKey={startingDevKey}
                             startingProduction={startingProduction}
+                            updatingProductionMain={updatingProductionMain}
                             openingVSCodePath={openingVSCodePath}
                             productionTerminalOpen={productionTerminalOpen}
                             productionTerminalSessionId={
@@ -599,6 +628,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             }
                             onOpenProductionTerminal={(path) => void openProductionTerminal(path)}
                             onStartProductionServer={() => void startProductionServer()}
+                            onUpdateProductionMain={() => void updateProductionMain()}
                             onOpenInVSCode={(path) => void openInVSCode(path)}
                             onToggleProductionTerminal={() =>
                                 setProductionTerminalOpen((prev) => !prev)

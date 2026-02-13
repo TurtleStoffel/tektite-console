@@ -55,5 +55,27 @@ export function createProductionServerRoutes(options: { productionDir: string })
                 return Response.json(result);
             },
         },
+
+        "/api/production/update-main": {
+            async POST(req: Server.Request) {
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: repositoryUrlBodySchema,
+                    domain: "production",
+                    context: "production:update-main",
+                });
+                if ("response" in parsed) return parsed.response;
+
+                const result = await service.updateMain(parsed.data.repositoryUrl);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+
+                return Response.json(result);
+            },
+        },
     } as const;
 }

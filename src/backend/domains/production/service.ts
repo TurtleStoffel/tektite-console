@@ -65,6 +65,37 @@ export function createProductionService(options: { productionDir: string }) {
             }
         },
 
+        async updateMain(repositoryUrl: string) {
+            const clonePath = repository.getClonePath(productionDir, repositoryUrl);
+            if (!repository.isWithinProductionDir(productionDir, clonePath)) {
+                return {
+                    error: "Production clone path is outside configured folder.",
+                    status: 403 as const,
+                };
+            }
+            if (!repository.cloneExists(clonePath)) {
+                return { error: "Production clone path does not exist.", status: 404 as const };
+            }
+            if (repository.isCloneWorkspaceActive(clonePath)) {
+                return { error: "Production clone is already active.", status: 409 as const };
+            }
+            if (repository.isServerRunning(clonePath) || repository.isInstallRunning(clonePath)) {
+                return {
+                    error: "Stop production processes before updating the clone.",
+                    status: 409 as const,
+                };
+            }
+
+            try {
+                const updated = await repository.updateCloneMain(productionDir, repositoryUrl);
+                return updated;
+            } catch (error) {
+                const message =
+                    error instanceof Error ? error.message : "Failed to update production clone.";
+                return { error: message, status: 500 as const };
+            }
+        },
+
         getProductionCloneInfo(repositoryUrl: string) {
             return repository.readProductionCloneInfo(productionDir, repositoryUrl);
         },

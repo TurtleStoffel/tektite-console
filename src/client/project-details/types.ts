@@ -36,6 +36,22 @@ export type ProjectDetailsProductionClone = {
     commitDescription: string | null;
     hasChanges: boolean | null;
     inUse: boolean;
+    mainBranchRemote: {
+        status:
+            | "upToDate"
+            | "behind"
+            | "ahead"
+            | "diverged"
+            | "missingLocalMain"
+            | "missingOriginMain"
+            | "notGit"
+            | "unknown";
+        behindCount?: number;
+        aheadCount?: number;
+        fetched?: boolean;
+        error?: string;
+        checkedAt: string;
+    } | null;
 };
 
 export type ProjectDetailsPayload = {
