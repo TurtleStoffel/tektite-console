@@ -27,10 +27,6 @@ export type TerminalSocketData = {
 const sessionsById = new Map<string, TerminalSession>();
 const sessionIdByWorkspace = new Map<string, string>();
 
-function getStartCommand() {
-    return "if [ -f package.json ] && [ ! -d node_modules ]; then bun install; fi; if [ -f package.json ] && grep -q '\"dev\"' package.json; then NODE_ENV=development bun run dev; else echo '[system] No dev script found. You are in an interactive shell.'; fi";
-}
-
 function closeSession(session: TerminalSession) {
     sessionsById.delete(session.id);
     sessionIdByWorkspace.delete(session.workspacePath);
@@ -77,8 +73,6 @@ function createTerminalSession(workspacePath: string): TerminalSession {
         }
         closeSession(session);
     });
-
-    pty.write(`${getStartCommand()}\n`);
 
     return session;
 }
