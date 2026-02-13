@@ -71,14 +71,9 @@ export function EnvIndicator() {
     }, [env, loadError]);
 
     return (
-        <div className="fixed top-3 right-3 z-50">
-            <span
-                className={`badge badge-outline badge-sm ${getBadgeClass(nodeEnv)}`}
-                title={title}
-            >
-                {nodeEnv}
-            </span>
-        </div>
+        <span className={`badge badge-outline badge-sm ${getBadgeClass(nodeEnv)}`} title={title}>
+            {nodeEnv}
+        </span>
     );
 }
 
