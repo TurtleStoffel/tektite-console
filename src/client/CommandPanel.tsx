@@ -160,27 +160,10 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
     return (
         <>
             <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Command drawer</h2>
+                <h2 className="text-xl font-semibold">Tasks Executor</h2>
                 <p className="text-sm text-base-content/70">
                     Enter a command to execute in a new worktree.
                 </p>
-                <div className="text-sm text-base-content/70">
-                    <span className="font-semibold">Active repository:</span>{" "}
-                    {selectedRepoUrl ? (
-                        <a
-                            href={selectedRepoUrl}
-                            className="link link-hover break-all"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            {selectedRepoUrl}
-                        </a>
-                    ) : (
-                        <span className="text-base-content/60">
-                            Open a project to select a repository to run Codex.
-                        </span>
-                    )}
-                </div>
             </div>
             <div className="form-control gap-2">
                 <textarea
