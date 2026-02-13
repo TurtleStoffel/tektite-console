@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { isWithinRoot } from "../../http/pathUtils";
-import { isWorkspaceActive } from "../../workspaceActivity";
+import { isWorkspaceActive } from "../worktrees/workspaceActivity";
 import {
     ensureProductionClone,
     getProductionCloneInfo,

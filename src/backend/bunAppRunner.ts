@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { markWorkspaceActive, markWorkspaceInactive } from "./workspaceActivity";
+import {
+    markBunAppRunnerWorkspaceActive,
+    markBunAppRunnerWorkspaceInactive,
+} from "./domains/worktrees/workspaceActivity";
 
 type StreamName = "stdout" | "stderr";
 type LogPartials = { stdout: string; stderr: string };
@@ -114,7 +117,7 @@ export function createBunAppRunner(options: {
                 `[system] ${options.label} install process no longer running`,
             );
             if (!servers.has(workspacePath)) {
-                markWorkspaceInactive(workspacePath);
+                markBunAppRunnerWorkspaceInactive(workspacePath);
             }
         }
 
@@ -122,7 +125,7 @@ export function createBunAppRunner(options: {
         if (server && !isPidAlive(server.pid)) {
             servers.delete(workspacePath);
             appendLogLine(workspacePath, `[system] ${options.label} process no longer running`);
-            markWorkspaceInactive(workspacePath);
+            markBunAppRunnerWorkspaceInactive(workspacePath);
         }
     }
 
@@ -161,7 +164,7 @@ export function createBunAppRunner(options: {
         });
 
         installs.set(workspacePath, install);
-        markWorkspaceActive(workspacePath);
+        markBunAppRunnerWorkspaceActive(workspacePath);
         appendLogLine(workspacePath, "[system] running bun install");
         if (install.stdout)
             void consumeStream({ workspacePath, stream: install.stdout, streamName: "stdout" });
@@ -178,7 +181,7 @@ export function createBunAppRunner(options: {
                     workspacePath,
                     `[system] bun install failed (exit ${code ?? "unknown"})`,
                 );
-                if (!servers.has(workspacePath)) markWorkspaceInactive(workspacePath);
+                if (!servers.has(workspacePath)) markBunAppRunnerWorkspaceInactive(workspacePath);
                 return;
             }
 
@@ -202,7 +205,7 @@ export function createBunAppRunner(options: {
         });
 
         servers.set(workspacePath, serverProcess);
-        markWorkspaceActive(workspacePath);
+        markBunAppRunnerWorkspaceActive(workspacePath);
 
         appendLogLine(workspacePath, `[system] started ${options.label}`);
         if (serverProcess.stdout)
@@ -222,7 +225,7 @@ export function createBunAppRunner(options: {
             const current = servers.get(workspacePath);
             if (current === serverProcess) {
                 servers.delete(workspacePath);
-                if (!installs.has(workspacePath)) markWorkspaceInactive(workspacePath);
+                if (!installs.has(workspacePath)) markBunAppRunnerWorkspaceInactive(workspacePath);
                 appendLogLine(workspacePath, `[system] ${options.label} exited`);
             }
         });

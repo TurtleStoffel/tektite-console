@@ -7,8 +7,11 @@ import {
     type ThreadItem,
     type Usage,
 } from "@openai/codex-sdk";
+import {
+    markCodexWorkspaceActive,
+    markCodexWorkspaceInactive,
+} from "./domains/worktrees/workspaceActivity";
 import { finalizeGitState } from "./git";
-import { markWorkspaceActive, markWorkspaceInactive } from "./workspaceActivity";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }
@@ -289,7 +292,7 @@ export function streamCodexRun(options: {
     const stream = new ReadableStream({
         start: async (controller) => {
             _controllerRef = controller;
-            markWorkspaceActive(workingDirectory);
+            markCodexWorkspaceActive(workingDirectory);
 
             const send = (chunk: StreamChunk) => {
                 if (cancelled) return;
@@ -365,7 +368,7 @@ export function streamCodexRun(options: {
             } finally {
                 closeStream();
                 _controllerRef = null;
-                markWorkspaceInactive(workingDirectory);
+                markCodexWorkspaceInactive(workingDirectory);
             }
         },
         cancel: () => {
@@ -373,7 +376,7 @@ export function streamCodexRun(options: {
             _controllerRef = null;
             // eslint-disable-next-line no-console
             console.log("[codex] stream cancelled by client");
-            markWorkspaceInactive(workingDirectory);
+            markCodexWorkspaceInactive(workingDirectory);
         },
     });
 

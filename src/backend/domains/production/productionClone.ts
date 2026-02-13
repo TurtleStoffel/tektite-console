@@ -9,7 +9,7 @@ import {
     detectRepoChanges,
     sanitizeRepoName,
 } from "../../git";
-import { isWorkspaceActive } from "../../workspaceActivity";
+import { isWorkspaceActive } from "../worktrees/workspaceActivity";
 
 export type ProductionCloneInfo = {
     path: string;
