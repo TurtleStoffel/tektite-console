@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { emitSelectedRepo } from "./events";
+import CommandPanel from "./CommandPanel";
 import { Markdown } from "./Markdown";
 import { ClonesSection } from "./project-details/ClonesSection";
 import {
@@ -101,11 +101,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             window.clearInterval(interval);
         };
     }, [id]);
-
-    useEffect(() => {
-        if (!project?.url) return;
-        emitSelectedRepo({ url: project.url, source: "project-details" });
-    }, [project?.url]);
 
     useEffect(() => {
         setRepositorySelection(project?.repositoryId ?? "");
@@ -570,6 +565,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 </div>
                             )}
                         </div>
+
+                        {project.url && (
+                            <div className="space-y-2">
+                                <div className="text-sm text-base-content/60">Commands</div>
+                                <div className="card bg-base-100 border border-base-300">
+                                    <div className="card-body p-4">
+                                        <CommandPanel selectedRepoUrl={project.url} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {project.remoteBranch?.status === "upToDate" &&
                             project.remoteBranch.fetched === true && (

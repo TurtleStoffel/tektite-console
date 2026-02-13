@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { subscribeSelectedRepo } from "./events";
 
 type StreamMessage =
     | { type: "agent_message"; text?: string }
@@ -40,16 +39,15 @@ function createRunStatusBadge(status: RunStatus) {
     return `${base} badge-error`;
 }
 
-export function CommandPanel() {
+type CommandPanelProps = {
+    selectedRepoUrl: string | null;
+};
+
+export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [runs, setRuns] = useState<CommandRun[]>([]);
-    const [selectedRepoUrl, setSelectedRepoUrl] = useState<string | null>(null);
     const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
-
-    useEffect(() => {
-        return subscribeSelectedRepo(({ url }) => setSelectedRepoUrl(url));
-    }, []);
 
     useEffect(() => {
         return () => {
