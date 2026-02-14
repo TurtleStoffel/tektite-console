@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from "react";
 
 type StreamMessage = { type: string; error?: string };
 
-type CommandPanelProps = {
+type TaskExecutionPanelProps = {
     selectedRepoUrl: string | null;
     onTaskStarted: () => void;
 };
 
-export default function CommandPanel({
+export default function TaskExecutionPanel({
     selectedRepoUrl,
     onTaskStarted = () => {},
-}: CommandPanelProps) {
-    const [commandInput, setCommandInput] = useState("");
+}: TaskExecutionPanelProps) {
+    const [taskPrompt, setTaskPrompt] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -27,10 +27,10 @@ export default function CommandPanel({
     }, []);
     const running = activeRuns > 0;
 
-    const handleExecute = async () => {
-        const trimmedCommand = commandInput.trim();
-        if (!trimmedCommand) {
-            setValidationMessage("Enter a command before executing.");
+    const handleExecuteTask = async () => {
+        const trimmedPrompt = taskPrompt.trim();
+        if (!trimmedPrompt) {
+            setValidationMessage("Enter a task before executing.");
             return;
         }
 
@@ -45,7 +45,7 @@ export default function CommandPanel({
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);
-        console.log(`[command-panel] starting run for ${selectedRepoUrl}`);
+        console.log(`[task-execution-panel] starting run for ${selectedRepoUrl}`);
 
         try {
             const res = await fetch("/api/execute", {
@@ -55,7 +55,7 @@ export default function CommandPanel({
                     Accept: "text/event-stream",
                 },
                 body: JSON.stringify({
-                    prompt: trimmedCommand,
+                    prompt: trimmedPrompt,
                     repository: { type: "git", url: selectedRepoUrl },
                 }),
                 signal: abortController.signal,
@@ -148,7 +148,7 @@ export default function CommandPanel({
             }
 
             setStatusMessage(null);
-            console.log("[command-panel] finished run");
+            console.log("[task-execution-panel] finished run");
         } catch (error) {
             if (abortController.signal.aborted) {
                 setStatusMessage("Execution cancelled.");
@@ -157,38 +157,38 @@ export default function CommandPanel({
             const message =
                 error instanceof Error ? error.message : "Unexpected error while executing.";
             setStatusMessage(`Error: ${message}`);
-            console.warn("[command-panel] run failed", error);
+            console.warn("[task-execution-panel] run failed", error);
         } finally {
             abortControllersRef.current.delete(abortController);
             setActiveRuns((count) => Math.max(0, count - 1));
         }
     };
 
-    const canExecute = Boolean(commandInput.trim()) && Boolean(selectedRepoUrl);
+    const canExecute = Boolean(taskPrompt.trim()) && Boolean(selectedRepoUrl);
 
     return (
         <>
             <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Tasks Executor</h2>
+                <h2 className="text-xl font-semibold">Task execution</h2>
                 <p className="text-sm text-base-content/70">
-                    Enter a command to execute in a new worktree.
+                    Enter a task to execute in a new worktree.
                 </p>
             </div>
             <div className="form-control gap-2">
                 <textarea
-                    placeholder="Enter command"
+                    placeholder="Enter task"
                     className="textarea textarea-bordered w-full min-h-[120px]"
-                    value={commandInput}
-                    onChange={(event) => setCommandInput(event.target.value)}
+                    value={taskPrompt}
+                    onChange={(event) => setTaskPrompt(event.target.value)}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
                     <button
                         className="btn btn-primary"
                         type="button"
-                        onClick={handleExecute}
+                        onClick={handleExecuteTask}
                         disabled={!canExecute}
                     >
-                        Execute
+                        Execute task
                     </button>
                     {running && (
                         <button
