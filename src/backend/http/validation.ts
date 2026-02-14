@@ -2,7 +2,7 @@ import type { z } from "zod";
 
 export const jsonHeaders = { "Content-Type": "application/json" };
 
-export function invalidRequestResponse(error: string, issues?: z.ZodIssue[]) {
+function invalidRequestResponse(error: string, issues?: z.ZodIssue[]) {
     return new Response(JSON.stringify(issues ? { error, issues } : { error }), {
         status: 400,
         headers: jsonHeaders,

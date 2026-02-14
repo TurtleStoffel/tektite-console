@@ -76,5 +76,3 @@ export function EnvIndicator() {
         </span>
     );
 }
-
-export default EnvIndicator;

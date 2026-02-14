@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type DocumentNodeProps = {
+type DocumentNodeProps = {
     id: string;
     label: string;
     width: number;
@@ -12,7 +12,7 @@ export type DocumentNodeProps = {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
-export function DocumentNode({
+export default function DocumentNode({
     id,
     label,
     width,
@@ -38,5 +38,3 @@ export function DocumentNode({
         </div>
     );
 }
-
-export default DocumentNode;

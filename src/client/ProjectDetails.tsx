@@ -538,5 +538,3 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         </div>
     );
 }
-
-export default ProjectDetails;

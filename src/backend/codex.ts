@@ -33,7 +33,7 @@ const COMMIT_AND_PR_INSTRUCTION =
     "Before finishing, write your desired commit message into commit-details.txt";
 const WORKTREE_THREADS_FILENAME = "worktree-threads.json";
 
-export type ThreadMetadata = {
+type ThreadMetadata = {
     threadId: string;
     lastMessage?: string;
     lastEvent?: string;

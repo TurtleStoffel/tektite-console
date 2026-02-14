@@ -6,7 +6,7 @@ type CommandPanelProps = {
     selectedRepoUrl: string | null;
 };
 
-export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
+export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
@@ -207,5 +207,3 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
         </>
     );
 }
-
-export default CommandPanel;

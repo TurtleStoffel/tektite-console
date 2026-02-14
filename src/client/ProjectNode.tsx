@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type ProjectNodeProps = {
+type ProjectNodeProps = {
     id: string;
     label: string;
     width: number;
@@ -12,7 +12,7 @@ export type ProjectNodeProps = {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
-export function ProjectNode({
+export default function ProjectNode({
     id,
     label,
     width,
@@ -38,5 +38,3 @@ export function ProjectNode({
         </div>
     );
 }
-
-export default ProjectNode;

@@ -4,9 +4,9 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "./exec";
 
-export type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
+type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
 
-export type PullRequestStatus = {
+type PullRequestStatus = {
     state: PullRequestState;
     number?: number;
     title?: string;
@@ -141,14 +141,14 @@ async function updateBaseRepo(baseDir: string): Promise<string> {
     return resolveDefaultBranch(baseDir);
 }
 
-export async function cloneRepository(repoUrl: string, targetDir: string) {
+async function cloneRepository(repoUrl: string, targetDir: string) {
     const quotedUrl = JSON.stringify(repoUrl);
     const quotedTargetDir = JSON.stringify(targetDir);
     await mkdir(path.dirname(targetDir), { recursive: true });
     await execAsync(`git clone ${quotedUrl} ${quotedTargetDir}`);
 }
 
-export async function createWorktree(baseDir: string, repoName: string, clonesDir: string) {
+async function createWorktree(baseDir: string, repoName: string, clonesDir: string) {
     const defaultBranch = await updateBaseRepo(baseDir);
     const uniqueId = randomUUID();
     const worktreeName = `${repoName}-${uniqueId}`;

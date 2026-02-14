@@ -228,5 +228,3 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         </div>
     );
 }
-
-export default ProjectsPage;

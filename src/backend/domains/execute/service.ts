@@ -2,7 +2,7 @@ import { Result } from "typescript-result";
 import { streamCodexRun } from "../../codex";
 import { ensureClonesDir, prepareWorktree } from "../../git";
 
-export class ExecutePrepareError extends Error {
+class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
 
     constructor(message: string, options?: { cause?: unknown }) {
@@ -11,7 +11,7 @@ export class ExecutePrepareError extends Error {
     }
 }
 
-export class ExecuteStreamError extends Error {
+class ExecuteStreamError extends Error {
     readonly type = "execute-stream-error";
 
     constructor(message: string, options?: { cause?: unknown }) {
@@ -19,8 +19,6 @@ export class ExecuteStreamError extends Error {
         this.name = "ExecuteStreamError";
     }
 }
-
-export type ExecuteServiceError = ExecutePrepareError | ExecuteStreamError;
 
 export function createExecuteService(options: { clonesDir: string }) {
     const { clonesDir } = options;

@@ -11,9 +11,9 @@ import {
 } from "../../git";
 import { getTerminalSessionByWorkspacePath } from "../worktrees/terminal";
 
-export type CloneLocation = "clonesDir";
+type CloneLocation = "clonesDir";
 
-export type CloneInfo = {
+type CloneInfo = {
     path: string;
     location: CloneLocation;
     port?: number | null;

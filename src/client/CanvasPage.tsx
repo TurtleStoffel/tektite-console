@@ -602,5 +602,3 @@ export function CanvasPage({ drawerToggleId }: { drawerToggleId: string }) {
         </div>
     );
 }
-
-export default CanvasPage;

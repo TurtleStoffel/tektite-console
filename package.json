@@ -37,6 +37,7 @@
         "@types/bun": "latest",
         "@types/react": "^19.2.13",
         "@types/react-dom": "^19.2.3",
+        "knip": "^5.83.1",
         "supabase": "^2.76.6",
         "typescript": "^5.9.3"
     }

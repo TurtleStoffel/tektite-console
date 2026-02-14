@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type RepositoryNodeProps = {
+type RepositoryNodeProps = {
     id: string;
     label: string;
     width: number;
@@ -12,7 +12,7 @@ export type RepositoryNodeProps = {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
 };
 
-export function RepositoryNode({
+export default function RepositoryNode({
     id,
     label,
     width,
@@ -40,5 +40,3 @@ export function RepositoryNode({
         </div>
     );
 }
-
-export default RepositoryNode;

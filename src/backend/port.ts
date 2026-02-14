@@ -1,4 +1,4 @@
-export function isPortFree(port: number): boolean {
+function isPortFree(port: number): boolean {
     const canBind = (hostname: string) => {
         try {
             const server = Bun.listen({

@@ -354,5 +354,3 @@ export function DocumentsPage({ drawerToggleId }: DocumentsPageProps) {
         </div>
     );
 }
-
-export default DocumentsPage;

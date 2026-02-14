@@ -140,5 +140,3 @@ export function RepositoriesPage({ drawerToggleId }: RepositoriesPageProps) {
         </div>
     );
 }
-
-export default RepositoriesPage;

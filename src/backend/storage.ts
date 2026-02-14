@@ -5,7 +5,7 @@ import type * as localSchema from "./db/local/schema";
 import { initLocalStorage } from "./db/local/storage";
 import { initSupabaseStorage } from "./db/supabase/storage";
 
-export type Storage = {
+type Storage = {
     localDb: BunSQLiteDatabase<typeof localSchema>;
     supabaseDb: BunSQLDatabase<Record<string, never>>;
     supabaseSql: SQL;

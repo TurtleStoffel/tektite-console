@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { type BunSQLiteDatabase, drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./schema";
 
-export type LocalStorage = {
+type LocalStorage = {
     db: BunSQLiteDatabase<typeof schema>;
 };
 

@@ -1,10 +1,10 @@
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
-import CanvasPage from "./CanvasPage";
-import DocumentsPage from "./DocumentsPage";
-import EnvIndicator from "./EnvIndicator";
-import ProjectDetails from "./ProjectDetails";
-import ProjectsPage from "./ProjectsPage";
-import RepositoriesPage from "./RepositoriesPage";
+import { CanvasPage } from "./CanvasPage";
+import { DocumentsPage } from "./DocumentsPage";
+import { EnvIndicator } from "./EnvIndicator";
+import { ProjectDetails } from "./ProjectDetails";
+import { ProjectsPage } from "./ProjectsPage";
+import { RepositoriesPage } from "./RepositoriesPage";
 import "./index.css";
 
 export function App() {
@@ -94,5 +94,3 @@ export function App() {
         </div>
     );
 }
-
-export default App;

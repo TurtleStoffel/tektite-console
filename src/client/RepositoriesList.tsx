@@ -4,7 +4,7 @@ type RepositoriesListProps = {
     repos: RepositorySummary[];
 };
 
-export function RepositoriesList({ repos }: RepositoriesListProps) {
+export default function RepositoriesList({ repos }: RepositoriesListProps) {
     return (
         <div className="space-y-3">
             {repos.map((repo) => {
@@ -35,5 +35,3 @@ export function RepositoriesList({ repos }: RepositoriesListProps) {
         </div>
     );
 }
-
-export default RepositoriesList;

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/client/frontend.tsx"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "daisyui",
+    "reactflow",
+    "tailwindcss",
+    "supabase"
+  ],
+  "ignoreFiles": [
+    "src/backend/db/supabase/schema.ts",
+    "src/client/Drawer.tsx",
+    "src/client/GithubRepoCard.tsx",
+    "src/shared/normalizeRepoUrl.ts"
+  ],
+  "ignore": [
+    "data/**",
+    "dist/**"
+  ]
+}
