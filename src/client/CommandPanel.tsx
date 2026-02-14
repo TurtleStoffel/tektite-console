@@ -4,9 +4,13 @@ type StreamMessage = { type: string; error?: string };
 
 type CommandPanelProps = {
     selectedRepoUrl: string | null;
+    onTaskStarted: () => void;
 };
 
-export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
+export default function CommandPanel({
+    selectedRepoUrl,
+    onTaskStarted = () => {},
+}: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
@@ -21,6 +25,7 @@ export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
             abortControllersRef.current.clear();
         };
     }, []);
+    const running = activeRuns > 0;
 
     const handleExecute = async () => {
         const trimmedCommand = commandInput.trim();
@@ -37,6 +42,7 @@ export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
         setValidationMessage(null);
         setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
+        onTaskStarted();
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);
@@ -140,7 +146,7 @@ export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
                 return;
             }
 
-            setStatusMessage("Codex run completed. Check the worktree card below for logs.");
+            setStatusMessage(null);
             console.log("[command-panel] finished run");
         } catch (error) {
             if (abortController.signal.aborted) {
@@ -158,7 +164,6 @@ export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
     };
 
     const canExecute = Boolean(commandInput.trim()) && Boolean(selectedRepoUrl);
-    const running = activeRuns > 0;
 
     return (
         <>
@@ -182,7 +187,7 @@ export default function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
                         onClick={handleExecute}
                         disabled={!canExecute}
                     >
-                        {running ? "Running..." : "Execute"}
+                        Execute
                     </button>
                     {running && (
                         <button
