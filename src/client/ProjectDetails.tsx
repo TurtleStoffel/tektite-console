@@ -495,32 +495,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             </div>
                         )}
 
-                        {project.remoteBranch?.status === "upToDate" &&
-                            project.remoteBranch.fetched === true && (
-                                <div className="alert alert-success py-2">
-                                    <span className="text-sm">
-                                        Up to date with <span className="font-mono">origin</span>.
-                                    </span>
-                                </div>
-                            )}
-
-                        {typeof project.remoteBranch?.behindCount === "number" &&
-                            project.remoteBranch.behindCount > 0 &&
-                            project.remoteBranch.fetched === true &&
-                            (project.remoteBranch.status === "behind" ||
-                                project.remoteBranch.status === "diverged") && (
-                                <div className="alert alert-warning py-2">
-                                    <span className="text-sm">
-                                        Remote has {project.remoteBranch.behindCount} commit
-                                        {project.remoteBranch.behindCount === 1 ? "" : "s"} on{" "}
-                                        <span className="font-mono">
-                                            {project.remoteBranch.branch ?? "current branch"}
-                                        </span>{" "}
-                                        you haven&apos;t pulled locally.
-                                    </span>
-                                </div>
-                            )}
-
                         <div className="divider my-0" />
 
                         <ClonesSection

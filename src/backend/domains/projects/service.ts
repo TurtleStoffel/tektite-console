@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { readThreadMap } from "../../codex";
 import type * as schema from "../../db/local/schema";
 import { findRepositoryClones } from "./cloneDiscovery";
-import { getRemoteBranchUpdateStatus } from "./remoteUpdates";
 import * as repository from "./repository";
 
 type Db = BunSQLiteDatabase<typeof schema>;
@@ -73,52 +71,12 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
                 };
             });
 
-            let remoteBranch = null;
-            const serverCwd = process.cwd();
-            const serverCwdClone = clonesWithCodex.find(
-                (clone) => serverCwd === clone.path || serverCwd.startsWith(clone.path + path.sep),
-            );
-            const inUseClone = clonesWithCodex.find((clone) => clone.inUse);
-            const anyWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree);
-            const nonWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree === false);
-
-            const remoteCheckChoice =
-                (serverCwdClone && { path: serverCwdClone.path, reason: "serverCwd" }) ||
-                (inUseClone && { path: inUseClone.path, reason: "inUse" }) ||
-                (anyWorktreeClone && { path: anyWorktreeClone.path, reason: "worktree" }) ||
-                (nonWorktreeClone && { path: nonWorktreeClone.path, reason: "nonWorktree" }) ||
-                (clones[0]?.path && { path: clones[0].path, reason: "firstClone" }) ||
-                null;
-
-            const remoteCheckPath = remoteCheckChoice?.path ?? null;
-            if (remoteCheckPath) {
-                console.log("[remote-updates] selecting repo for remote check", {
-                    projectId,
-                    repositoryUrl,
-                    remoteCheckPath,
-                    reason: remoteCheckChoice?.reason,
-                    serverCwd,
-                    cloneCount: clonesWithCodex.length,
-                });
-                try {
-                    remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
-                } catch (error) {
-                    console.warn("[remote-updates] remote check failed", {
-                        projectId,
-                        remoteCheckPath,
-                        error,
-                    });
-                    remoteBranch = null;
-                }
-            }
-
             return {
                 id: project.id,
                 name: project.name,
                 repositoryId: project.repositoryId ?? null,
                 url: repositoryUrl,
                 clones: clonesWithCodex,
-                remoteBranch,
             };
         },
 
