@@ -8,15 +8,11 @@
   ],
   "ignoreDependencies": [
     "daisyui",
-    "reactflow",
     "tailwindcss",
     "supabase"
   ],
   "ignoreFiles": [
-    "src/backend/db/supabase/schema.ts",
-    "src/client/Drawer.tsx",
-    "src/client/GithubRepoCard.tsx",
-    "src/shared/normalizeRepoUrl.ts"
+    "src/backend/db/supabase/schema.ts"
   ],
   "ignore": [
     "data/**",

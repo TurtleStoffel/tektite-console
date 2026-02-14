@@ -18,18 +18,17 @@
     "dependencies": {
         "@openai/codex-sdk": "^0.98.0",
         "@tanstack/react-query": "^5.90.20",
+        "@xterm/addon-fit": "^0.10.0",
         "bun-plugin-tailwind": "^0.1.2",
+        "bun-pty": "^0.4.0",
         "daisyui": "^5.5.18",
         "drizzle-orm": "^0.44.7",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "react-router-dom": "^7.13.0",
-        "reactflow": "^11.11.4",
         "tailwindcss": "^4.1.18",
-        "@xterm/addon-fit": "^0.10.0",
-        "xterm": "^5.3.0",
-        "bun-pty": "^0.4.0",
         "typescript-result": "^3.5.2",
+        "xterm": "^5.3.0",
         "zod": "^3.25.76"
     },
     "devDependencies": {
