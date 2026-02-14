@@ -39,7 +39,7 @@
   - List those files and the key constraints you will follow for this task.
 - When you are finished, run `bun run format`.
 - Then run `bun run lint`.
-- Then run `TMPDIR=/tmp bun install`.
+- Then run `TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache BUN_INSTALL_CACHE_DIR=/tmp/.bun bun install`.
 - Then run `bun run typecheck`.
 - Then run `bun run knip`.
 - Do not run `format` and `lint` in parallel; run them sequentially to avoid stale-file race conditions.
