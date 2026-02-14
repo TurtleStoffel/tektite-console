@@ -1,5 +1,6 @@
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { CanvasPage } from "./CanvasPage";
+import { DependenciesPage } from "./DependenciesPage";
 import { DocumentsPage } from "./DocumentsPage";
 import { EnvIndicator } from "./EnvIndicator";
 import { ProjectDetails } from "./ProjectDetails";
@@ -16,6 +17,7 @@ export function App() {
         { to: "/repositories", label: "Repositories" },
         { to: "/documents", label: "Documents" },
         { to: "/canvas", label: "Canvas" },
+        { to: "/dependencies", label: "Dependencies" },
     ];
 
     return (
@@ -59,6 +61,10 @@ export function App() {
                     <Route
                         path="/canvas"
                         element={<CanvasPage drawerToggleId={entityDrawerId} />}
+                    />
+                    <Route
+                        path="/dependencies"
+                        element={<DependenciesPage drawerToggleId={entityDrawerId} />}
                     />
                     <Route
                         path="/projects/:id"

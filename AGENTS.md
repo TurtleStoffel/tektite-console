@@ -16,6 +16,9 @@
 - Language: TypeScript + React function components
 - Styling: favor Tailwind utility classes with DaisyUI components
 - Prefer failing hard over catching errors and setting defaults, only catch exceptions if you can meaningfully recover from the error
+- Keep the surface area of `try/catch` blocks as small as possible.
+- Use `try/catch` only at boundaries calling external libraries or platform APIs that throw exceptions.
+- For internal code paths, model failures with `typescript-result` instead of throwing/catching exceptions.
 - Add logs that make it easier to understand what is happening at runtime
 
 ## Libraries & Tooling
@@ -31,6 +34,9 @@
   - Repositories interact with the database only.
 
 ## Completion Checklist
+- Before making any code changes, do a constraints check:
+  - Read every `AGENTS.md` file that applies to directories you will modify.
+  - List those files and the key constraints you will follow for this task.
 - When you are finished, run `bun run format`.
 - Then run `bun run lint`.
 - Then run `bun run typecheck`.
