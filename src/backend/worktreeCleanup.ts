@@ -36,6 +36,9 @@ async function removeWorktreeIfEligible(worktreePath: string) {
     }
 
     if (prStatus.state === "open" || prStatus.state === "draft") {
+        console.log(
+            `[${PR_CLEANUP_JOB_NAME}] Keeping ${worktreeName}; branch has an open PR (pr=${prStatus.state}).`,
+        );
         return;
     }
 
