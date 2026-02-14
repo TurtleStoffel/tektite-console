@@ -1,4 +1,7 @@
-const terminalWorkspaceActivity = new Map<string, boolean>();
+import fs from "node:fs";
+import path from "node:path";
+import { TEKTITE_PORT_FILE } from "../../../constants";
+
 const codexWorkspaceActivity = new Map<string, boolean>();
 
 function setWorkspaceActivity(
@@ -15,14 +18,6 @@ function setWorkspaceActivity(
     activityMap.delete(workspacePath);
 }
 
-export function markTerminalWorkspaceActive(workspacePath: string) {
-    setWorkspaceActivity(terminalWorkspaceActivity, workspacePath, true);
-}
-
-export function markTerminalWorkspaceInactive(workspacePath: string) {
-    setWorkspaceActivity(terminalWorkspaceActivity, workspacePath, false);
-}
-
 export function markCodexWorkspaceActive(workspacePath: string) {
     setWorkspaceActivity(codexWorkspaceActivity, workspacePath, true);
 }
@@ -31,10 +26,19 @@ export function markCodexWorkspaceInactive(workspacePath: string) {
     setWorkspaceActivity(codexWorkspaceActivity, workspacePath, false);
 }
 
+function hasActiveTektiteServer(workspacePath: string) {
+    const tektitePortPath = path.join(workspacePath, TEKTITE_PORT_FILE);
+    try {
+        return fs.existsSync(tektitePortPath);
+    } catch (error) {
+        console.warn(`Failed checking ${TEKTITE_PORT_FILE} at ${tektitePortPath}`, error);
+        return false;
+    }
+}
+
 export function isWorkspaceActive(workspacePath: string) {
     if (!workspacePath) return false;
     return (
-        terminalWorkspaceActivity.get(workspacePath) === true ||
-        codexWorkspaceActivity.get(workspacePath) === true
+        hasActiveTektiteServer(workspacePath) || codexWorkspaceActivity.get(workspacePath) === true
     );
 }
