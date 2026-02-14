@@ -9,14 +9,16 @@ type CommandPanelProps = {
 export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
-    const [running, setRunning] = useState(false);
+    const [activeRuns, setActiveRuns] = useState(0);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
-    const abortControllerRef = useRef<AbortController | null>(null);
+    const abortControllersRef = useRef<Set<AbortController>>(new Set());
 
     useEffect(() => {
         return () => {
-            abortControllerRef.current?.abort();
-            abortControllerRef.current = null;
+            for (const controller of abortControllersRef.current) {
+                controller.abort();
+            }
+            abortControllersRef.current.clear();
         };
     }, []);
 
@@ -33,11 +35,11 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
         }
 
         setValidationMessage(null);
-        setRunning(true);
+        setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
 
         const abortController = new AbortController();
-        abortControllerRef.current = abortController;
+        abortControllersRef.current.add(abortController);
         console.log(`[command-panel] starting run for ${selectedRepoUrl}`);
 
         try {
@@ -150,12 +152,13 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
             setStatusMessage(`Error: ${message}`);
             console.warn("[command-panel] run failed", error);
         } finally {
-            abortControllerRef.current = null;
-            setRunning(false);
+            abortControllersRef.current.delete(abortController);
+            setActiveRuns((count) => Math.max(0, count - 1));
         }
     };
 
     const canExecute = Boolean(commandInput.trim()) && Boolean(selectedRepoUrl);
+    const running = activeRuns > 0;
 
     return (
         <>
@@ -171,14 +174,13 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
                     className="textarea textarea-bordered w-full min-h-[120px]"
                     value={commandInput}
                     onChange={(event) => setCommandInput(event.target.value)}
-                    disabled={running}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
                     <button
                         className="btn btn-primary"
                         type="button"
                         onClick={handleExecute}
-                        disabled={!canExecute || running}
+                        disabled={!canExecute}
                     >
                         {running ? "Running..." : "Execute"}
                     </button>
@@ -187,8 +189,10 @@ export function CommandPanel({ selectedRepoUrl }: CommandPanelProps) {
                             className="btn btn-ghost"
                             type="button"
                             onClick={() => {
-                                abortControllerRef.current?.abort();
-                                abortControllerRef.current = null;
+                                for (const controller of abortControllersRef.current) {
+                                    controller.abort();
+                                }
+                                abortControllersRef.current.clear();
                             }}
                         >
                             Cancel
