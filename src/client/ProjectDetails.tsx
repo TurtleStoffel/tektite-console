@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import CommandPanel from "./CommandPanel";
 import { Markdown } from "./Markdown";
 import { ClonesSection } from "./project-details/ClonesSection";
 import { buildPreviewTargets } from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
+import TaskExecutionPanel from "./TaskExecutionPanel";
 import type { RepositorySummary } from "./types/repositories";
 
 type ProjectDetailsProps = {
@@ -296,9 +296,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const currentRepositoryId = project?.repositoryId ?? "";
     const repositoryChanged = repositorySelection !== currentRepositoryId;
-    const cloneCount = project?.clones?.length ?? 0;
-    const linkedDocumentCount = documents.length;
-    const hasPreview = previewTargets.length > 0;
 
     return (
         <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
@@ -309,10 +306,23 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             <p className="text-xs uppercase tracking-[0.18em] text-base-content/60">
                                 Project workspace
                             </p>
-                            <h1 className="text-2xl sm:text-3xl font-bold">Project details</h1>
-                            <p className="text-xs sm:text-sm text-base-content/70 break-all">
-                                {id}
-                            </p>
+                            <h1 className="text-2xl sm:text-3xl font-bold">
+                                {project?.name ?? "Project details"}
+                            </h1>
+                            <div className="text-xs sm:text-sm text-base-content/70 break-all">
+                                {project?.url ? (
+                                    <a
+                                        href={project.url}
+                                        className="link link-hover"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        {project.url}
+                                    </a>
+                                ) : (
+                                    "No repository linked yet."
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Link to="/" className="btn btn-outline btn-sm">
@@ -324,22 +334,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             >
                                 Menu
                             </label>
-                        </div>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
-                            <div className="text-xs text-base-content/60">Local clones</div>
-                            <div className="text-2xl font-semibold">{cloneCount}</div>
-                        </div>
-                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
-                            <div className="text-xs text-base-content/60">Linked documents</div>
-                            <div className="text-2xl font-semibold">{linkedDocumentCount}</div>
-                        </div>
-                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
-                            <div className="text-xs text-base-content/60">Live preview</div>
-                            <div className="text-2xl font-semibold">
-                                {hasPreview ? "Available" : "None"}
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -465,19 +459,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         </div>
                                     )}
                                 </div>
-                                {project.url && (
-                                    <div className="space-y-2">
-                                        <div className="text-sm text-base-content/60">Commands</div>
-                                        <div className="rounded-xl border border-base-300 bg-base-100 p-4">
-                                            <CommandPanel
-                                                selectedRepoUrl={project.url}
-                                                onTaskStarted={() => {
-                                                    void refreshProject();
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
                                 <div className="divider my-0" />
                                 <ClonesSection
                                     clones={project.clones}
@@ -506,6 +487,18 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 />
                             </div>
                         </div>
+                        {project.url && (
+                            <div className="card bg-base-200 border border-base-300 shadow-sm">
+                                <div className="card-body p-5 sm:p-6">
+                                    <TaskExecutionPanel
+                                        selectedRepoUrl={project.url}
+                                        onTaskStarted={() => {
+                                            void refreshProject();
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6 xl:sticky xl:top-6 self-start">
