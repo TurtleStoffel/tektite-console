@@ -4,10 +4,10 @@ type StreamMessage = { type: string; error?: string };
 
 type CommandPanelProps = {
     selectedRepoUrl: string | null;
-    onRunningChange?: (running: boolean) => void;
+    onTaskStarted?: () => void;
 };
 
-export default function CommandPanel({ selectedRepoUrl, onRunningChange }: CommandPanelProps) {
+export default function CommandPanel({ selectedRepoUrl, onTaskStarted }: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
@@ -24,10 +24,6 @@ export default function CommandPanel({ selectedRepoUrl, onRunningChange }: Comma
     }, []);
     const running = activeRuns > 0;
 
-    useEffect(() => {
-        onRunningChange?.(running);
-    }, [onRunningChange, running]);
-
     const handleExecute = async () => {
         const trimmedCommand = commandInput.trim();
         if (!trimmedCommand) {
@@ -43,6 +39,7 @@ export default function CommandPanel({ selectedRepoUrl, onRunningChange }: Comma
         setValidationMessage(null);
         setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
+        onTaskStarted?.();
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);

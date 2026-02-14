@@ -42,7 +42,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
-    const [taskRunning, setTaskRunning] = useState(false);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project);
@@ -129,19 +128,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         }
     }, [id]);
-
-    useEffect(() => {
-        if (!taskRunning) return;
-
-        void refreshProject();
-        const interval = window.setInterval(() => {
-            void refreshProject();
-        }, 2000);
-
-        return () => {
-            window.clearInterval(interval);
-        };
-    }, [taskRunning, refreshProject]);
 
     const loadRepositories = useCallback(async () => {
         setRepositoriesLoading(true);
@@ -505,7 +491,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     <div className="card-body p-4">
                                         <CommandPanel
                                             selectedRepoUrl={project.url}
-                                            onRunningChange={setTaskRunning}
+                                            onTaskStarted={() => {
+                                                void refreshProject();
+                                            }}
                                         />
                                     </div>
                                 </div>
