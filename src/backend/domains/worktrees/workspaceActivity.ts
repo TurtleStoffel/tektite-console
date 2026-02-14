@@ -1,4 +1,7 @@
-const terminalWorkspaceActivity = new Map<string, boolean>();
+import fs from "node:fs";
+import path from "node:path";
+import { TEKTITE_PORT_FILE } from "../../../constants";
+
 const codexWorkspaceActivity = new Map<string, boolean>();
 
 function setWorkspaceActivity(
@@ -15,14 +18,6 @@ function setWorkspaceActivity(
     activityMap.delete(workspacePath);
 }
 
-export function markTerminalWorkspaceActive(workspacePath: string) {
-    setWorkspaceActivity(terminalWorkspaceActivity, workspacePath, true);
-}
-
-export function markTerminalWorkspaceInactive(workspacePath: string) {
-    setWorkspaceActivity(terminalWorkspaceActivity, workspacePath, false);
-}
-
 export function markCodexWorkspaceActive(workspacePath: string) {
     setWorkspaceActivity(codexWorkspaceActivity, workspacePath, true);
 }
@@ -33,8 +28,22 @@ export function markCodexWorkspaceInactive(workspacePath: string) {
 
 export function isWorkspaceActive(workspacePath: string) {
     if (!workspacePath) return false;
-    return (
-        terminalWorkspaceActivity.get(workspacePath) === true ||
-        codexWorkspaceActivity.get(workspacePath) === true
-    );
+    const tektitePortPath = path.join(workspacePath, TEKTITE_PORT_FILE);
+    let hasActiveTektiteServer = false;
+    try {
+        if (fs.existsSync(tektitePortPath)) {
+            const portText = fs.readFileSync(tektitePortPath, "utf8").trim();
+            const port = Number.parseInt(portText, 10);
+            hasActiveTektiteServer = Number.isInteger(port) && port > 0;
+            if (!hasActiveTektiteServer) {
+                console.warn(
+                    `Invalid ${TEKTITE_PORT_FILE} contents at ${tektitePortPath}: ${portText}`,
+                );
+            }
+        }
+    } catch (error) {
+        console.warn(`Failed reading ${TEKTITE_PORT_FILE} at ${tektitePortPath}`, error);
+    }
+
+    return hasActiveTektiteServer || codexWorkspaceActivity.get(workspacePath) === true;
 }

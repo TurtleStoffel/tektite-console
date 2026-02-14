@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { ServerWebSocket } from "bun";
 import { spawn } from "bun-pty";
-import { markTerminalWorkspaceActive, markTerminalWorkspaceInactive } from "./workspaceActivity";
 
 type TerminalSession = {
     id: string;
@@ -34,7 +33,6 @@ function closeSession(session: TerminalSession) {
     for (const socket of session.sockets) {
         socket.close();
     }
-    markTerminalWorkspaceInactive(session.workspacePath);
 }
 
 function createTerminalSession(workspacePath: string): TerminalSession {
@@ -59,7 +57,6 @@ function createTerminalSession(workspacePath: string): TerminalSession {
 
     sessionsById.set(session.id, session);
     sessionIdByWorkspace.set(normalizedWorkspacePath, session.id);
-    markTerminalWorkspaceActive(normalizedWorkspacePath);
 
     pty.onData((data) => {
         const payload = JSON.stringify({ type: "output", data });
