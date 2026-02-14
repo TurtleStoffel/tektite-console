@@ -1,4 +1,3 @@
-import type { Server } from "bun";
 import { z } from "zod";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
 import { createWorktreesService } from "./service";
@@ -11,7 +10,7 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
 
     return {
         "/api/worktrees/dev-terminal/start": {
-            async POST(req: Server.Request) {
+            async POST(req: Request) {
                 const parsed = await parseJsonBody({
                     req,
                     schema: worktreePathBodySchema,
@@ -33,7 +32,7 @@ export function createDevServerRoutes(options: { clonesDir: string }) {
         },
 
         "/api/worktrees/dev-terminal": {
-            async GET(req: Server.Request) {
+            async GET(req: Request) {
                 const url = new URL(req.url);
                 const parsedQuery = parseInput({
                     input: { path: url.searchParams.get("path") },

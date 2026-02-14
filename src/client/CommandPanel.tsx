@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-type StreamMessage = { type: "error"; error?: string } | { type: string };
+type StreamMessage = { type: string; error?: string };
 
 type CommandPanelProps = {
     selectedRepoUrl: string | null;

@@ -75,6 +75,9 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
             mergedAt?: string | null;
             isDraft?: boolean;
         }>;
+        if (!pr) {
+            return { state: "none" };
+        }
 
         const state = typeof pr.state === "string" ? pr.state.toLowerCase() : "unknown";
         let mappedState: PullRequestState = "unknown";
@@ -117,8 +120,9 @@ async function resolveDefaultBranch(baseDir: string): Promise<string> {
             cwd: baseDir,
         });
         const match = stdout.trim().match(/^refs\/remotes\/origin\/(.+)$/);
-        if (match?.[1]) {
-            return match[1];
+        const resolvedDefaultBranch = match?.[1];
+        if (resolvedDefaultBranch) {
+            return resolvedDefaultBranch;
         }
     } catch {
         // Fall through to common branch names.
@@ -406,10 +410,14 @@ export function extractWorktreeRepoRoot(worktreePath: string) {
             return null;
         }
 
-        const gitDir = match[1].trim();
-        const absoluteGitDir = path.isAbsolute(gitDir)
-            ? gitDir
-            : path.resolve(worktreePath, gitDir);
+        const gitDir = match[1];
+        if (!gitDir) {
+            return null;
+        }
+        const normalizedGitDir = gitDir.trim();
+        const absoluteGitDir = path.isAbsolute(normalizedGitDir)
+            ? normalizedGitDir
+            : path.resolve(worktreePath, normalizedGitDir);
         const worktreesDir = path.dirname(absoluteGitDir); // .../.git/worktrees
         const baseGitDir = path.dirname(worktreesDir); // .../.git
         const repoRoot = path.dirname(baseGitDir);

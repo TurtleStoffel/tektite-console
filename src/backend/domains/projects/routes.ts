@@ -1,4 +1,3 @@
-import type { Server } from "bun";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
 import type * as schema from "../../db/local/schema";
@@ -13,6 +12,7 @@ const updateProjectRepositoryBodySchema = z.object({
     repositoryId: z.string().trim().min(1).nullable().optional(),
 });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
+type RouteRequest = Request & { params?: Record<string, string | undefined> };
 
 export function createProjectRoutes(options: {
     db: BunSQLiteDatabase<typeof schema>;
@@ -29,7 +29,7 @@ export function createProjectRoutes(options: {
                 const data = await service.listProjects();
                 return Response.json({ data });
             },
-            async POST(req: Server.Request) {
+            async POST(req: Request) {
                 const parsed = await parseJsonBody({
                     req,
                     schema: createProjectBodySchema,
@@ -53,9 +53,10 @@ export function createProjectRoutes(options: {
         },
 
         "/api/projects/:id": {
-            async GET(req: Server.Request) {
+            async GET(req: Request) {
+                const request = req as RouteRequest;
                 const parsedParams = parseInput({
-                    input: req.params,
+                    input: request.params,
                     schema: projectIdParamSchema,
                     domain: "projects",
                     context: "projects:get",
@@ -74,9 +75,10 @@ export function createProjectRoutes(options: {
 
                 return Response.json(result);
             },
-            async PUT(req: Server.Request) {
+            async PUT(req: Request) {
+                const request = req as RouteRequest;
                 const parsedParams = parseInput({
-                    input: req.params,
+                    input: request.params,
                     schema: projectIdParamSchema,
                     domain: "projects",
                     context: "projects:update",
@@ -105,9 +107,10 @@ export function createProjectRoutes(options: {
 
                 return Response.json(result);
             },
-            async DELETE(req: Server.Request) {
+            async DELETE(req: Request) {
+                const request = req as RouteRequest;
                 const parsedParams = parseInput({
-                    input: req.params,
+                    input: request.params,
                     schema: projectIdParamSchema,
                     domain: "projects",
                     context: "projects:delete",

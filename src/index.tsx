@@ -114,7 +114,7 @@ const wrapRouteHandler = (handler: RouteHandler) => {
             return corsPreflightResponse();
         }
         const result = await handler(...args);
-        const response = result instanceof Response ? result : new Response(result);
+        const response = result instanceof Response ? result : Response.json(result);
         return withCorsResponse(response);
     };
 };
@@ -150,7 +150,7 @@ const withCorsRoutes = <T extends RouteTable>(routes: T): T => {
     return Object.fromEntries(entries) as T;
 };
 
-const server = serve({
+const server = serve<TerminalSocketData>({
     port: PORT,
 
     // Disable timeout for long-running Codex requests
@@ -191,7 +191,7 @@ const server = serve({
             });
         }
 
-        const upgraded = server.upgrade<TerminalSocketData>(req, {
+        const upgraded = server.upgrade(req, {
             data: { sessionId: session.id },
         });
         if (!upgraded) {
@@ -205,14 +205,22 @@ const server = serve({
 
     websocket: {
         open(socket) {
-            const sessionId = socket.data.sessionId;
+            const sessionId = socket.data?.sessionId;
+            if (!sessionId) {
+                socket.close();
+                return;
+            }
             const session = attachSocketToTerminalSession(sessionId, socket);
             if (!session) {
                 socket.close();
             }
         },
         message(socket, message) {
-            const sessionId = socket.data.sessionId;
+            const sessionId = socket.data?.sessionId;
+            if (!sessionId) {
+                socket.close();
+                return;
+            }
             const session = getTerminalSessionById(sessionId);
             if (!session) {
                 socket.close();
@@ -221,7 +229,11 @@ const server = serve({
             handleTerminalSocketMessage(session, message);
         },
         close(socket) {
-            detachSocketFromTerminalSession(socket.data.sessionId, socket);
+            const sessionId = socket.data?.sessionId;
+            if (!sessionId) {
+                return;
+            }
+            detachSocketFromTerminalSession(sessionId, socket);
         },
     },
 

@@ -1,4 +1,3 @@
-import type { Server } from "bun";
 import { z } from "zod";
 import { parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
@@ -19,7 +18,7 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
 
     return {
         "/api/execute": {
-            async POST(req: Server.Request) {
+            async POST(req: Request) {
                 const parsed = await parseJsonBody({
                     req,
                     schema: executePayloadSchema,
@@ -29,6 +28,9 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                 if ("response" in parsed) return parsed.response;
 
                 const basePrompt = parsed.data.command ?? parsed.data.prompt;
+                if (!basePrompt) {
+                    throw new Error("Command text is required.");
+                }
                 const repositoryUrl = parsed.data.repository.url;
 
                 const result = await service.execute({ prompt: basePrompt, repositoryUrl });

@@ -1,4 +1,3 @@
-import type { Server } from "bun";
 import { z } from "zod";
 import { jsonHeaders, parseJsonBody } from "../../http/validation";
 import { createEditorService } from "./service";
@@ -10,7 +9,7 @@ export function createEditorRoutes(options: { clonesDir: string }) {
 
     return {
         "/api/editor/open-vscode": {
-            async POST(req: Server.Request) {
+            async POST(req: Request) {
                 const parsed = await parseJsonBody({
                     req,
                     schema: openVscodeBodySchema,

@@ -33,7 +33,8 @@ Example:
     process.exit(0);
 }
 
-const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+const toCamelCase = (str: string): string =>
+    str.replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
 
 const parseValue = (value: string): any => {
     if (value === "true") return true;
@@ -49,6 +50,7 @@ const parseValue = (value: string): any => {
 
 function parseArgs(): Partial<Bun.BuildConfig> {
     const config: Partial<Bun.BuildConfig> = {};
+    const configRecord = config as Record<string, unknown>;
     const args = process.argv.slice(2);
 
     for (let i = 0; i < args.length; i++) {
@@ -58,13 +60,13 @@ function parseArgs(): Partial<Bun.BuildConfig> {
 
         if (arg.startsWith("--no-")) {
             const key = toCamelCase(arg.slice(5));
-            config[key] = false;
+            configRecord[key] = false;
             continue;
         }
 
         if (!arg.includes("=") && (i === args.length - 1 || args[i + 1]?.startsWith("--"))) {
             const key = toCamelCase(arg.slice(2));
-            config[key] = true;
+            configRecord[key] = true;
             continue;
         }
 
@@ -82,10 +84,18 @@ function parseArgs(): Partial<Bun.BuildConfig> {
 
         if (key.includes(".")) {
             const [parentKey, childKey] = key.split(".");
-            config[parentKey] = config[parentKey] || {};
-            config[parentKey][childKey] = parseValue(value);
+            if (!parentKey || !childKey) {
+                continue;
+            }
+            const parent = configRecord[parentKey];
+            const parentObject =
+                parent && typeof parent === "object" && !Array.isArray(parent)
+                    ? (parent as Record<string, unknown>)
+                    : {};
+            parentObject[childKey] = parseValue(value);
+            configRecord[parentKey] = parentObject;
         } else {
-            config[key] = parseValue(value);
+            configRecord[key] = parseValue(value);
         }
     }
 

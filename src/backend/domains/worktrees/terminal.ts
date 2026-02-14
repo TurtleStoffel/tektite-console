@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { ServerWebSocket } from "bun";
 import { spawn } from "bun-pty";
 import { markTerminalWorkspaceActive, markTerminalWorkspaceInactive } from "./workspaceActivity";
 
@@ -40,6 +41,7 @@ function createTerminalSession(workspacePath: string): TerminalSession {
     const normalizedWorkspacePath = path.resolve(workspacePath);
     const pty = spawn("/bin/sh", ["-i"], {
         cwd: normalizedWorkspacePath,
+        name: "xterm-256color",
         env: {
             ...Bun.env,
             NODE_ENV: "development",
