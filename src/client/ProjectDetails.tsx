@@ -38,6 +38,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [repositoriesError, setRepositoriesError] = useState<string | null>(null);
     const [repositorySelection, setRepositorySelection] = useState("");
     const [updatingRepository, setUpdatingRepository] = useState(false);
+    const [isEditingRepository, setIsEditingRepository] = useState(false);
     const [deletingProject, setDeletingProject] = useState(false);
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -251,6 +252,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             }
             setProject(payload as ProjectDetailsPayload);
             setRepositorySelection(payload?.repositoryId ?? "");
+            setIsEditingRepository(false);
             await loadRepositories();
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to update repository.";
@@ -391,79 +393,101 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 </div>
                                 <div className="space-y-2">
                                     <div className="text-sm text-base-content/60">Repository</div>
-                                    {project.url ? (
-                                        <a
-                                            href={project.url}
-                                            className="link link-hover break-all"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            {project.url}
-                                        </a>
-                                    ) : (
-                                        <div className="text-sm text-base-content/70">
-                                            No repository linked yet.
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="text-sm text-base-content/60">
-                                        Update repository
-                                    </div>
                                     {repositoriesError && (
                                         <div className="alert alert-error py-2">
                                             <span className="text-sm">{repositoriesError}</span>
                                         </div>
                                     )}
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <select
-                                            className="select select-bordered w-full sm:w-auto min-w-[260px]"
-                                            value={repositorySelection}
-                                            onChange={(event) =>
-                                                setRepositorySelection(event.target.value)
-                                            }
-                                            disabled={repositoriesLoading || updatingRepository}
-                                        >
-                                            <option value="">
-                                                {repositoriesLoading
-                                                    ? "Loading repositories..."
-                                                    : availableRepositories.length === 0
-                                                      ? "No unlinked repositories"
-                                                      : "No repository"}
-                                            </option>
-                                            {availableRepositories.map((repo) => (
-                                                <option key={repo.id} value={repo.id}>
-                                                    {repo.name} - {repo.url}
+                                    {isEditingRepository ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <select
+                                                className="select select-bordered w-full sm:w-auto min-w-[260px]"
+                                                value={repositorySelection}
+                                                onChange={(event) =>
+                                                    setRepositorySelection(event.target.value)
+                                                }
+                                                disabled={repositoriesLoading || updatingRepository}
+                                            >
+                                                <option value="">
+                                                    {repositoriesLoading
+                                                        ? "Loading repositories..."
+                                                        : availableRepositories.length === 0
+                                                          ? "No unlinked repositories"
+                                                          : "No repository"}
                                                 </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() =>
-                                                void updateRepository(
-                                                    repositorySelection.trim() || null,
-                                                )
-                                            }
-                                            disabled={
-                                                updatingRepository ||
-                                                repositoriesLoading ||
-                                                !repositoryChanged
-                                            }
-                                        >
-                                            {updatingRepository ? "Saving..." : "Save repository"}
-                                        </button>
-                                        {project.repositoryId && (
+                                                {availableRepositories.map((repo) => (
+                                                    <option key={repo.id} value={repo.id}>
+                                                        {repo.name} - {repo.url}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() =>
+                                                    void updateRepository(
+                                                        repositorySelection.trim() || null,
+                                                    )
+                                                }
+                                                disabled={
+                                                    updatingRepository ||
+                                                    repositoriesLoading ||
+                                                    !repositoryChanged
+                                                }
+                                            >
+                                                {updatingRepository
+                                                    ? "Saving..."
+                                                    : "Save repository"}
+                                            </button>
                                             <button
                                                 type="button"
                                                 className="btn btn-ghost btn-sm"
-                                                onClick={() => void updateRepository(null)}
+                                                onClick={() => {
+                                                    setRepositorySelection(currentRepositoryId);
+                                                    setIsEditingRepository(false);
+                                                }}
                                                 disabled={updatingRepository}
                                             >
-                                                Unlink
+                                                Cancel
                                             </button>
-                                        )}
-                                    </div>
+                                            {project.repositoryId && (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-sm"
+                                                    onClick={() => void updateRepository(null)}
+                                                    disabled={updatingRepository}
+                                                >
+                                                    Unlink
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="group flex items-start gap-2">
+                                            <div className="min-h-8 flex-1 pt-1">
+                                                {project.url ? (
+                                                    <a
+                                                        href={project.url}
+                                                        className="link link-hover break-all"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        {project.url}
+                                                    </a>
+                                                ) : (
+                                                    <div className="text-sm text-base-content/70">
+                                                        No repository linked yet.
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-xs opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                                onClick={() => setIsEditingRepository(true)}
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 {project.url && (
                                     <div className="space-y-2">
