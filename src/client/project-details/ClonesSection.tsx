@@ -8,11 +8,11 @@ type ClonesSectionProps = {
     onDismissActionError: () => void;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
-    devTerminalTarget: { key: string; path: string } | null;
+    openDevTerminals: Record<string, boolean>;
     devTerminalSessions: Record<string, string | null>;
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onOpenInVSCode: (folderPath: string) => void;
-    onToggleDevTerminal: (nextTarget: { key: string; path: string } | null) => void;
+    onToggleDevTerminal: (worktreePath: string, isOpen: boolean) => void;
 };
 
 export function ClonesSection({
@@ -21,7 +21,7 @@ export function ClonesSection({
     onDismissActionError,
     startingDevKey,
     openingVSCodePath,
-    devTerminalTarget,
+    openDevTerminals,
     devTerminalSessions,
     onOpenInVSCode,
     onOpenDevTerminal,
@@ -69,7 +69,7 @@ export function ClonesSection({
                             actionKey={`clone:${clone.path}`}
                             startingDevKey={startingDevKey}
                             openingVSCodePath={openingVSCodePath}
-                            devTerminalTarget={devTerminalTarget}
+                            devTerminalOpen={openDevTerminals[clone.path] ?? false}
                             devTerminalSessionId={devTerminalSessions[clone.path] ?? null}
                             onOpenInVSCode={onOpenInVSCode}
                             onOpenDevTerminal={onOpenDevTerminal}
@@ -87,11 +87,11 @@ type CloneCardProps = {
     actionKey: string;
     startingDevKey: string | null;
     openingVSCodePath: string | null;
-    devTerminalTarget: { key: string; path: string } | null;
+    devTerminalOpen: boolean;
     devTerminalSessionId: string | null;
     onOpenInVSCode: (folderPath: string) => void;
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
-    onToggleDevTerminal: (nextTarget: { key: string; path: string } | null) => void;
+    onToggleDevTerminal: (worktreePath: string, isOpen: boolean) => void;
 };
 
 function CloneCard({
@@ -99,7 +99,7 @@ function CloneCard({
     actionKey,
     startingDevKey,
     openingVSCodePath,
-    devTerminalTarget,
+    devTerminalOpen,
     devTerminalSessionId,
     onOpenInVSCode,
     onOpenDevTerminal,
@@ -107,7 +107,6 @@ function CloneCard({
 }: CloneCardProps) {
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
-    const devTerminalOpen = devTerminalTarget?.key === actionKey;
     const hasDevTerminalSession = Boolean(devTerminalSessionId);
 
     const terminalButtonLabel = isStarting
@@ -207,11 +206,11 @@ function CloneCard({
                         disabled={Boolean(startingDevKey)}
                         onClick={() => {
                             if (devTerminalOpen) {
-                                onToggleDevTerminal(null);
+                                onToggleDevTerminal(clone.path, false);
                                 return;
                             }
                             if (hasDevTerminalSession) {
-                                onToggleDevTerminal({ key: actionKey, path: clone.path });
+                                onToggleDevTerminal(clone.path, true);
                                 return;
                             }
                             onOpenDevTerminal(clone.path, actionKey);

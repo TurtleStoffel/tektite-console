@@ -12,7 +12,6 @@ type ProjectDetailsProps = {
     drawerToggleId: string;
 };
 
-type TerminalTarget = { key: string; path: string };
 type DocumentSummary = {
     id: string;
     projectId: string | null;
@@ -28,7 +27,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
     const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
-    const [devTerminalTarget, setDevTerminalTarget] = useState<TerminalTarget | null>(null);
+    const [openDevTerminals, setOpenDevTerminals] = useState<Record<string, boolean>>({});
     const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
         {},
     );
@@ -172,7 +171,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const startDevTerminal = async (worktreePath: string, key: string) => {
         setActionError(null);
         setStartingDevKey(key);
-        setDevTerminalTarget({ key, path: worktreePath });
+        setOpenDevTerminals((prev) => ({ ...prev, [worktreePath]: true }));
         try {
             const res = await fetch("/api/worktrees/dev-terminal/start", {
                 method: "POST",
@@ -217,24 +216,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setOpeningVSCodePath(null);
         }
     };
-
-    const refreshDevTerminalSession = useCallback(async (worktreePath: string) => {
-        try {
-            const res = await fetch(
-                `/api/worktrees/dev-terminal?path=${encodeURIComponent(worktreePath)}`,
-            );
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load terminal session.");
-            }
-            const sessionId =
-                typeof payload?.session?.sessionId === "string" ? payload.session.sessionId : null;
-            setDevTerminalSessions((prev) => ({ ...prev, [worktreePath]: sessionId }));
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load terminal session.";
-            setActionError(message);
-        }
-    }, []);
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
@@ -284,11 +265,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setDeletingProject(false);
         }
     };
-
-    useEffect(() => {
-        if (!devTerminalTarget?.path) return;
-        void refreshDevTerminalSession(devTerminalTarget.path);
-    }, [devTerminalTarget?.path, refreshDevTerminalSession]);
 
     useEffect(() => {
         void loadRepositories();
@@ -509,14 +485,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     onDismissActionError={() => setActionError(null)}
                                     startingDevKey={startingDevKey}
                                     openingVSCodePath={openingVSCodePath}
-                                    devTerminalTarget={devTerminalTarget}
+                                    openDevTerminals={openDevTerminals}
                                     devTerminalSessions={devTerminalSessions}
                                     onOpenInVSCode={(path) => void openInVSCode(path)}
                                     onOpenDevTerminal={(path, key) =>
                                         void startDevTerminal(path, key)
                                     }
-                                    onToggleDevTerminal={(nextTarget) =>
-                                        setDevTerminalTarget(nextTarget)
+                                    onToggleDevTerminal={(worktreePath, isOpen) =>
+                                        setOpenDevTerminals((prev) => ({
+                                            ...prev,
+                                            [worktreePath]: isOpen,
+                                        }))
                                     }
                                 />
                                 <LivePreviewSection
