@@ -318,21 +318,52 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const currentRepositoryId = project?.repositoryId ?? "";
     const repositoryChanged = repositorySelection !== currentRepositoryId;
+    const cloneCount = project?.clones?.length ?? 0;
+    const linkedDocumentCount = documents.length;
+    const hasPreview = previewTargets.length > 0;
 
     return (
-        <div className="max-w-5xl w-full mx-auto p-8 space-y-6 relative z-10">
-            <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold">Project details</h1>
-                    <p className="text-sm text-base-content/70 break-all">{id}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Link to="/" className="btn btn-outline btn-sm">
-                        Back to projects
-                    </Link>
-                    <label htmlFor={drawerToggleId} className="btn btn-outline btn-sm lg:hidden">
-                        Menu
-                    </label>
+        <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
+            <div className="rounded-2xl border border-base-300 bg-gradient-to-br from-base-200 to-base-100 shadow-sm">
+                <div className="p-5 sm:p-6 space-y-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="space-y-2">
+                            <p className="text-xs uppercase tracking-[0.18em] text-base-content/60">
+                                Project workspace
+                            </p>
+                            <h1 className="text-2xl sm:text-3xl font-bold">Project details</h1>
+                            <p className="text-xs sm:text-sm text-base-content/70 break-all">
+                                {id}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Link to="/" className="btn btn-outline btn-sm">
+                                Back to projects
+                            </Link>
+                            <label
+                                htmlFor={drawerToggleId}
+                                className="btn btn-outline btn-sm lg:hidden"
+                            >
+                                Menu
+                            </label>
+                        </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
+                            <div className="text-xs text-base-content/60">Local clones</div>
+                            <div className="text-2xl font-semibold">{cloneCount}</div>
+                        </div>
+                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
+                            <div className="text-xs text-base-content/60">Linked documents</div>
+                            <div className="text-2xl font-semibold">{linkedDocumentCount}</div>
+                        </div>
+                        <div className="rounded-xl border border-base-300 bg-base-100/80 px-4 py-3">
+                            <div className="text-xs text-base-content/60">Live preview</div>
+                            <div className="text-2xl font-semibold">
+                                {hasPreview ? "Available" : "None"}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -350,126 +381,170 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             )}
 
             {!loading && !error && project && (
-                <div className="card bg-base-200 border border-base-300 shadow-md">
-                    <div className="card-body space-y-4">
-                        <div className="space-y-1">
-                            <div className="text-sm text-base-content/60">Name</div>
-                            <div className="text-xl font-semibold">{project.name}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <div className="text-sm text-base-content/60">Repository</div>
-                            {project.url ? (
-                                <a
-                                    href={project.url ?? undefined}
-                                    className="link link-hover break-all"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    {project.url ?? ""}
-                                </a>
-                            ) : (
-                                <div className="text-sm text-base-content/70">
-                                    No repository linked yet.
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+                    <div className="space-y-6">
+                        <div className="card bg-base-200 border border-base-300 shadow-sm">
+                            <div className="card-body p-5 sm:p-6 space-y-5">
+                                <div className="space-y-1">
+                                    <div className="text-sm text-base-content/60">Name</div>
+                                    <div className="text-2xl font-semibold">{project.name}</div>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="text-sm text-base-content/60">Update repository</div>
-                            {repositoriesError && (
-                                <div className="alert alert-error py-2">
-                                    <span className="text-sm">{repositoriesError}</span>
-                                </div>
-                            )}
-                            <div className="flex flex-wrap items-center gap-2">
-                                <select
-                                    className="select select-bordered"
-                                    value={repositorySelection}
-                                    onChange={(event) => setRepositorySelection(event.target.value)}
-                                    disabled={repositoriesLoading || updatingRepository}
-                                >
-                                    <option value="">
-                                        {repositoriesLoading
-                                            ? "Loading repositories..."
-                                            : availableRepositories.length === 0
-                                              ? "No unlinked repositories"
-                                              : "No repository"}
-                                    </option>
-                                    {availableRepositories.map((repo) => (
-                                        <option key={repo.id} value={repo.id}>
-                                            {repo.name} — {repo.url}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() =>
-                                        void updateRepository(repositorySelection.trim() || null)
-                                    }
-                                    disabled={
-                                        updatingRepository ||
-                                        repositoriesLoading ||
-                                        !repositoryChanged
-                                    }
-                                >
-                                    {updatingRepository ? "Saving..." : "Save repository"}
-                                </button>
-                                {project.repositoryId && (
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost btn-sm"
-                                        onClick={() => void updateRepository(null)}
-                                        disabled={updatingRepository}
-                                    >
-                                        Unlink
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="text-sm text-base-content/60">
-                                    Related documents
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline btn-xs"
-                                        onClick={() => void loadDocuments()}
-                                        disabled={documentsLoading}
-                                    >
-                                        {documentsLoading ? "Refreshing..." : "Refresh"}
-                                    </button>
-                                    <Link to="/documents" className="btn btn-outline btn-xs">
-                                        Open documents
-                                    </Link>
-                                </div>
-                            </div>
-                            {documentsError && (
-                                <div className="alert alert-error py-2">
-                                    <span className="text-sm">{documentsError}</span>
-                                </div>
-                            )}
-                            {documentsLoading ? (
-                                <div className="flex items-center gap-2 text-sm text-base-content/70">
-                                    <span className="loading loading-spinner loading-sm" />
-                                    <span>Loading documents...</span>
-                                </div>
-                            ) : documents.length === 0 ? (
-                                <div className="text-sm text-base-content/70">
-                                    No documents linked to this project yet.
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {documents.map((doc, index) => (
-                                        <div
-                                            key={doc.id}
-                                            className="card bg-base-100 border border-base-300"
+                                <div className="space-y-2">
+                                    <div className="text-sm text-base-content/60">Repository</div>
+                                    {project.url ? (
+                                        <a
+                                            href={project.url}
+                                            className="link link-hover break-all"
+                                            target="_blank"
+                                            rel="noreferrer"
                                         >
-                                            <div className="card-body p-4 space-y-2">
+                                            {project.url}
+                                        </a>
+                                    ) : (
+                                        <div className="text-sm text-base-content/70">
+                                            No repository linked yet.
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="text-sm text-base-content/60">
+                                        Update repository
+                                    </div>
+                                    {repositoriesError && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">{repositoriesError}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <select
+                                            className="select select-bordered w-full sm:w-auto min-w-[260px]"
+                                            value={repositorySelection}
+                                            onChange={(event) =>
+                                                setRepositorySelection(event.target.value)
+                                            }
+                                            disabled={repositoriesLoading || updatingRepository}
+                                        >
+                                            <option value="">
+                                                {repositoriesLoading
+                                                    ? "Loading repositories..."
+                                                    : availableRepositories.length === 0
+                                                      ? "No unlinked repositories"
+                                                      : "No repository"}
+                                            </option>
+                                            {availableRepositories.map((repo) => (
+                                                <option key={repo.id} value={repo.id}>
+                                                    {repo.name} - {repo.url}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() =>
+                                                void updateRepository(
+                                                    repositorySelection.trim() || null,
+                                                )
+                                            }
+                                            disabled={
+                                                updatingRepository ||
+                                                repositoriesLoading ||
+                                                !repositoryChanged
+                                            }
+                                        >
+                                            {updatingRepository ? "Saving..." : "Save repository"}
+                                        </button>
+                                        {project.repositoryId && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-sm"
+                                                onClick={() => void updateRepository(null)}
+                                                disabled={updatingRepository}
+                                            >
+                                                Unlink
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                {project.url && (
+                                    <div className="space-y-2">
+                                        <div className="text-sm text-base-content/60">Commands</div>
+                                        <div className="rounded-xl border border-base-300 bg-base-100 p-4">
+                                            <CommandPanel
+                                                selectedRepoUrl={project.url}
+                                                onTaskStarted={() => {
+                                                    void refreshProject();
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="divider my-0" />
+                                <ClonesSection
+                                    clones={project.clones}
+                                    actionError={actionError}
+                                    onDismissActionError={() => setActionError(null)}
+                                    startingDevKey={startingDevKey}
+                                    openingVSCodePath={openingVSCodePath}
+                                    devTerminalTarget={devTerminalTarget}
+                                    devTerminalSessions={devTerminalSessions}
+                                    onOpenInVSCode={(path) => void openInVSCode(path)}
+                                    onOpenDevTerminal={(path, key) =>
+                                        void startDevTerminal(path, key)
+                                    }
+                                    onToggleDevTerminal={(nextTarget) =>
+                                        setDevTerminalTarget(nextTarget)
+                                    }
+                                />
+                                <LivePreviewSection
+                                    previewTargets={previewTargets}
+                                    activePreviewKey={activePreviewKey}
+                                    previewUrl={previewUrl}
+                                    onChangeActivePreviewKey={(key) => setActivePreviewKey(key)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6 xl:sticky xl:top-6 self-start">
+                        <div className="card bg-base-200 border border-base-300 shadow-sm">
+                            <div className="card-body p-5 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">Related documents</div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline btn-xs"
+                                            onClick={() => void loadDocuments()}
+                                            disabled={documentsLoading}
+                                        >
+                                            {documentsLoading ? "Refreshing..." : "Refresh"}
+                                        </button>
+                                        <Link to="/documents" className="btn btn-outline btn-xs">
+                                            Open documents
+                                        </Link>
+                                    </div>
+                                </div>
+                                {documentsError && (
+                                    <div className="alert alert-error py-2">
+                                        <span className="text-sm">{documentsError}</span>
+                                    </div>
+                                )}
+                                {documentsLoading ? (
+                                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                                        <span className="loading loading-spinner loading-sm" />
+                                        <span>Loading documents...</span>
+                                    </div>
+                                ) : documents.length === 0 ? (
+                                    <div className="text-sm text-base-content/70">
+                                        No documents linked to this project yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                                        {documents.map((doc, index) => (
+                                            <div
+                                                key={doc.id}
+                                                className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-2"
+                                            >
                                                 <div className="text-xs text-base-content/60">
                                                     Document {index + 1}
                                                 </div>
@@ -478,64 +553,27 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                     className="text-sm space-y-2"
                                                 />
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {project.url && (
-                            <div className="space-y-2">
-                                <div className="text-sm text-base-content/60">Commands</div>
-                                <div className="card bg-base-100 border border-base-300">
-                                    <div className="card-body p-4">
-                                        <CommandPanel
-                                            selectedRepoUrl={project.url}
-                                            onTaskStarted={() => {
-                                                void refreshProject();
-                                            }}
-                                        />
-                                    </div>
-                                </div>
+                        <div className="card bg-error/10 border border-error/40 shadow-sm">
+                            <div className="card-body p-5 space-y-3">
+                                <div className="text-sm font-semibold text-error">Danger zone</div>
+                                <p className="text-sm text-base-content/70">
+                                    Delete this project and unlink all related documents.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="btn btn-error btn-sm w-full sm:w-auto"
+                                    onClick={() => void deleteProject()}
+                                    disabled={deletingProject}
+                                >
+                                    {deletingProject ? "Deleting..." : "Delete project"}
+                                </button>
                             </div>
-                        )}
-
-                        <div className="divider my-0" />
-
-                        <ClonesSection
-                            clones={project.clones}
-                            actionError={actionError}
-                            onDismissActionError={() => setActionError(null)}
-                            startingDevKey={startingDevKey}
-                            openingVSCodePath={openingVSCodePath}
-                            devTerminalTarget={devTerminalTarget}
-                            devTerminalSessions={devTerminalSessions}
-                            onOpenInVSCode={(path) => void openInVSCode(path)}
-                            onOpenDevTerminal={(path, key) => void startDevTerminal(path, key)}
-                            onToggleDevTerminal={(nextTarget) => setDevTerminalTarget(nextTarget)}
-                        />
-
-                        <LivePreviewSection
-                            previewTargets={previewTargets}
-                            activePreviewKey={activePreviewKey}
-                            previewUrl={previewUrl}
-                            onChangeActivePreviewKey={(key) => setActivePreviewKey(key)}
-                        />
-
-                        <div className="divider my-0" />
-
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm text-base-content/60">
-                                Delete project and unlink documents
-                            </div>
-                            <button
-                                type="button"
-                                className="btn btn-error btn-sm"
-                                onClick={() => void deleteProject()}
-                                disabled={deletingProject}
-                            >
-                                {deletingProject ? "Deleting..." : "Delete project"}
-                            </button>
                         </div>
                     </div>
                 </div>

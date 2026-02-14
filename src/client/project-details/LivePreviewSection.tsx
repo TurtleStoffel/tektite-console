@@ -16,16 +16,14 @@ export function LivePreviewSection({
     if (previewTargets.length === 0 || !previewUrl) return null;
 
     return (
-        <>
+        <section className="space-y-3">
             <div className="divider my-0" />
-
-            <div className="space-y-3">
+            <div className="rounded-xl border border-base-300 bg-base-100/80 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="space-y-1">
                         <div className="text-sm font-semibold">Live preview</div>
                         <div className="text-xs text-base-content/60 break-all">{previewUrl}</div>
                     </div>
-
                     <div className="flex items-center gap-2">
                         <select
                             className="select select-bordered select-sm"
@@ -44,15 +42,14 @@ export function LivePreviewSection({
                             target="_blank"
                             rel="noreferrer"
                         >
-                            Open
+                            Open in new tab
                         </a>
                     </div>
                 </div>
-
-                <div className="w-full h-[70vh] border border-base-300 rounded-xl overflow-hidden bg-base-100">
+                <div className="w-full h-[65vh] border border-base-300 rounded-xl overflow-hidden bg-base-100">
                     <iframe title="Project preview" src={previewUrl} className="w-full h-full" />
                 </div>
             </div>
-        </>
+        </section>
     );
 }
