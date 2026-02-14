@@ -2,11 +2,8 @@ import path from "node:path";
 import * as repository from "./repository";
 import { getTerminalSessionByWorkspacePath, startOrReuseTerminal } from "./terminal";
 
-export function createWorktreesService(options: { clonesDir: string; productionDir?: string }) {
-    const allowedRoots = [
-        options.clonesDir,
-        ...(options.productionDir ? [options.productionDir] : []),
-    ];
+export function createWorktreesService(options: { clonesDir: string }) {
+    const allowedRoots = [options.clonesDir];
 
     return {
         startDevTerminal(rawPath: string) {

@@ -12,7 +12,8 @@
         "start": "NODE_ENV=production bun src/index.tsx",
         "build": "bun run build.ts",
         "format": "biome format --write src/",
-        "lint": "biome check src/"
+        "lint": "biome check src/",
+        "typecheck": "bunx tsc --noEmit"
     },
     "dependencies": {
         "@openai/codex-sdk": "^0.98.0",

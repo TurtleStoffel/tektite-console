@@ -5,7 +5,7 @@ import { createEditorService } from "./service";
 
 const openVscodeBodySchema = z.object({ path: z.string().trim().min(1) });
 
-export function createEditorRoutes(options: { clonesDir: string; productionDir: string }) {
+export function createEditorRoutes(options: { clonesDir: string }) {
     const service = createEditorService(options);
 
     return {

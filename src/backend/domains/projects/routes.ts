@@ -17,12 +17,10 @@ const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 export function createProjectRoutes(options: {
     db: BunSQLiteDatabase<typeof schema>;
     clonesDir: string;
-    productionDir: string;
 }) {
     const service = createProjectsService({
         db: options.db,
         clonesDir: options.clonesDir,
-        productionDir: options.productionDir,
     });
 
     return {

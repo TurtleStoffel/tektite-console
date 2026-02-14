@@ -3,14 +3,9 @@ import path from "node:path";
 import { execFileAsync } from "../../exec";
 import { isWithinRoot } from "../../http/pathUtils";
 
-export function resolveAllowedFolder(
-    options: { clonesDir: string; productionDir: string },
-    rawPath: string,
-) {
+export function resolveAllowedFolder(options: { clonesDir: string }, rawPath: string) {
     const folderPath = path.resolve(rawPath);
-    const allowed =
-        isWithinRoot(folderPath, options.clonesDir) ||
-        isWithinRoot(folderPath, options.productionDir);
+    const allowed = isWithinRoot(folderPath, options.clonesDir);
     return { folderPath, allowed, exists: fs.existsSync(folderPath) };
 }
 

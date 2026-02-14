@@ -1,23 +1,16 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { getProductionCloneInfo } from "@/backend/domains/production/service";
 import { readThreadMap } from "../../codex";
 import type * as schema from "../../db/local/schema";
 import { findRepositoryClones } from "./cloneDiscovery";
-import { getConsoleRepositoryUrl } from "./consoleRepository";
 import { getRemoteBranchUpdateStatus } from "./remoteUpdates";
 import * as repository from "./repository";
 
 type Db = BunSQLiteDatabase<typeof schema>;
 
-export function createProjectsService(options: {
-    db: Db;
-    clonesDir: string;
-    productionDir: string;
-}) {
-    const { db, clonesDir, productionDir } = options;
-    const consoleRepositoryUrl = getConsoleRepositoryUrl();
+export function createProjectsService(options: { db: Db; clonesDir: string }) {
+    const { db, clonesDir } = options;
 
     return {
         async listProjects() {
@@ -66,12 +59,9 @@ export function createProjectsService(options: {
             if (!project) return { error: "Project not found.", status: 404 as const };
 
             const repositoryUrl = project.url?.trim() || null;
-            const [clones, productionClone] = repositoryUrl
-                ? await Promise.all([
-                      findRepositoryClones({ repositoryUrl, clonesDir }),
-                      getProductionCloneInfo({ repositoryUrl, productionDir }),
-                  ])
-                : [[], null];
+            const clones = repositoryUrl
+                ? await findRepositoryClones({ repositoryUrl, clonesDir })
+                : [];
             const threadMap = readThreadMap(clonesDir);
             const clonesWithCodex = clones.map((clone) => {
                 const thread = threadMap[clone.path];
@@ -92,16 +82,11 @@ export function createProjectsService(options: {
             const anyWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree);
             const nonWorktreeClone = clonesWithCodex.find((clone) => clone.isWorktree === false);
 
-            const productionCloneChoice = productionClone?.exists
-                ? { path: productionClone.path, reason: "productionClone" }
-                : null;
-
             const remoteCheckChoice =
                 (serverCwdClone && { path: serverCwdClone.path, reason: "serverCwd" }) ||
                 (inUseClone && { path: inUseClone.path, reason: "inUse" }) ||
                 (anyWorktreeClone && { path: anyWorktreeClone.path, reason: "worktree" }) ||
                 (nonWorktreeClone && { path: nonWorktreeClone.path, reason: "nonWorktree" }) ||
-                productionCloneChoice ||
                 (clones[0]?.path && { path: clones[0].path, reason: "firstClone" }) ||
                 null;
 
@@ -114,7 +99,6 @@ export function createProjectsService(options: {
                     reason: remoteCheckChoice?.reason,
                     serverCwd,
                     cloneCount: clonesWithCodex.length,
-                    productionCloneExists: productionClone?.exists ?? false,
                 });
                 try {
                     remoteBranch = await getRemoteBranchUpdateStatus(remoteCheckPath);
@@ -133,9 +117,7 @@ export function createProjectsService(options: {
                 name: project.name,
                 repositoryId: project.repositoryId ?? null,
                 url: repositoryUrl,
-                consoleRepositoryUrl,
                 clones: clonesWithCodex,
-                productionClone,
                 remoteBranch,
             };
         },

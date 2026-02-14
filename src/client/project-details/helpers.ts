@@ -1,18 +1,6 @@
-import { normalizeRepoUrl } from "../../shared/normalizeRepoUrl";
-
 import type { PreviewTarget, ProjectDetailsClonePrStatus, ProjectDetailsPayload } from "./types";
 
-export function shouldShowProductionClone(project: ProjectDetailsPayload | null): boolean {
-    const projectRepo = normalizeRepoUrl(project?.url);
-    const consoleRepo = normalizeRepoUrl(project?.consoleRepositoryUrl);
-    if (projectRepo && consoleRepo && projectRepo === consoleRepo) return false;
-    return true;
-}
-
-export function buildPreviewTargets(
-    project: ProjectDetailsPayload | null,
-    showProductionClone: boolean,
-): PreviewTarget[] {
+export function buildPreviewTargets(project: ProjectDetailsPayload | null): PreviewTarget[] {
     const targets: PreviewTarget[] = [];
 
     for (const clone of project?.clones ?? []) {
@@ -21,18 +9,6 @@ export function buildPreviewTargets(
             key: `clone:${clone.path}`,
             label: `clone · ${clone.port}`,
             port: clone.port,
-        });
-    }
-
-    if (
-        showProductionClone &&
-        typeof project?.productionClone?.port === "number" &&
-        Number.isFinite(project.productionClone.port)
-    ) {
-        targets.push({
-            key: `production:${project.productionClone.path}`,
-            label: `production · ${project.productionClone.port}`,
-            port: project.productionClone.port,
         });
     }
 

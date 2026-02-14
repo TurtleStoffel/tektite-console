@@ -31,24 +31,12 @@ export type ProjectDetailsClone = {
     codexLastEvent?: string | null;
 };
 
-export type ProjectDetailsProductionClone = {
-    path: string;
-    exists: boolean;
-    port: number | null;
-    commitHash: string | null;
-    commitDescription: string | null;
-    hasChanges: boolean | null;
-    inUse: boolean;
-};
-
 export type ProjectDetailsPayload = {
     id: string;
     name: string;
     repositoryId: string | null;
     url: string | null;
-    consoleRepositoryUrl?: string | null;
     remoteBranch?: ProjectDetailsRemoteBranch;
-    productionClone?: ProjectDetailsProductionClone | null;
     clones?: ProjectDetailsClone[];
 };
 

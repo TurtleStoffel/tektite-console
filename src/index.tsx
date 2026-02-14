@@ -6,7 +6,6 @@ import { createEditorRoutes } from "./backend/domains/editor/routes";
 import { envRoutes } from "./backend/domains/env/routes";
 import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createGithubRoutes } from "./backend/domains/github/routes";
-import { createProductionServerRoutes } from "./backend/domains/production/routes";
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
 import { createDevServerRoutes } from "./backend/domains/worktrees/routes";
@@ -58,10 +57,8 @@ if (!clonesDirValue) {
     throw new Error("Missing required env var: CLONES_DIR.");
 }
 const clonesDir = resolvePathFromEnv(clonesDirValue);
-const productionDir = path.join(path.dirname(clonesDir), "production");
 
 void ensureClonesDir(clonesDir);
-void ensureClonesDir(productionDir);
 const { localDb } = await initStorage({
     localDatabasePath: databasePath,
     supabaseDatabaseUrl,
@@ -163,12 +160,11 @@ const server = serve({
         ...envRoutes,
         ...createGithubRoutes(),
         ...createDocumentRoutes({ db: localDb }),
-        ...createProjectRoutes({ db: localDb, clonesDir, productionDir }),
+        ...createProjectRoutes({ db: localDb, clonesDir }),
         ...createRepositoryRoutes({ db: localDb }),
         ...createExecuteRoutes({ clonesDir }),
-        ...createDevServerRoutes({ clonesDir, productionDir }),
-        ...createProductionServerRoutes({ productionDir }),
-        ...createEditorRoutes({ clonesDir, productionDir }),
+        ...createDevServerRoutes({ clonesDir }),
+        ...createEditorRoutes({ clonesDir }),
 
         // Serve index.html for all unmatched routes.
         "/*": index,

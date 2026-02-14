@@ -1,6 +1,6 @@
 import * as repository from "./repository";
 
-export function createEditorService(options: { clonesDir: string; productionDir: string }) {
+export function createEditorService(options: { clonesDir: string }) {
     return {
         async openVscode(rawPath: string) {
             const target = repository.resolveAllowedFolder(options, rawPath);

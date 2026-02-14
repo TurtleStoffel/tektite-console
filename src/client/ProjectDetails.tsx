@@ -3,9 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import CommandPanel from "./CommandPanel";
 import { Markdown } from "./Markdown";
 import { ClonesSection } from "./project-details/ClonesSection";
-import { buildPreviewTargets, shouldShowProductionClone } from "./project-details/helpers";
+import { buildPreviewTargets } from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
-import { ProductionCloneSection } from "./project-details/ProductionCloneSection";
 import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
 import type { RepositorySummary } from "./types/repositories";
 
@@ -29,8 +28,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
     const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
     const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
-    const [startingProduction, setStartingProduction] = useState(false);
-    const [productionTerminalOpen, setProductionTerminalOpen] = useState(false);
     const [devTerminalTarget, setDevTerminalTarget] = useState<TerminalTarget | null>(null);
     const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
         {},
@@ -46,19 +43,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
 
-    const showProductionClone = useMemo(() => {
-        return shouldShowProductionClone(project);
-    }, [project?.consoleRepositoryUrl, project?.url, project]);
-
     const previewTargets = useMemo<PreviewTarget[]>(() => {
-        return buildPreviewTargets(project, showProductionClone);
-    }, [
-        project?.clones,
-        project?.productionClone?.path,
-        project?.productionClone?.port,
-        showProductionClone,
-        project,
-    ]);
+        return buildPreviewTargets(project);
+    }, [project?.clones, project]);
 
     useEffect(() => {
         if (!id) return;
@@ -209,12 +196,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
-    const openProductionTerminal = async (clonePath: string) => {
-        const key = `production:${clonePath}`;
-        await startDevTerminal(clonePath, key);
-        setProductionTerminalOpen(true);
-    };
-
     const openInVSCode = async (folderPath: string) => {
         setActionError(null);
         setOpeningVSCodePath(folderPath);
@@ -253,34 +234,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         }
     }, []);
-
-    const startProductionServer = async () => {
-        if (!project?.url) {
-            setActionError("No repository linked to this project yet.");
-            return;
-        }
-        setActionError(null);
-        setStartingProduction(true);
-        try {
-            const res = await fetch("/api/production/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ repositoryUrl: project.url }),
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to start production server.");
-            }
-            setProductionTerminalOpen(true);
-            await refreshProject();
-        } catch (err) {
-            const message =
-                err instanceof Error ? err.message : "Failed to start production server.";
-            setActionError(message);
-        } finally {
-            setStartingProduction(false);
-        }
-    };
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
@@ -581,28 +534,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             onOpenInVSCode={(path) => void openInVSCode(path)}
                             onOpenDevTerminal={(path, key) => void startDevTerminal(path, key)}
                             onToggleDevTerminal={(nextTarget) => setDevTerminalTarget(nextTarget)}
-                        />
-
-                        <ProductionCloneSection
-                            project={project}
-                            showProductionClone={showProductionClone}
-                            previewProtocol={previewProtocol}
-                            previewHost={previewHost}
-                            startingDevKey={startingDevKey}
-                            startingProduction={startingProduction}
-                            openingVSCodePath={openingVSCodePath}
-                            productionTerminalOpen={productionTerminalOpen}
-                            productionTerminalSessionId={
-                                project.productionClone?.path
-                                    ? (devTerminalSessions[project.productionClone.path] ?? null)
-                                    : null
-                            }
-                            onOpenProductionTerminal={(path) => void openProductionTerminal(path)}
-                            onStartProductionServer={() => void startProductionServer()}
-                            onOpenInVSCode={(path) => void openInVSCode(path)}
-                            onToggleProductionTerminal={() =>
-                                setProductionTerminalOpen((prev) => !prev)
-                            }
                         />
 
                         <LivePreviewSection
