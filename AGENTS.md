@@ -42,5 +42,6 @@
 - Then run `TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache BUN_INSTALL_CACHE_DIR=/tmp/.bun bun install`.
 - Then run `bun run typecheck`.
 - Then run `bun run knip`.
+- If removing an API from client usage, check whether it is still used in backend code paths; if not, remove the backend API route/service logic too.
 - Do not run `format` and `lint` in parallel; run them sequentially to avoid stale-file race conditions.
 - Fix any issues reported by these commands before considering the task complete.
