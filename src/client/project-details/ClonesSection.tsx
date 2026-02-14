@@ -28,9 +28,14 @@ export function ClonesSection({
     onToggleDevTerminal,
 }: ClonesSectionProps) {
     return (
-        <div className="space-y-2">
+        <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-semibold">Local clones</div>
+                <div>
+                    <div className="text-sm font-semibold">Local clones</div>
+                    <div className="text-xs text-base-content/60">
+                        Worktrees, repository status, and dev terminals
+                    </div>
+                </div>
                 <div className="flex items-center gap-2">
                     <span className="text-xs text-base-content/60">{clones?.length ?? 0}</span>
                 </div>
@@ -52,11 +57,11 @@ export function ClonesSection({
             )}
 
             {!clones || clones.length === 0 ? (
-                <div className="text-sm text-base-content/70">
+                <div className="rounded-xl border border-base-300 bg-base-100/50 p-4 text-sm text-base-content/70">
                     No clones found in configured folders.
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                     {clones.map((clone) => (
                         <CloneCard
                             key={`clone:${clone.path}`}
@@ -73,7 +78,7 @@ export function ClonesSection({
                     ))}
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
@@ -114,72 +119,78 @@ function CloneCard({
             : "Open terminal";
 
     return (
-        <div className="space-y-2">
-            <div className="p-3 border border-base-300 rounded-xl bg-base-100/60 flex items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                    <div className="font-mono text-xs break-all">{clone.path}</div>
-                    {clone.isWorktree &&
-                        (clone.prStatus?.state === "open" || clone.prStatus?.state === "draft") &&
-                        clone.prStatus.url && (
-                            <a
-                                className="link link-hover text-xs break-all"
-                                href={clone.prStatus.url}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                View PR{" "}
-                                {typeof clone.prStatus.number === "number"
-                                    ? `#${clone.prStatus.number}`
-                                    : ""}
-                                {clone.prStatus.title ? ` — ${clone.prStatus.title}` : ""}
-                            </a>
+        <article className="space-y-2">
+            <div className="p-4 border border-base-300 rounded-xl bg-base-100/80 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="space-y-1 min-w-0">
+                        <div className="font-mono text-xs break-all">{clone.path}</div>
+                        {clone.commitHash && clone.commitDescription && (
+                            <div className="text-xs text-base-content/70 break-all">
+                                <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>
+                                <span className="mx-2">-</span>
+                                <span>{clone.commitDescription}</span>
+                            </div>
                         )}
-                    {clone.commitHash && clone.commitDescription && (
-                        <div className="text-xs text-base-content/70 break-all">
-                            <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>
-                            <span className="mx-2">—</span>
-                            <span>{clone.commitDescription}</span>
-                        </div>
-                    )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {clone.isWorktree && <div className="badge badge-outline">worktree</div>}
+
+                        {clone.isWorktree && (
+                            <div
+                                className={`badge badge-outline whitespace-nowrap ${
+                                    clone.inUse ? "badge-error" : "badge-ghost"
+                                }`}
+                            >
+                                {clone.inUse ? "in use" : "idle"}
+                            </div>
+                        )}
+
+                        {typeof clone.hasChanges === "boolean" && (
+                            <div
+                                className={`badge badge-outline ${
+                                    clone.hasChanges ? "badge-warning" : "badge-success"
+                                }`}
+                            >
+                                {clone.hasChanges ? "changes" : "clean"}
+                            </div>
+                        )}
+
+                        {clone.isWorktree && clone.prStatus && (
+                            <div
+                                className={`badge badge-outline whitespace-nowrap ${prBadgeClass(
+                                    clone.prStatus.state,
+                                )}`}
+                            >
+                                {prBadgeLabel(clone.prStatus)}
+                            </div>
+                        )}
+
+                        {typeof clone.port === "number" && (
+                            <div className="badge badge-success badge-outline">
+                                port {clone.port}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {clone.isWorktree && <div className="badge badge-outline">worktree</div>}
-
-                    {clone.isWorktree && (
-                        <div
-                            className={`badge badge-outline whitespace-nowrap ${
-                                clone.inUse ? "badge-error" : "badge-ghost"
-                            }`}
+                {clone.isWorktree &&
+                    (clone.prStatus?.state === "open" || clone.prStatus?.state === "draft") &&
+                    clone.prStatus.url && (
+                        <a
+                            className="link link-hover text-xs break-all"
+                            href={clone.prStatus.url}
+                            target="_blank"
+                            rel="noreferrer"
                         >
-                            {clone.inUse ? "in use" : "idle"}
-                        </div>
+                            View PR{" "}
+                            {typeof clone.prStatus.number === "number"
+                                ? `#${clone.prStatus.number}`
+                                : ""}
+                            {clone.prStatus.title ? ` - ${clone.prStatus.title}` : ""}
+                        </a>
                     )}
 
-                    {typeof clone.hasChanges === "boolean" && (
-                        <div
-                            className={`badge badge-outline ${
-                                clone.hasChanges ? "badge-warning" : "badge-success"
-                            }`}
-                        >
-                            {clone.hasChanges ? "changes" : "clean"}
-                        </div>
-                    )}
-
-                    {clone.isWorktree && clone.prStatus && (
-                        <div
-                            className={`badge badge-outline whitespace-nowrap ${prBadgeClass(
-                                clone.prStatus.state,
-                            )}`}
-                        >
-                            {prBadgeLabel(clone.prStatus)}
-                        </div>
-                    )}
-
-                    {typeof clone.port === "number" && (
-                        <div className="badge badge-success badge-outline">port {clone.port}</div>
-                    )}
-
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
                         className="btn btn-outline btn-sm"
@@ -237,6 +248,6 @@ function CloneCard({
                         )}
                     </div>
                 )}
-        </div>
+        </article>
     );
 }
