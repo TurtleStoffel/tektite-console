@@ -13,7 +13,7 @@
         "build": "bun run build.ts",
         "format": "biome format --write src/",
         "lint": "biome check src/",
-        "typecheck": "bunx tsc --noEmit"
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@openai/codex-sdk": "^0.98.0",
@@ -37,6 +37,7 @@
         "@types/bun": "latest",
         "@types/react": "^19.2.13",
         "@types/react-dom": "^19.2.3",
-        "supabase": "^2.76.6"
+        "supabase": "^2.76.6",
+        "typescript": "^5.9.3"
     }
 }
