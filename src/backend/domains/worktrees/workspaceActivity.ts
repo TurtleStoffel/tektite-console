@@ -26,24 +26,19 @@ export function markCodexWorkspaceInactive(workspacePath: string) {
     setWorkspaceActivity(codexWorkspaceActivity, workspacePath, false);
 }
 
+function hasActiveTektiteServer(workspacePath: string) {
+    const tektitePortPath = path.join(workspacePath, TEKTITE_PORT_FILE);
+    try {
+        return fs.existsSync(tektitePortPath);
+    } catch (error) {
+        console.warn(`Failed checking ${TEKTITE_PORT_FILE} at ${tektitePortPath}`, error);
+        return false;
+    }
+}
+
 export function isWorkspaceActive(workspacePath: string) {
     if (!workspacePath) return false;
-    const tektitePortPath = path.join(workspacePath, TEKTITE_PORT_FILE);
-    let hasActiveTektiteServer = false;
-    try {
-        if (fs.existsSync(tektitePortPath)) {
-            const portText = fs.readFileSync(tektitePortPath, "utf8").trim();
-            const port = Number.parseInt(portText, 10);
-            hasActiveTektiteServer = Number.isInteger(port) && port > 0;
-            if (!hasActiveTektiteServer) {
-                console.warn(
-                    `Invalid ${TEKTITE_PORT_FILE} contents at ${tektitePortPath}: ${portText}`,
-                );
-            }
-        }
-    } catch (error) {
-        console.warn(`Failed reading ${TEKTITE_PORT_FILE} at ${tektitePortPath}`, error);
-    }
-
-    return hasActiveTektiteServer || codexWorkspaceActivity.get(workspacePath) === true;
+    return (
+        hasActiveTektiteServer(workspacePath) || codexWorkspaceActivity.get(workspacePath) === true
+    );
 }
