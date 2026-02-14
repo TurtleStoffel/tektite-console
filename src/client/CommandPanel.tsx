@@ -4,10 +4,13 @@ type StreamMessage = { type: string; error?: string };
 
 type CommandPanelProps = {
     selectedRepoUrl: string | null;
-    onTaskStarted?: () => void;
+    onTaskStarted: () => void;
 };
 
-export default function CommandPanel({ selectedRepoUrl, onTaskStarted }: CommandPanelProps) {
+export default function CommandPanel({
+    selectedRepoUrl,
+    onTaskStarted = () => {},
+}: CommandPanelProps) {
     const [commandInput, setCommandInput] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
@@ -39,7 +42,7 @@ export default function CommandPanel({ selectedRepoUrl, onTaskStarted }: Command
         setValidationMessage(null);
         setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
-        onTaskStarted?.();
+        onTaskStarted();
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);
