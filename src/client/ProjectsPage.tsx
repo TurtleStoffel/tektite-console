@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import type { RepositorySummary } from "./types/repositories";
 import { getErrorMessage } from "./utils/errors";
 
 type ProjectsPageProps = {
@@ -16,7 +15,6 @@ type ProjectSummary = {
 
 export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     const [newProjectName, setNewProjectName] = useState("");
-    const [newProjectRepositoryId, setNewProjectRepositoryId] = useState("");
     const queryClient = useQueryClient();
 
     const fetchProjects = useCallback(async () => {
@@ -40,48 +38,12 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         queryFn: fetchProjects,
     });
 
-    const fetchRepositories = useCallback(async () => {
-        console.info("[repositories] loading repositories from local DB...");
-        const res = await fetch("/api/repositories");
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            throw new Error(payload?.error || "Failed to load repositories.");
-        }
-        const list = Array.isArray(payload?.data) ? (payload.data as RepositorySummary[]) : [];
-        console.info(`[repositories] loaded ${list.length} repositories.`);
-        return list;
-    }, []);
-
-    const {
-        data: repositories = [],
-        isLoading: repositoriesLoading,
-        error: repositoriesErrorRaw,
-    } = useQuery<RepositorySummary[]>({
-        queryKey: ["repositories"],
-        queryFn: fetchRepositories,
-    });
-
-    const availableRepositories = useMemo(
-        () => repositories.filter((repo) => !repo.projectId),
-        [repositories],
-    );
-
     const createProjectMutation = useMutation({
-        mutationFn: async ({
-            name,
-            repositoryId,
-        }: {
-            name: string;
-            repositoryId: string | null;
-        }) => {
-            const payload: { name: string; repositoryId?: string } = { name };
-            if (repositoryId) {
-                payload.repositoryId = repositoryId;
-            }
+        mutationFn: async ({ name }: { name: string }) => {
             const res = await fetch("/api/projects", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ name }),
             });
             const response = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -91,20 +53,17 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         },
         onSuccess: async () => {
             setNewProjectName("");
-            setNewProjectRepositoryId("");
             await queryClient.invalidateQueries({ queryKey: ["projects"] });
         },
     });
 
     const handleCreateProject = useCallback(() => {
         const name = newProjectName.trim();
-        const repositoryId = newProjectRepositoryId.trim();
         if (!name) return;
-        createProjectMutation.mutate({ name, repositoryId: repositoryId || null });
-    }, [createProjectMutation, newProjectName, newProjectRepositoryId]);
+        createProjectMutation.mutate({ name });
+    }, [createProjectMutation, newProjectName]);
 
     const projectsError = getErrorMessage(projectsErrorRaw);
-    const repositoriesError = getErrorMessage(repositoriesErrorRaw);
     const createError = getErrorMessage(createProjectMutation.error);
     const isCreating = createProjectMutation.isPending;
 
@@ -133,9 +92,6 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                     <div className="space-y-1">
                         <div className="space-y-1">
                             <h2 className="card-title">New project</h2>
-                            <p className="text-sm text-base-content/70">
-                                Optionally link a repository to track the new project.
-                            </p>
                         </div>
                     </div>
                     {createError && (
@@ -143,38 +99,12 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                             <span>{createError}</span>
                         </div>
                     )}
-                    {repositoriesError && (
-                        <div className="alert alert-error">
-                            <span>{repositoriesError}</span>
-                        </div>
-                    )}
-                    <div className="grid gap-3 md:grid-cols-2">
-                        <input
-                            className="input input-bordered w-full"
-                            placeholder="Project name"
-                            value={newProjectName}
-                            onChange={(event) => setNewProjectName(event.target.value)}
-                        />
-                        <select
-                            className="select select-bordered w-full"
-                            value={newProjectRepositoryId}
-                            onChange={(event) => setNewProjectRepositoryId(event.target.value)}
-                            disabled={repositoriesLoading}
-                        >
-                            <option value="">
-                                {repositoriesLoading
-                                    ? "Loading repositories..."
-                                    : availableRepositories.length === 0
-                                      ? "No unlinked repositories"
-                                      : "No repository"}
-                            </option>
-                            {availableRepositories.map((repo) => (
-                                <option key={repo.id} value={repo.id}>
-                                    {repo.name} — {repo.url}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <input
+                        className="input input-bordered w-full"
+                        placeholder="Project name"
+                        value={newProjectName}
+                        onChange={(event) => setNewProjectName(event.target.value)}
+                    />
                     <div className="flex items-center justify-between gap-4">
                         <span className="text-xs text-base-content/60">
                             {projects.length} total projects
