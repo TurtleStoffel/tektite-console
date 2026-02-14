@@ -42,6 +42,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
+    const [taskRunning, setTaskRunning] = useState(false);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project);
@@ -114,7 +115,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             ? `${previewProtocol}://${previewHost}:${previewPort}/`
             : null;
 
-    const refreshProject = async () => {
+    const refreshProject = useCallback(async () => {
         if (!id) return;
         try {
             const res = await fetch(`/api/projects/${id}`);
@@ -127,7 +128,20 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             const message = err instanceof Error ? err.message : "Failed to refresh project.";
             setActionError(message);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        if (!taskRunning) return;
+
+        void refreshProject();
+        const interval = window.setInterval(() => {
+            void refreshProject();
+        }, 2000);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [taskRunning, refreshProject]);
 
     const loadRepositories = useCallback(async () => {
         setRepositoriesLoading(true);
@@ -489,7 +503,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 <div className="text-sm text-base-content/60">Commands</div>
                                 <div className="card bg-base-100 border border-base-300">
                                     <div className="card-body p-4">
-                                        <CommandPanel selectedRepoUrl={project.url} />
+                                        <CommandPanel
+                                            selectedRepoUrl={project.url}
+                                            onRunningChange={setTaskRunning}
+                                        />
                                     </div>
                                 </div>
                             </div>
