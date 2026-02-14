@@ -1,6 +1,5 @@
 const terminalWorkspaceActivity = new Map<string, boolean>();
 const codexWorkspaceActivity = new Map<string, boolean>();
-const bunAppRunnerWorkspaceActivity = new Map<string, boolean>();
 
 function setWorkspaceActivity(
     activityMap: Map<string, boolean>,
@@ -32,19 +31,10 @@ export function markCodexWorkspaceInactive(workspacePath: string) {
     setWorkspaceActivity(codexWorkspaceActivity, workspacePath, false);
 }
 
-export function markBunAppRunnerWorkspaceActive(workspacePath: string) {
-    setWorkspaceActivity(bunAppRunnerWorkspaceActivity, workspacePath, true);
-}
-
-export function markBunAppRunnerWorkspaceInactive(workspacePath: string) {
-    setWorkspaceActivity(bunAppRunnerWorkspaceActivity, workspacePath, false);
-}
-
 export function isWorkspaceActive(workspacePath: string) {
     if (!workspacePath) return false;
     return (
         terminalWorkspaceActivity.get(workspacePath) === true ||
-        codexWorkspaceActivity.get(workspacePath) === true ||
-        bunAppRunnerWorkspaceActivity.get(workspacePath) === true
+        codexWorkspaceActivity.get(workspacePath) === true
     );
 }
