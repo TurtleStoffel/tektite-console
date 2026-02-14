@@ -42,7 +42,6 @@ export default function CommandPanel({
         setValidationMessage(null);
         setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
-        onTaskStarted();
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);
@@ -88,6 +87,8 @@ export default function CommandPanel({
             if (!res.body) {
                 throw new Error("Server did not return a streaming response.");
             }
+
+            onTaskStarted();
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
