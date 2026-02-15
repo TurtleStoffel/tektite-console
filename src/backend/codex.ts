@@ -23,6 +23,7 @@ type StreamChunk =
 
 const DEFAULT_THREAD_OPTIONS = {
     approvalPolicy: "never" as const,
+    networkAccessEnabled: true,
     sandboxMode: "workspace-write" as const,
     skipGitRepoCheck: true,
 };
