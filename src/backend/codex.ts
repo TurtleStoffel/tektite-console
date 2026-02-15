@@ -260,8 +260,6 @@ function startThread(workingDirectory: string, threadId?: string | null): Thread
                 ...DEFAULT_THREAD_OPTIONS,
                 workingDirectory,
             });
-            // eslint-disable-next-line no-console
-            console.log(`[codex] Reusing thread ${threadId}`);
             return thread;
         } catch (error) {
             // eslint-disable-next-line no-console
@@ -314,15 +312,19 @@ export function streamCodexRun(options: {
             };
 
             try {
-                // eslint-disable-next-line no-console
-                console.log("[codex] stream starting");
                 const { events } = await thread.runStreamed(augmentedPrompt);
 
                 for await (const event of events as AsyncGenerator<ThreadEvent>) {
                     if (cancelled) break;
                     const summary = summarizeThreadEvent(event);
-                    // eslint-disable-next-line no-console
-                    console.log("[codex] event:", summary);
+                    if (event.type === "item.completed" && event.item?.type === "agent_message") {
+                        const eventThreadId =
+                            "thread_id" in event && typeof event.thread_id === "string"
+                                ? event.thread_id
+                                : (thread.id ?? "unknown");
+                        // eslint-disable-next-line no-console
+                        console.log(`[codex] threadId=${eventThreadId} | ${summary}`);
+                    }
                     mapEventChunk(event, latest, send);
 
                     if (event.type === "thread.started") {
@@ -375,8 +377,6 @@ export function streamCodexRun(options: {
         cancel: () => {
             cancelled = true;
             _controllerRef = null;
-            // eslint-disable-next-line no-console
-            console.log("[codex] stream cancelled by client");
             markCodexWorkspaceInactive(workingDirectory);
         },
     });
