@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "./Markdown";
@@ -50,9 +51,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
-    const [taskHistory, setTaskHistory] = useState<TaskHistoryItem[]>([]);
-    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
-    const [taskHistoryError, setTaskHistoryError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project);
@@ -179,25 +178,28 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     }, [id]);
 
-    const loadTaskHistory = useCallback(async () => {
-        if (!id) return;
-        setTaskHistoryLoading(true);
-        setTaskHistoryError(null);
-        try {
+    const {
+        data: taskHistory = [],
+        isLoading: taskHistoryLoading,
+        isFetching: taskHistoryFetching,
+        error: taskHistoryQueryError,
+        refetch: refetchTaskHistory,
+    } = useQuery<TaskHistoryItem[]>({
+        queryKey: ["project-task-history", id],
+        enabled: Boolean(id),
+        refetchInterval: 15000,
+        queryFn: async () => {
+            if (!id) return [];
             const res = await fetch(`/api/projects/${id}/tasks`);
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load task history.");
             }
-            const list = Array.isArray(payload?.data) ? (payload.data as TaskHistoryItem[]) : [];
-            setTaskHistory(list);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load task history.";
-            setTaskHistoryError(message);
-        } finally {
-            setTaskHistoryLoading(false);
-        }
-    }, [id]);
+            return Array.isArray(payload?.data) ? (payload.data as TaskHistoryItem[]) : [];
+        },
+    });
+    const taskHistoryError =
+        taskHistoryQueryError instanceof Error ? taskHistoryQueryError.message : null;
 
     const startDevTerminal = async (worktreePath: string, key: string) => {
         setActionError(null);
@@ -320,26 +322,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             window.clearInterval(interval);
         };
     }, [id, loadDocuments]);
-
-    useEffect(() => {
-        if (!id) return;
-        let active = true;
-
-        const load = async () => {
-            if (!active) return;
-            await loadTaskHistory();
-        };
-
-        void load();
-        const interval = window.setInterval(() => {
-            void load();
-        }, 15000);
-
-        return () => {
-            active = false;
-            window.clearInterval(interval);
-        };
-    }, [id, loadTaskHistory]);
 
     const availableRepositories = useMemo(() => {
         return repositories.filter((repo) => !repo.projectId || repo.id === project?.repositoryId);
@@ -493,7 +475,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         projectId={project.id}
                                         onTaskStarted={() => {
                                             void refreshProject();
-                                            void loadTaskHistory();
+                                            void queryClient.invalidateQueries({
+                                                queryKey: ["project-task-history", project.id],
+                                            });
                                         }}
                                     />
                                 </div>
@@ -538,10 +522,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     <button
                                         type="button"
                                         className="btn btn-outline btn-xs"
-                                        onClick={() => void loadTaskHistory()}
-                                        disabled={taskHistoryLoading}
+                                        onClick={() => void refetchTaskHistory()}
+                                        disabled={taskHistoryLoading || taskHistoryFetching}
                                     >
-                                        {taskHistoryLoading ? "Refreshing..." : "Refresh"}
+                                        {taskHistoryLoading || taskHistoryFetching
+                                            ? "Refreshing..."
+                                            : "Refresh"}
                                     </button>
                                 </div>
                                 {taskHistoryError && (
