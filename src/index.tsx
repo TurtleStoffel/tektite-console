@@ -19,6 +19,7 @@ import {
 } from "./backend/domains/worktrees/terminal";
 import { ensureClonesDir } from "./backend/git";
 import { findFirstFreePort } from "./backend/port";
+import { seedDevelopmentDataIfEmpty } from "./backend/seedDevelopmentData";
 import { initStorage } from "./backend/storage";
 import { startPullRequestCleanup } from "./backend/worktreeCleanup";
 import index from "./client/index.html";
@@ -68,6 +69,7 @@ console.info("[storage] dual database mode enabled", {
     local: "sqlite",
     remote: "supabase",
 });
+await seedDevelopmentDataIfEmpty({ db: localDb, nodeEnv: process.env.NODE_ENV });
 
 startPullRequestCleanup({ clonesDir });
 
