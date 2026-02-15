@@ -309,20 +309,99 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             <h1 className="text-2xl sm:text-3xl font-bold">
                                 {project?.name ?? "Project details"}
                             </h1>
-                            <div className="text-xs sm:text-sm text-base-content/70 break-all">
-                                {project?.url ? (
-                                    <a
-                                        href={project.url}
-                                        className="link link-hover"
-                                        target="_blank"
-                                        rel="noreferrer"
+                            {repositoriesError && (
+                                <div className="alert alert-error py-2 text-sm">
+                                    <span>{repositoriesError}</span>
+                                </div>
+                            )}
+                            {isEditingRepository ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <select
+                                        className="select select-bordered select-sm w-full sm:w-auto min-w-[260px]"
+                                        value={repositorySelection}
+                                        onChange={(event) =>
+                                            setRepositorySelection(event.target.value)
+                                        }
+                                        disabled={repositoriesLoading || updatingRepository}
                                     >
-                                        {project.url}
-                                    </a>
-                                ) : (
-                                    "No repository linked yet."
-                                )}
-                            </div>
+                                        <option value="">
+                                            {repositoriesLoading
+                                                ? "Loading repositories..."
+                                                : availableRepositories.length === 0
+                                                  ? "No unlinked repositories"
+                                                  : "No repository"}
+                                        </option>
+                                        {availableRepositories.map((repo) => (
+                                            <option key={repo.id} value={repo.id}>
+                                                {repo.name} - {repo.url}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() =>
+                                            void updateRepository(
+                                                repositorySelection.trim() || null,
+                                            )
+                                        }
+                                        disabled={
+                                            updatingRepository ||
+                                            repositoriesLoading ||
+                                            !repositoryChanged
+                                        }
+                                    >
+                                        {updatingRepository ? "Saving..." : "Save"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => {
+                                            setRepositorySelection(currentRepositoryId);
+                                            setIsEditingRepository(false);
+                                        }}
+                                        disabled={updatingRepository}
+                                    >
+                                        Cancel
+                                    </button>
+                                    {project?.repositoryId && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => void updateRepository(null)}
+                                            disabled={updatingRepository}
+                                        >
+                                            Unlink
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="group flex items-start gap-2 text-xs sm:text-sm text-base-content/70 break-all">
+                                    <div className="min-h-8 flex-1 pt-1">
+                                        {project?.url ? (
+                                            <a
+                                                href={project.url}
+                                                className="link link-hover"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                {project.url}
+                                            </a>
+                                        ) : (
+                                            "No repository linked yet."
+                                        )}
+                                    </div>
+                                    {project && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-xs opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                            onClick={() => setIsEditingRepository(true)}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <Link to="/" className="btn btn-outline btn-sm">
@@ -357,109 +436,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                     <div className="space-y-6">
                         <div className="card bg-base-200 border border-base-300 shadow-sm">
                             <div className="card-body p-5 sm:p-6 space-y-5">
-                                <div className="space-y-1">
-                                    <div className="text-sm text-base-content/60">Name</div>
-                                    <div className="text-2xl font-semibold">{project.name}</div>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="text-sm text-base-content/60">Repository</div>
-                                    {repositoriesError && (
-                                        <div className="alert alert-error py-2">
-                                            <span className="text-sm">{repositoriesError}</span>
-                                        </div>
-                                    )}
-                                    {isEditingRepository ? (
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <select
-                                                className="select select-bordered w-full sm:w-auto min-w-[260px]"
-                                                value={repositorySelection}
-                                                onChange={(event) =>
-                                                    setRepositorySelection(event.target.value)
-                                                }
-                                                disabled={repositoriesLoading || updatingRepository}
-                                            >
-                                                <option value="">
-                                                    {repositoriesLoading
-                                                        ? "Loading repositories..."
-                                                        : availableRepositories.length === 0
-                                                          ? "No unlinked repositories"
-                                                          : "No repository"}
-                                                </option>
-                                                {availableRepositories.map((repo) => (
-                                                    <option key={repo.id} value={repo.id}>
-                                                        {repo.name} - {repo.url}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary btn-sm"
-                                                onClick={() =>
-                                                    void updateRepository(
-                                                        repositorySelection.trim() || null,
-                                                    )
-                                                }
-                                                disabled={
-                                                    updatingRepository ||
-                                                    repositoriesLoading ||
-                                                    !repositoryChanged
-                                                }
-                                            >
-                                                {updatingRepository
-                                                    ? "Saving..."
-                                                    : "Save repository"}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={() => {
-                                                    setRepositorySelection(currentRepositoryId);
-                                                    setIsEditingRepository(false);
-                                                }}
-                                                disabled={updatingRepository}
-                                            >
-                                                Cancel
-                                            </button>
-                                            {project.repositoryId && (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-sm"
-                                                    onClick={() => void updateRepository(null)}
-                                                    disabled={updatingRepository}
-                                                >
-                                                    Unlink
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="group flex items-start gap-2">
-                                            <div className="min-h-8 flex-1 pt-1">
-                                                {project.url ? (
-                                                    <a
-                                                        href={project.url}
-                                                        className="link link-hover break-all"
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        {project.url}
-                                                    </a>
-                                                ) : (
-                                                    <div className="text-sm text-base-content/70">
-                                                        No repository linked yet.
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-xs opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                                                onClick={() => setIsEditingRepository(true)}
-                                            >
-                                                Edit
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="divider my-0" />
                                 <ClonesSection
                                     clones={project.clones}
                                     actionError={actionError}
