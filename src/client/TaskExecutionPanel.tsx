@@ -40,6 +40,7 @@ export default function TaskExecutionPanel({
         }
 
         setValidationMessage(null);
+        setTaskPrompt("");
         setActiveRuns((count) => count + 1);
         setStatusMessage("Preparing workspace and starting Codex...");
 
