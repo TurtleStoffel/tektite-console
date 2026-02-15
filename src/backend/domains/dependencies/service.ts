@@ -209,7 +209,10 @@ export function createDependencyService() {
 
             const madgeResult = await Result.try(
                 async () => {
-                    const result = await madge(gitAwareInputs ?? targetPath, {
+                    const madgeInput = (gitAwareInputs ?? targetPath) as Parameters<
+                        typeof madge
+                    >[0];
+                    const result = await madge(madgeInput, {
                         fileExtensions: ["ts", "tsx", "js", "jsx", "mjs", "cjs"],
                         includeNpm: false,
                     });

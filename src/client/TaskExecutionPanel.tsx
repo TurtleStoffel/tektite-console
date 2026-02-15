@@ -4,11 +4,13 @@ type StreamMessage = { type: string; error?: string };
 
 type TaskExecutionPanelProps = {
     selectedRepoUrl: string | null;
+    projectId?: string | null;
     onTaskStarted: () => void;
 };
 
 export default function TaskExecutionPanel({
     selectedRepoUrl,
+    projectId = null,
     onTaskStarted = () => {},
 }: TaskExecutionPanelProps) {
     const [taskPrompt, setTaskPrompt] = useState("");
@@ -57,6 +59,7 @@ export default function TaskExecutionPanel({
                 },
                 body: JSON.stringify({
                     prompt: trimmedPrompt,
+                    projectId,
                     repository: { type: "git", url: selectedRepoUrl },
                 }),
                 signal: abortController.signal,

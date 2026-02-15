@@ -1,11 +1,15 @@
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import { parseJsonBody } from "../../http/validation";
+import { createTasksService } from "@/backend/domains/tasks/service";
+import type * as schema from "../../db/local/schema";
+import { jsonHeaders, parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
 
 const executePayloadSchema = z
     .object({
         command: z.string().trim().min(1).optional(),
         prompt: z.string().trim().min(1).optional(),
+        projectId: z.string().trim().min(1).optional().nullable(),
         repository: z.object({ url: z.string().trim().min(1) }),
     })
     .refine((value) => Boolean(value.command ?? value.prompt), {
@@ -13,8 +17,12 @@ const executePayloadSchema = z
         path: ["command"],
     });
 
-export function createExecuteRoutes(options: { clonesDir: string }) {
+export function createExecuteRoutes(options: {
+    clonesDir: string;
+    db: BunSQLiteDatabase<typeof schema>;
+}) {
     const service = createExecuteService({ clonesDir: options.clonesDir });
+    const tasksService = createTasksService({ db: options.db });
 
     return {
         "/api/execute": {
@@ -32,6 +40,17 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                     throw new Error("Command text is required.");
                 }
                 const repositoryUrl = parsed.data.repository.url;
+                const createTaskResult = await tasksService.createTaskHistory({
+                    prompt: basePrompt,
+                    repositoryUrl,
+                    projectId: parsed.data.projectId,
+                });
+                if ("error" in createTaskResult) {
+                    return new Response(JSON.stringify({ error: createTaskResult.error }), {
+                        status: createTaskResult.status,
+                        headers: jsonHeaders,
+                    });
+                }
 
                 const result = await service.execute({ prompt: basePrompt, repositoryUrl });
                 if (result.error) {

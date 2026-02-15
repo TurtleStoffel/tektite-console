@@ -9,6 +9,7 @@ import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createGithubRoutes } from "./backend/domains/github/routes";
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
+import { createTaskRoutes } from "./backend/domains/tasks/routes";
 import { createDevServerRoutes } from "./backend/domains/worktrees/routes";
 import {
     attachSocketToTerminalSession,
@@ -164,7 +165,8 @@ const server = serve<TerminalSocketData>({
         ...createDependencyRoutes(),
         ...createProjectRoutes({ db: localDb, clonesDir }),
         ...createRepositoryRoutes({ db: localDb }),
-        ...createExecuteRoutes({ clonesDir }),
+        ...createTaskRoutes({ db: localDb }),
+        ...createExecuteRoutes({ clonesDir, db: localDb }),
         ...createDevServerRoutes({ clonesDir }),
         ...createEditorRoutes({ clonesDir }),
 

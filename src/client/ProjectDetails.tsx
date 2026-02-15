@@ -18,6 +18,14 @@ type DocumentSummary = {
     markdown: string;
 };
 
+type TaskHistoryItem = {
+    id: string;
+    projectId: string | null;
+    repositoryUrl: string;
+    prompt: string;
+    createdAt: string;
+};
+
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -42,6 +50,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
+    const [taskHistory, setTaskHistory] = useState<TaskHistoryItem[]>([]);
+    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
+    const [taskHistoryError, setTaskHistoryError] = useState<string | null>(null);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets(project);
@@ -168,6 +179,26 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     }, [id]);
 
+    const loadTaskHistory = useCallback(async () => {
+        if (!id) return;
+        setTaskHistoryLoading(true);
+        setTaskHistoryError(null);
+        try {
+            const res = await fetch(`/api/projects/${id}/tasks`);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load task history.");
+            }
+            const list = Array.isArray(payload?.data) ? (payload.data as TaskHistoryItem[]) : [];
+            setTaskHistory(list);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load task history.";
+            setTaskHistoryError(message);
+        } finally {
+            setTaskHistoryLoading(false);
+        }
+    }, [id]);
+
     const startDevTerminal = async (worktreePath: string, key: string) => {
         setActionError(null);
         setStartingDevKey(key);
@@ -289,6 +320,26 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             window.clearInterval(interval);
         };
     }, [id, loadDocuments]);
+
+    useEffect(() => {
+        if (!id) return;
+        let active = true;
+
+        const load = async () => {
+            if (!active) return;
+            await loadTaskHistory();
+        };
+
+        void load();
+        const interval = window.setInterval(() => {
+            void load();
+        }, 15000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [id, loadTaskHistory]);
 
     const availableRepositories = useMemo(() => {
         return repositories.filter((repo) => !repo.projectId || repo.id === project?.repositoryId);
@@ -439,8 +490,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 <div className="card-body p-5 sm:p-6">
                                     <TaskExecutionPanel
                                         selectedRepoUrl={project.url}
+                                        projectId={project.id}
                                         onTaskStarted={() => {
                                             void refreshProject();
+                                            void loadTaskHistory();
                                         }}
                                     />
                                 </div>
@@ -478,6 +531,56 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                     </div>
 
                     <div className="space-y-6 xl:sticky xl:top-6 self-start">
+                        <div className="card bg-base-200 border border-base-300 shadow-sm">
+                            <div className="card-body p-5 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">Task history</div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline btn-xs"
+                                        onClick={() => void loadTaskHistory()}
+                                        disabled={taskHistoryLoading}
+                                    >
+                                        {taskHistoryLoading ? "Refreshing..." : "Refresh"}
+                                    </button>
+                                </div>
+                                {taskHistoryError && (
+                                    <div className="alert alert-error py-2">
+                                        <span className="text-sm">{taskHistoryError}</span>
+                                    </div>
+                                )}
+                                {taskHistoryLoading ? (
+                                    <div className="flex items-center gap-2 text-sm text-base-content/70">
+                                        <span className="loading loading-spinner loading-sm" />
+                                        <span>Loading task history...</span>
+                                    </div>
+                                ) : taskHistory.length === 0 ? (
+                                    <div className="text-sm text-base-content/70">
+                                        No task history for this project yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                                        {taskHistory.map((task) => (
+                                            <div
+                                                key={task.id}
+                                                className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
+                                            >
+                                                <div className="text-xs text-base-content/60">
+                                                    {new Date(task.createdAt).toLocaleString()}
+                                                </div>
+                                                <p className="text-sm whitespace-pre-wrap break-words">
+                                                    {task.prompt}
+                                                </p>
+                                                <p className="text-xs text-base-content/70 break-all">
+                                                    {task.repositoryUrl}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="card bg-base-200 border border-base-300 shadow-sm">
                             <div className="card-body p-5 space-y-3">
                                 <div className="flex items-center justify-between gap-2">
