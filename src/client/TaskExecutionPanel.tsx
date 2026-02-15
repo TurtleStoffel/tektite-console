@@ -4,13 +4,13 @@ type StreamMessage = { type: string; error?: string };
 
 type TaskExecutionPanelProps = {
     selectedRepoUrl: string | null;
-    projectId?: string | null;
+    projectId: string;
     onTaskStarted: () => void;
 };
 
 export default function TaskExecutionPanel({
     selectedRepoUrl,
-    projectId = null,
+    projectId,
     onTaskStarted = () => {},
 }: TaskExecutionPanelProps) {
     const [taskPrompt, setTaskPrompt] = useState("");
