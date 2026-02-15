@@ -6,6 +6,7 @@ import { buildPreviewTargets } from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
 import TaskExecutionPanel from "./TaskExecutionPanel";
+import type { RepositorySummary } from "./types/repositories";
 
 type ProjectDetailsProps = {
     drawerToggleId: string;
@@ -31,6 +32,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         {},
     );
     const [actionError, setActionError] = useState<string | null>(null);
+    const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
+    const [repositoriesLoading, setRepositoriesLoading] = useState(false);
+    const [repositoriesError, setRepositoriesError] = useState<string | null>(null);
+    const [repositorySelection, setRepositorySelection] = useState("");
+    const [updatingRepository, setUpdatingRepository] = useState(false);
+    const [isEditingRepository, setIsEditingRepository] = useState(false);
     const [deletingProject, setDeletingProject] = useState(false);
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -78,6 +85,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [id]);
 
     useEffect(() => {
+        setRepositorySelection(project?.repositoryId ?? "");
+    }, [project?.repositoryId]);
+
+    useEffect(() => {
         if (previewTargets.length === 0) {
             setActivePreviewKey(null);
             return;
@@ -117,6 +128,25 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setActionError(message);
         }
     }, [id]);
+
+    const loadRepositories = useCallback(async () => {
+        setRepositoriesLoading(true);
+        setRepositoriesError(null);
+        try {
+            const res = await fetch("/api/repositories");
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load repositories.");
+            }
+            const list = Array.isArray(payload?.data) ? (payload.data as RepositorySummary[]) : [];
+            setRepositories(list);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to load repositories.";
+            setRepositoriesError(message);
+        } finally {
+            setRepositoriesLoading(false);
+        }
+    }, []);
 
     const loadDocuments = useCallback(async () => {
         if (!id) return;
@@ -187,6 +217,32 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
     };
 
+    const updateRepository = async (nextRepositoryId: string | null) => {
+        if (!id) return;
+        setActionError(null);
+        setUpdatingRepository(true);
+        try {
+            const res = await fetch(`/api/projects/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ repositoryId: nextRepositoryId }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update repository.");
+            }
+            setProject(payload as ProjectDetailsPayload);
+            setRepositorySelection(payload?.repositoryId ?? "");
+            setIsEditingRepository(false);
+            await loadRepositories();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to update repository.";
+            setActionError(message);
+        } finally {
+            setUpdatingRepository(false);
+        }
+    };
+
     const deleteProject = async () => {
         if (!id) return;
         const confirmed = window.confirm(
@@ -211,6 +267,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     };
 
     useEffect(() => {
+        void loadRepositories();
+    }, [loadRepositories]);
+
+    useEffect(() => {
         if (!id) return;
         let active = true;
 
@@ -230,6 +290,13 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         };
     }, [id, loadDocuments]);
 
+    const availableRepositories = useMemo(() => {
+        return repositories.filter((repo) => !repo.projectId || repo.id === project?.repositoryId);
+    }, [repositories, project?.repositoryId]);
+
+    const currentRepositoryId = project?.repositoryId ?? "";
+    const repositoryChanged = repositorySelection !== currentRepositoryId;
+
     return (
         <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
             <div className="rounded-2xl border border-base-300 bg-gradient-to-br from-base-200 to-base-100 shadow-sm">
@@ -242,20 +309,99 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             <h1 className="text-2xl sm:text-3xl font-bold">
                                 {project?.name ?? "Project details"}
                             </h1>
-                            <div className="text-xs sm:text-sm text-base-content/70 break-all">
-                                {project?.url ? (
-                                    <a
-                                        href={project.url}
-                                        className="link link-hover"
-                                        target="_blank"
-                                        rel="noreferrer"
+                            {repositoriesError && (
+                                <div className="alert alert-error py-2 text-sm">
+                                    <span>{repositoriesError}</span>
+                                </div>
+                            )}
+                            {isEditingRepository ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <select
+                                        className="select select-bordered select-sm w-full sm:w-auto min-w-[260px]"
+                                        value={repositorySelection}
+                                        onChange={(event) =>
+                                            setRepositorySelection(event.target.value)
+                                        }
+                                        disabled={repositoriesLoading || updatingRepository}
                                     >
-                                        {project.url}
-                                    </a>
-                                ) : (
-                                    "No repository linked yet."
-                                )}
-                            </div>
+                                        <option value="">
+                                            {repositoriesLoading
+                                                ? "Loading repositories..."
+                                                : availableRepositories.length === 0
+                                                  ? "No unlinked repositories"
+                                                  : "No repository"}
+                                        </option>
+                                        {availableRepositories.map((repo) => (
+                                            <option key={repo.id} value={repo.id}>
+                                                {repo.name} - {repo.url}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        onClick={() =>
+                                            void updateRepository(
+                                                repositorySelection.trim() || null,
+                                            )
+                                        }
+                                        disabled={
+                                            updatingRepository ||
+                                            repositoriesLoading ||
+                                            !repositoryChanged
+                                        }
+                                    >
+                                        {updatingRepository ? "Saving..." : "Save"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => {
+                                            setRepositorySelection(currentRepositoryId);
+                                            setIsEditingRepository(false);
+                                        }}
+                                        disabled={updatingRepository}
+                                    >
+                                        Cancel
+                                    </button>
+                                    {project?.repositoryId && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => void updateRepository(null)}
+                                            disabled={updatingRepository}
+                                        >
+                                            Unlink
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="group flex items-start gap-2 text-xs sm:text-sm text-base-content/70 break-all">
+                                    <div className="min-h-8 flex-1 pt-1">
+                                        {project?.url ? (
+                                            <a
+                                                href={project.url}
+                                                className="link link-hover"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                {project.url}
+                                            </a>
+                                        ) : (
+                                            "No repository linked yet."
+                                        )}
+                                    </div>
+                                    {project && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-xs opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                            onClick={() => setIsEditingRepository(true)}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <Link to="/" className="btn btn-outline btn-sm">
