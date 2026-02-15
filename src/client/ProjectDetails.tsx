@@ -460,6 +460,17 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     )}
                                 </div>
                                 <div className="divider my-0" />
+                                {project.url && (
+                                    <>
+                                        <TaskExecutionPanel
+                                            selectedRepoUrl={project.url}
+                                            onTaskStarted={() => {
+                                                void refreshProject();
+                                            }}
+                                        />
+                                        <div className="divider my-0" />
+                                    </>
+                                )}
                                 <ClonesSection
                                     clones={project.clones}
                                     actionError={actionError}
@@ -487,18 +498,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 />
                             </div>
                         </div>
-                        {project.url && (
-                            <div className="card bg-base-200 border border-base-300 shadow-sm">
-                                <div className="card-body p-5 sm:p-6">
-                                    <TaskExecutionPanel
-                                        selectedRepoUrl={project.url}
-                                        onTaskStarted={() => {
-                                            void refreshProject();
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <div className="space-y-6 xl:sticky xl:top-6 self-start">
