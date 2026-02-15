@@ -31,7 +31,6 @@ export async function initLocalStorage(databasePath: string): Promise<LocalStora
         CREATE TABLE IF NOT EXISTS task_history (
             id TEXT PRIMARY KEY NOT NULL,
             project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
-            repository_url TEXT NOT NULL,
             prompt TEXT NOT NULL,
             created_at TEXT NOT NULL
         );

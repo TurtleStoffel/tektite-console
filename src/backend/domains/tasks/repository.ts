@@ -19,7 +19,6 @@ export function listTaskHistory(db: Db) {
         .select({
             id: taskHistory.id,
             projectId: taskHistory.projectId,
-            repositoryUrl: taskHistory.repositoryUrl,
             prompt: taskHistory.prompt,
             createdAt: taskHistory.createdAt,
         })
@@ -33,7 +32,6 @@ export function listProjectTaskHistory(db: Db, projectId: string) {
         .select({
             id: taskHistory.id,
             projectId: taskHistory.projectId,
-            repositoryUrl: taskHistory.repositoryUrl,
             prompt: taskHistory.prompt,
             createdAt: taskHistory.createdAt,
         })
@@ -48,7 +46,6 @@ export async function createTaskHistory(
     values: {
         id: string;
         projectId: string | null;
-        repositoryUrl: string;
         prompt: string;
         createdAt: string;
     },

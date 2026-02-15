@@ -22,7 +22,6 @@ type DocumentSummary = {
 type TaskHistoryItem = {
     id: string;
     projectId: string | null;
-    repositoryUrl: string;
     prompt: string;
     createdAt: string;
 };
@@ -556,9 +555,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 </div>
                                                 <p className="text-sm whitespace-pre-wrap break-words">
                                                     {task.prompt}
-                                                </p>
-                                                <p className="text-xs text-base-content/70 break-all">
-                                                    {task.repositoryUrl}
                                                 </p>
                                             </div>
                                         ))}

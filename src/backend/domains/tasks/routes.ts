@@ -9,7 +9,6 @@ type Db = BunSQLiteDatabase<typeof schema>;
 
 const createTaskHistorySchema = z.object({
     prompt: z.string().trim().min(1),
-    repositoryUrl: z.string().trim().min(1),
     projectId: z.string().optional().nullable(),
 });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });

@@ -27,7 +27,6 @@ export const taskHistory = sqliteTable("task_history", {
     projectId: text("project_id").references(() => projects.id, {
         onDelete: "set null",
     }),
-    repositoryUrl: text("repository_url").notNull(),
     prompt: text("prompt").notNull(),
     createdAt: text("created_at").notNull(),
 });

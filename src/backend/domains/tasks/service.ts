@@ -19,7 +19,6 @@ export function createTasksService(options: { db: Db }) {
             return rows.map((row) => ({
                 id: row.id,
                 projectId: row.projectId,
-                repositoryUrl: row.repositoryUrl,
                 prompt: row.prompt,
                 createdAt: row.createdAt,
             }));
@@ -33,17 +32,12 @@ export function createTasksService(options: { db: Db }) {
             return rows.map((row) => ({
                 id: row.id,
                 projectId: row.projectId,
-                repositoryUrl: row.repositoryUrl,
                 prompt: row.prompt,
                 createdAt: row.createdAt,
             }));
         },
 
-        async createTaskHistory(input: {
-            projectId?: string | null;
-            repositoryUrl: string;
-            prompt: string;
-        }) {
+        async createTaskHistory(input: { projectId?: string | null; prompt: string }) {
             const projectId = normalizeProjectId(input.projectId);
             if (projectId) {
                 const project = await repository.findProject(db, projectId);
@@ -55,7 +49,6 @@ export function createTasksService(options: { db: Db }) {
             await repository.createTaskHistory(db, {
                 id,
                 projectId,
-                repositoryUrl: input.repositoryUrl,
                 prompt: input.prompt,
                 createdAt,
             });
@@ -63,7 +56,6 @@ export function createTasksService(options: { db: Db }) {
             return {
                 id,
                 projectId,
-                repositoryUrl: input.repositoryUrl,
                 prompt: input.prompt,
                 createdAt,
             };

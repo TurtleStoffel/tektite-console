@@ -42,7 +42,6 @@ export function createExecuteRoutes(options: {
                 const repositoryUrl = parsed.data.repository.url;
                 const createTaskResult = await tasksService.createTaskHistory({
                     prompt: basePrompt,
-                    repositoryUrl,
                     projectId: parsed.data.projectId,
                 });
                 if ("error" in createTaskResult) {
