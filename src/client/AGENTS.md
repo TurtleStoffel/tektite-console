@@ -13,6 +13,7 @@
 ## Coding Rules
 - Language: TypeScript + React function components.
 - Use React Query for server state and caching.
+- For any new or changed client server-state fetches, use React Query (`useQuery`, `useMutation`, invalidation/refetch). Do not introduce `useEffect + fetch + useState` patterns for remote data.
 - Use React Router for client routing.
 - Style with Tailwind utility classes and DaisyUI components.
 - Prefer explicit failures over hidden defaults.

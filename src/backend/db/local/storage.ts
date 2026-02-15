@@ -27,6 +27,13 @@ export async function initLocalStorage(databasePath: string): Promise<LocalStora
             project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
             markdown TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS task_history (
+            id TEXT PRIMARY KEY NOT NULL,
+            project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+            prompt TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
     `);
 
     console.info("[storage:local] initialized sqlite database", { databasePath });
