@@ -10,5 +10,8 @@ declare module "madge" {
         includeNpm?: boolean;
     };
 
-    export default function madge(path: string, config?: MadgeOptions): Promise<MadgeResult>;
+    export default function madge(
+        path: string | string[],
+        config?: MadgeOptions,
+    ): Promise<MadgeResult>;
 }
