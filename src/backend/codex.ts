@@ -317,12 +317,7 @@ export function streamCodexRun(options: {
                 for await (const event of events as AsyncGenerator<ThreadEvent>) {
                     if (cancelled) break;
                     const summary = summarizeThreadEvent(event);
-                    if (
-                        (event.type === "item.started" ||
-                            event.type === "item.updated" ||
-                            event.type === "item.completed") &&
-                        event.item?.type === "agent_message"
-                    ) {
+                    if (event.type === "item.completed" && event.item?.type === "agent_message") {
                         const eventThreadId =
                             "thread_id" in event && typeof event.thread_id === "string"
                                 ? event.thread_id
