@@ -35,6 +35,8 @@ type DependencyDomainError =
           cause?: unknown;
       };
 
+const SUPPORTED_SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+
 async function validateAndResolvePath(
     rawTargetPath: string,
 ): Promise<Result<string, DependencyDomainError>> {
@@ -60,6 +62,96 @@ async function validateAndResolvePath(
     }
 
     return Result.ok(targetPath);
+}
+
+function isPathWithin(parentPath: string, targetPath: string): boolean {
+    const relativePath = path.relative(parentPath, targetPath);
+    return (
+        relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+    );
+}
+
+async function runGitCommand(
+    cwd: string,
+    args: string[],
+): Promise<Result<string, { type: "git-command-failed"; command: string; stderr: string }>> {
+    const process = Bun.spawn(["git", "-C", cwd, ...args], {
+        stdout: "pipe",
+        stderr: "pipe",
+    });
+
+    const [exitCode, stdout, stderr] = await Promise.all([
+        process.exited,
+        new Response(process.stdout).text(),
+        new Response(process.stderr).text(),
+    ]);
+    if (exitCode !== 0) {
+        return Result.error({
+            type: "git-command-failed",
+            command: ["git", "-C", cwd, ...args].join(" "),
+            stderr: stderr.trim(),
+        });
+    }
+
+    return Result.ok(stdout.trim());
+}
+
+async function resolveGitAwareMadgeInput(targetPath: string): Promise<string[] | null> {
+    const repoRootResult = await runGitCommand(targetPath, ["rev-parse", "--show-toplevel"]);
+    if (!repoRootResult.ok) {
+        console.info(
+            "[dependencies] target path is not a git repository; skipping .gitignore filtering",
+            {
+                targetPath,
+                command: repoRootResult.error.command,
+                stderr: repoRootResult.error.stderr,
+            },
+        );
+        return null;
+    }
+
+    const repoRoot = path.resolve(repoRootResult.value);
+    const listedFilesResult = await runGitCommand(repoRoot, [
+        "ls-files",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+    ]);
+    if (!listedFilesResult.ok) {
+        console.warn("[dependencies] failed to list git-aware repository files", {
+            targetPath,
+            repoRoot,
+            command: listedFilesResult.error.command,
+            stderr: listedFilesResult.error.stderr,
+        });
+        return null;
+    }
+
+    const targetStat = await stat(targetPath);
+    const targetIsDirectory = targetStat.isDirectory();
+
+    const sourceFiles = listedFilesResult.value
+        .split("\n")
+        .map((relativeFilePath) => relativeFilePath.trim())
+        .filter((relativeFilePath) => relativeFilePath.length > 0)
+        .map((relativeFilePath) => path.resolve(repoRoot, relativeFilePath))
+        .filter((absoluteFilePath) =>
+            SUPPORTED_SOURCE_EXTENSIONS.has(path.extname(absoluteFilePath)),
+        )
+        .filter((absoluteFilePath) => {
+            if (targetIsDirectory) {
+                return isPathWithin(targetPath, absoluteFilePath);
+            }
+            return path.resolve(targetPath) === absoluteFilePath;
+        });
+
+    console.info("[dependencies] resolved git-aware dependency inputs", {
+        targetPath,
+        repoRoot,
+        sourceFiles: sourceFiles.length,
+    });
+
+    return sourceFiles;
 }
 
 function buildGraphDataFromObject(dependencyObject: Record<string, string[]>): DependencyGraphData {
@@ -109,9 +201,15 @@ export function createDependencyService() {
 
             console.info("[dependencies] generating madge graph", { targetPath });
 
+            const gitAwareInputs = await resolveGitAwareMadgeInput(targetPath);
+            if (gitAwareInputs && gitAwareInputs.length === 0) {
+                console.info("[dependencies] no non-ignored source files found", { targetPath });
+                return Result.ok({ nodes: [], edges: [] });
+            }
+
             const madgeResult = await Result.try(
                 async () => {
-                    const result = await madge(targetPath, {
+                    const result = await madge(gitAwareInputs ?? targetPath, {
                         fileExtensions: ["ts", "tsx", "js", "jsx", "mjs", "cjs"],
                         includeNpm: false,
                     });
