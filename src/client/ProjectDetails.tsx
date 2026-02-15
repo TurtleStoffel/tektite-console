@@ -434,6 +434,18 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             {!loading && !error && project && (
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
                     <div className="space-y-6">
+                        {project.url && (
+                            <div className="card bg-base-200 border border-base-300 shadow-sm">
+                                <div className="card-body p-5 sm:p-6">
+                                    <TaskExecutionPanel
+                                        selectedRepoUrl={project.url}
+                                        onTaskStarted={() => {
+                                            void refreshProject();
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                         <div className="card bg-base-200 border border-base-300 shadow-sm">
                             <div className="card-body p-5 sm:p-6 space-y-5">
                                 <ClonesSection
@@ -463,18 +475,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 />
                             </div>
                         </div>
-                        {project.url && (
-                            <div className="card bg-base-200 border border-base-300 shadow-sm">
-                                <div className="card-body p-5 sm:p-6">
-                                    <TaskExecutionPanel
-                                        selectedRepoUrl={project.url}
-                                        onTaskStarted={() => {
-                                            void refreshProject();
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <div className="space-y-6 xl:sticky xl:top-6 self-start">
