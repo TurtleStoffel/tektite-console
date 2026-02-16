@@ -67,5 +67,35 @@ export function createExecuteService(options: { clonesDir: string }) {
 
             return Result.ok(streamResult.value);
         },
+        executeThreadComment(input: {
+            comment: string;
+            workingDirectory: string;
+            threadId: string;
+        }) {
+            const streamResult = Result.try(
+                () =>
+                    streamCodexRun({
+                        prompt: input.comment,
+                        workingDirectory: input.workingDirectory,
+                        threadId: input.threadId,
+                        clonesDir,
+                    }),
+                (error) => {
+                    console.warn("[execute] failed to initialize thread comment stream", {
+                        workingDirectory: input.workingDirectory,
+                        threadId: input.threadId,
+                        error,
+                    });
+                    return new ExecuteStreamError("Failed to start execution stream.", {
+                        cause: error,
+                    });
+                },
+            );
+            if (!streamResult.ok) {
+                return Result.error(streamResult.error);
+            }
+
+            return Result.ok(streamResult.value);
+        },
     };
 }
