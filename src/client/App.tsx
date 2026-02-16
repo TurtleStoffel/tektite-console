@@ -6,6 +6,7 @@ import { EnvIndicator } from "./EnvIndicator";
 import { ProjectDetails } from "./ProjectDetails";
 import { ProjectsPage } from "./ProjectsPage";
 import { RepositoriesPage } from "./RepositoriesPage";
+import { TasksPage } from "./TasksPage";
 import "./index.css";
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
         { to: "/", label: "Projects" },
         { to: "/repositories", label: "Repositories" },
         { to: "/documents", label: "Documents" },
+        { to: "/tasks", label: "Tasks" },
         { to: "/canvas", label: "Canvas" },
         { to: "/dependencies", label: "Dependencies" },
     ];
@@ -58,6 +60,7 @@ export function App() {
                         path="/documents"
                         element={<DocumentsPage drawerToggleId={entityDrawerId} />}
                     />
+                    <Route path="/tasks" element={<TasksPage drawerToggleId={entityDrawerId} />} />
                     <Route
                         path="/canvas"
                         element={<CanvasPage drawerToggleId={entityDrawerId} />}
