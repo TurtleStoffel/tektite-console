@@ -32,9 +32,22 @@ export async function initLocalStorage(databasePath: string): Promise<LocalStora
             id TEXT PRIMARY KEY NOT NULL,
             project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
             prompt TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            is_done INTEGER NOT NULL DEFAULT 0,
+            done_at TEXT
         );
     `);
+
+    const taskHistoryColumns = sqlite.query("PRAGMA table_info(task_history)").all() as Array<{
+        name: string;
+    }>;
+    const taskHistoryColumnNames = new Set(taskHistoryColumns.map((column) => column.name));
+    if (!taskHistoryColumnNames.has("is_done")) {
+        sqlite.exec("ALTER TABLE task_history ADD COLUMN is_done INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!taskHistoryColumnNames.has("done_at")) {
+        sqlite.exec("ALTER TABLE task_history ADD COLUMN done_at TEXT");
+    }
 
     console.info("[storage:local] initialized sqlite database", { databasePath });
     return { db: drizzle(sqlite, { schema }) };

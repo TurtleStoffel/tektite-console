@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { DevTerminalPanel } from "../DevTerminalPanel";
 import { prBadgeClass, prBadgeLabel } from "./helpers";
 import type { ProjectDetailsClone } from "./types";
@@ -117,6 +118,7 @@ function CloneCard({
     const [comment, setComment] = useState("");
     const [commentError, setCommentError] = useState<string | null>(null);
     const [submittingComment, setSubmittingComment] = useState(false);
+    const dependenciesLink = `/dependencies?${new URLSearchParams({ path: clone.path }).toString()}`;
 
     const terminalButtonLabel = isStarting
         ? "Opening"
@@ -202,6 +204,9 @@ function CloneCard({
                     )}
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Link to={dependenciesLink} className="btn btn-outline btn-sm">
+                        Dependencies
+                    </Link>
                     <button
                         type="button"
                         className="btn btn-outline btn-sm"

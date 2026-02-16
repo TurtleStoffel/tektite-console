@@ -21,6 +21,8 @@ export function createTasksService(options: { db: Db }) {
                 projectId: row.projectId,
                 prompt: row.prompt,
                 createdAt: row.createdAt,
+                isDone: row.isDone,
+                doneAt: row.doneAt,
             }));
         },
 
@@ -34,6 +36,8 @@ export function createTasksService(options: { db: Db }) {
                 projectId: row.projectId,
                 prompt: row.prompt,
                 createdAt: row.createdAt,
+                isDone: row.isDone,
+                doneAt: row.doneAt,
             }));
         },
 
@@ -51,6 +55,8 @@ export function createTasksService(options: { db: Db }) {
                 projectId,
                 prompt: input.prompt,
                 createdAt,
+                isDone: false,
+                doneAt: null,
             });
             console.info("[tasks] created task history", { id, projectId });
             return {
@@ -58,7 +64,20 @@ export function createTasksService(options: { db: Db }) {
                 projectId,
                 prompt: input.prompt,
                 createdAt,
+                isDone: false,
+                doneAt: null,
             };
+        },
+
+        async markTaskHistoryDone(taskId: string) {
+            const task = await repository.findTaskHistoryById(db, taskId);
+            if (!task) return { error: "Task not found.", status: 404 as const };
+            if (task.isDone) return task;
+
+            const doneAt = new Date().toISOString();
+            await repository.markTaskHistoryDone(db, taskId, doneAt);
+            console.info("[tasks] marked task done", { taskId, doneAt });
+            return { ...task, isDone: true, doneAt };
         },
     };
 }
