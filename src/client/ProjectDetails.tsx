@@ -191,7 +191,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         refetchInterval: 15000,
         queryFn: async () => {
             if (!id) return [];
-            const res = await fetch(`/api/projects/${id}/tasks`);
+            const res = await fetch(`/api/projects/${id}/tasks?isDone=false`);
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load task history.");
@@ -201,10 +201,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     });
     const taskHistoryError =
         taskHistoryQueryError instanceof Error ? taskHistoryQueryError.message : null;
-    const pendingTaskHistory = useMemo(
-        () => taskHistory.filter((task) => !task.isDone),
-        [taskHistory],
-    );
     const {
         mutate: markTaskDone,
         isPending: markingTaskDone,
@@ -659,13 +655,13 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         <span className="loading loading-spinner loading-sm" />
                                         <span>Loading task history...</span>
                                     </div>
-                                ) : pendingTaskHistory.length === 0 ? (
+                                ) : taskHistory.length === 0 ? (
                                     <div className="text-sm text-base-content/70">
                                         No pending tasks for this project.
                                     </div>
                                 ) : (
                                     <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
-                                        {pendingTaskHistory.map((task) => (
+                                        {taskHistory.map((task) => (
                                             <div
                                                 key={task.id}
                                                 className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"

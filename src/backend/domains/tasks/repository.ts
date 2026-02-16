@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../../db/local/schema";
 import { projects, taskHistory } from "../../db/local/schema";
@@ -29,7 +29,16 @@ export function listTaskHistory(db: Db) {
         .execute();
 }
 
-export function listProjectTaskHistory(db: Db, projectId: string) {
+export function listProjectTaskHistory(
+    db: Db,
+    projectId: string,
+    filter: { isDone?: boolean } = {},
+) {
+    const whereClause =
+        filter.isDone === undefined
+            ? eq(taskHistory.projectId, projectId)
+            : and(eq(taskHistory.projectId, projectId), eq(taskHistory.isDone, filter.isDone));
+
     return db
         .select({
             id: taskHistory.id,
@@ -40,7 +49,7 @@ export function listProjectTaskHistory(db: Db, projectId: string) {
             doneAt: taskHistory.doneAt,
         })
         .from(taskHistory)
-        .where(eq(taskHistory.projectId, projectId))
+        .where(whereClause)
         .orderBy(desc(taskHistory.createdAt), desc(taskHistory.id))
         .execute();
 }

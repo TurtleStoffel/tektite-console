@@ -13,6 +13,9 @@ const createTaskHistorySchema = z.object({
 });
 const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const projectTasksQuerySchema = z.object({
+    isDone: z.enum(["true", "false"]).optional(),
+});
 
 export function createTaskRoutes(options: { db: Db }) {
     const service = createTasksService({ db: options.db });
@@ -53,7 +56,22 @@ export function createTaskRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsedParams) return parsedParams.response;
 
-                const result = await service.listProjectTaskHistory(parsedParams.data.id);
+                const queryInput = Object.fromEntries(new URL(req.url).searchParams.entries());
+                const parsedQuery = parseInput({
+                    input: queryInput,
+                    schema: projectTasksQuerySchema,
+                    domain: "tasks",
+                    context: "project-tasks:get",
+                    errorMessage: "Invalid project task query.",
+                });
+                if ("response" in parsedQuery) return parsedQuery.response;
+
+                const result = await service.listProjectTaskHistory(parsedParams.data.id, {
+                    isDone:
+                        parsedQuery.data.isDone === undefined
+                            ? undefined
+                            : parsedQuery.data.isDone === "true",
+                });
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
