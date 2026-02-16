@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { serve } from "bun";
+import { createCodexThreadsRoutes } from "./backend/domains/codexThreads/routes";
 import { createDependencyRoutes } from "./backend/domains/dependencies/routes";
 import { createDocumentRoutes } from "./backend/domains/documents/routes";
 import { createEditorRoutes } from "./backend/domains/editor/routes";
@@ -165,6 +166,7 @@ const server = serve<TerminalSocketData>({
         ...createGithubRoutes(),
         ...createDocumentRoutes({ db: localDb }),
         ...createDependencyRoutes(),
+        ...createCodexThreadsRoutes(),
         ...createProjectRoutes({ db: localDb, clonesDir }),
         ...createRepositoryRoutes({ db: localDb }),
         ...createTaskRoutes({ db: localDb }),

@@ -1,5 +1,6 @@
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { CanvasPage } from "./CanvasPage";
+import { CodexThreadsPage } from "./CodexThreadsPage";
 import { DependenciesPage } from "./DependenciesPage";
 import { DocumentsPage } from "./DocumentsPage";
 import { EnvIndicator } from "./EnvIndicator";
@@ -18,6 +19,7 @@ export function App() {
         { to: "/documents", label: "Documents" },
         { to: "/canvas", label: "Canvas" },
         { to: "/dependencies", label: "Dependencies" },
+        { to: "/codex-threads", label: "Codex Threads" },
     ];
 
     return (
@@ -65,6 +67,10 @@ export function App() {
                     <Route
                         path="/dependencies"
                         element={<DependenciesPage drawerToggleId={entityDrawerId} />}
+                    />
+                    <Route
+                        path="/codex-threads"
+                        element={<CodexThreadsPage drawerToggleId={entityDrawerId} />}
                     />
                     <Route
                         path="/projects/:id"
