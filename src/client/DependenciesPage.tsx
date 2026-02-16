@@ -1,3 +1,11 @@
+import {
+    forceCenter,
+    forceCollide,
+    forceLink,
+    forceManyBody,
+    forceSimulation,
+    type SimulationNodeDatum,
+} from "d3-force";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -28,6 +36,12 @@ type PositionedNode = DependencyNode & {
     x: number;
     y: number;
 };
+
+type ForceNode = DependencyNode &
+    SimulationNodeDatum & {
+        x: number;
+        y: number;
+    };
 
 const SVG_WIDTH = 1400;
 const SVG_HEIGHT = 900;
@@ -134,9 +148,10 @@ export function DependenciesPage({ drawerToggleId }: DependenciesPageProps) {
         const nodeCount = Math.max(1, graphData.nodes.length);
         const centerX = SVG_WIDTH / 2;
         const centerY = SVG_HEIGHT / 2;
-        const radius = Math.max(180, Math.min(SVG_WIDTH, SVG_HEIGHT) * 0.35);
+        const radius = Math.max(120, Math.min(SVG_WIDTH, SVG_HEIGHT) * 0.22);
+        const padding = 32;
 
-        return graphData.nodes.map((node, index) => {
+        const simulationNodes: ForceNode[] = graphData.nodes.map((node, index) => {
             const angle = (index / nodeCount) * Math.PI * 2;
             return {
                 ...node,
@@ -144,6 +159,34 @@ export function DependenciesPage({ drawerToggleId }: DependenciesPageProps) {
                 y: centerY + Math.sin(angle) * radius,
             };
         });
+
+        const simulation = forceSimulation(simulationNodes)
+            .force(
+                "link",
+                forceLink<ForceNode, { source: string; target: string }>(
+                    graphData.edges.map((edge) => ({
+                        source: edge.from,
+                        target: edge.to,
+                    })),
+                )
+                    .id((node) => node.id)
+                    .distance(95)
+                    .strength(0.18),
+            )
+            .force("charge", forceManyBody().strength(-210))
+            .force("collision", forceCollide<ForceNode>().radius(24).strength(0.9))
+            .force("center", forceCenter(centerX, centerY))
+            .stop();
+
+        for (let index = 0; index < 320; index += 1) {
+            simulation.tick();
+        }
+
+        return simulationNodes.map((node) => ({
+            ...node,
+            x: Math.max(padding, Math.min(SVG_WIDTH - padding, node.x)),
+            y: Math.max(padding, Math.min(SVG_HEIGHT - padding, node.y)),
+        }));
     }, [graphData]);
 
     const nodeById = useMemo(() => {
