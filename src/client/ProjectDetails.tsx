@@ -259,7 +259,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         }
 
         setActionError(null);
-        const res = await fetch("/api/execute", {
+        const res = await fetch("/api/resume", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
