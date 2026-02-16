@@ -4,6 +4,8 @@ import {
     forceLink,
     forceManyBody,
     forceSimulation,
+    forceX,
+    forceY,
     type SimulationNodeDatum,
 } from "d3-force";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
@@ -145,18 +147,86 @@ export function DependenciesPage({ drawerToggleId }: DependenciesPageProps) {
         if (!graphData) {
             return [] as PositionedNode[];
         }
-        const nodeCount = Math.max(1, graphData.nodes.length);
+        const nodeIds = graphData.nodes.map((node) => node.id);
+        const nodeCount = Math.max(1, nodeIds.length);
         const centerX = SVG_WIDTH / 2;
         const centerY = SVG_HEIGHT / 2;
         const radius = Math.max(120, Math.min(SVG_WIDTH, SVG_HEIGHT) * 0.22);
-        const padding = 32;
+        const padding = 56;
+
+        const adjacency = new Map<string, Set<string>>();
+        for (const nodeId of nodeIds) {
+            adjacency.set(nodeId, new Set<string>());
+        }
+        for (const edge of graphData.edges) {
+            adjacency.get(edge.from)?.add(edge.to);
+            adjacency.get(edge.to)?.add(edge.from);
+        }
+
+        const components: string[][] = [];
+        const visited = new Set<string>();
+        for (const nodeId of nodeIds) {
+            if (visited.has(nodeId)) {
+                continue;
+            }
+            const queue = [nodeId];
+            visited.add(nodeId);
+            const component: string[] = [];
+            while (queue.length > 0) {
+                const currentId = queue.shift();
+                if (!currentId) {
+                    continue;
+                }
+                component.push(currentId);
+                for (const nextId of adjacency.get(currentId) ?? []) {
+                    if (visited.has(nextId)) {
+                        continue;
+                    }
+                    visited.add(nextId);
+                    queue.push(nextId);
+                }
+            }
+            components.push(component);
+        }
+        components.sort((componentA, componentB) => componentB.length - componentA.length);
+
+        const componentByNodeId = new Map<string, number>();
+        components.forEach((component, componentIndex) => {
+            component.forEach((nodeId) => {
+                componentByNodeId.set(nodeId, componentIndex);
+            });
+        });
+
+        const componentAnchors = new Map<number, { x: number; y: number }>();
+        const columns = Math.max(1, Math.ceil(Math.sqrt(components.length)));
+        const rows = Math.max(1, Math.ceil(components.length / columns));
+        const spanX = SVG_WIDTH - padding * 2;
+        const spanY = SVG_HEIGHT - padding * 2;
+        const cellWidth = spanX / columns;
+        const cellHeight = spanY / rows;
+
+        components.forEach((_, componentIndex) => {
+            if (componentIndex === 0) {
+                componentAnchors.set(componentIndex, { x: centerX, y: centerY });
+                return;
+            }
+
+            const row = Math.floor(componentIndex / columns);
+            const column = componentIndex % columns;
+            componentAnchors.set(componentIndex, {
+                x: padding + cellWidth * (column + 0.5),
+                y: padding + cellHeight * (row + 0.5),
+            });
+        });
 
         const simulationNodes: ForceNode[] = graphData.nodes.map((node, index) => {
             const angle = (index / nodeCount) * Math.PI * 2;
+            const componentIndex = componentByNodeId.get(node.id) ?? 0;
+            const anchor = componentAnchors.get(componentIndex) ?? { x: centerX, y: centerY };
             return {
                 ...node,
-                x: centerX + Math.cos(angle) * radius,
-                y: centerY + Math.sin(angle) * radius,
+                x: anchor.x + Math.cos(angle) * radius,
+                y: anchor.y + Math.sin(angle) * radius,
             };
         });
 
@@ -176,6 +246,26 @@ export function DependenciesPage({ drawerToggleId }: DependenciesPageProps) {
             .force("charge", forceManyBody().strength(-210))
             .force("collision", forceCollide<ForceNode>().radius(24).strength(0.9))
             .force("center", forceCenter(centerX, centerY))
+            .force(
+                "anchorX",
+                forceX<ForceNode>((node) => {
+                    const componentIndex = componentByNodeId.get(node.id) ?? 0;
+                    return componentAnchors.get(componentIndex)?.x ?? centerX;
+                }).strength((node) => {
+                    const componentIndex = componentByNodeId.get(node.id) ?? 0;
+                    return componentIndex === 0 ? 0.02 : 0.2;
+                }),
+            )
+            .force(
+                "anchorY",
+                forceY<ForceNode>((node) => {
+                    const componentIndex = componentByNodeId.get(node.id) ?? 0;
+                    return componentAnchors.get(componentIndex)?.y ?? centerY;
+                }).strength((node) => {
+                    const componentIndex = componentByNodeId.get(node.id) ?? 0;
+                    return componentIndex === 0 ? 0.02 : 0.2;
+                }),
+            )
             .stop();
 
         for (let index = 0; index < 320; index += 1) {
