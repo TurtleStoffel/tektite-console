@@ -1,4 +1,4 @@
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const repositories = sqliteTable("repositories", {
     id: text("id").primaryKey(),
@@ -29,4 +29,6 @@ export const taskHistory = sqliteTable("task_history", {
     }),
     prompt: text("prompt").notNull(),
     createdAt: text("created_at").notNull(),
+    isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
+    doneAt: text("done_at"),
 });

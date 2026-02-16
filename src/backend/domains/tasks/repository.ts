@@ -21,6 +21,8 @@ export function listTaskHistory(db: Db) {
             projectId: taskHistory.projectId,
             prompt: taskHistory.prompt,
             createdAt: taskHistory.createdAt,
+            isDone: taskHistory.isDone,
+            doneAt: taskHistory.doneAt,
         })
         .from(taskHistory)
         .orderBy(desc(taskHistory.createdAt), desc(taskHistory.id))
@@ -34,11 +36,29 @@ export function listProjectTaskHistory(db: Db, projectId: string) {
             projectId: taskHistory.projectId,
             prompt: taskHistory.prompt,
             createdAt: taskHistory.createdAt,
+            isDone: taskHistory.isDone,
+            doneAt: taskHistory.doneAt,
         })
         .from(taskHistory)
         .where(eq(taskHistory.projectId, projectId))
         .orderBy(desc(taskHistory.createdAt), desc(taskHistory.id))
         .execute();
+}
+
+export async function findTaskHistoryById(db: Db, taskId: string) {
+    const rows = await db
+        .select({
+            id: taskHistory.id,
+            projectId: taskHistory.projectId,
+            prompt: taskHistory.prompt,
+            createdAt: taskHistory.createdAt,
+            isDone: taskHistory.isDone,
+            doneAt: taskHistory.doneAt,
+        })
+        .from(taskHistory)
+        .where(eq(taskHistory.id, taskId))
+        .execute();
+    return rows[0] ?? null;
 }
 
 export async function createTaskHistory(
@@ -48,7 +68,20 @@ export async function createTaskHistory(
         projectId: string | null;
         prompt: string;
         createdAt: string;
+        isDone: boolean;
+        doneAt: string | null;
     },
 ) {
     await db.insert(taskHistory).values(values).execute();
+}
+
+export async function markTaskHistoryDone(db: Db, taskId: string, doneAt: string) {
+    await db
+        .update(taskHistory)
+        .set({
+            isDone: true,
+            doneAt,
+        })
+        .where(eq(taskHistory.id, taskId))
+        .execute();
 }
