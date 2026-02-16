@@ -17,6 +17,13 @@ const executePayloadSchema = z
         path: ["command"],
     });
 
+const resumePayloadSchema = z.object({
+    comment: z.string().trim().min(1),
+    worktreePath: z.string().trim().min(1),
+    threadId: z.string().trim().min(1),
+    projectId: z.string().trim().min(1).optional().nullable(),
+});
+
 export function createExecuteRoutes(options: {
     clonesDir: string;
     db: BunSQLiteDatabase<typeof schema>;
@@ -52,6 +59,41 @@ export function createExecuteRoutes(options: {
                 }
 
                 const result = await service.execute({ prompt: basePrompt, repositoryUrl });
+                if (result.error) {
+                    return new Response(JSON.stringify({ error: result.error.message }), {
+                        status: 500,
+                    });
+                }
+
+                return result.value;
+            },
+        },
+        "/api/resume": {
+            async POST(req: Request) {
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: resumePayloadSchema,
+                    domain: "execute",
+                    context: "execute:resume",
+                });
+                if ("response" in parsed) return parsed.response;
+
+                const createTaskResult = await tasksService.createTaskHistory({
+                    prompt: parsed.data.comment,
+                    projectId: parsed.data.projectId,
+                });
+                if ("error" in createTaskResult) {
+                    return new Response(JSON.stringify({ error: createTaskResult.error }), {
+                        status: createTaskResult.status,
+                        headers: jsonHeaders,
+                    });
+                }
+
+                const result = service.executeThreadComment({
+                    comment: parsed.data.comment,
+                    workingDirectory: parsed.data.worktreePath,
+                    threadId: parsed.data.threadId,
+                });
                 if (result.error) {
                     return new Response(JSON.stringify({ error: result.error.message }), {
                         status: 500,

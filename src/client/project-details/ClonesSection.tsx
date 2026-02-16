@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DevTerminalPanel } from "../DevTerminalPanel";
 import { prBadgeClass, prBadgeLabel } from "./helpers";
@@ -14,6 +15,7 @@ type ClonesSectionProps = {
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onOpenInVSCode: (folderPath: string) => void;
     onToggleDevTerminal: (worktreePath: string, isOpen: boolean) => void;
+    onResumeCodexThread: (worktreePath: string, threadId: string, comment: string) => Promise<void>;
 };
 
 export function ClonesSection({
@@ -27,6 +29,7 @@ export function ClonesSection({
     onOpenInVSCode,
     onOpenDevTerminal,
     onToggleDevTerminal,
+    onResumeCodexThread,
 }: ClonesSectionProps) {
     return (
         <section className="space-y-3">
@@ -75,6 +78,7 @@ export function ClonesSection({
                             onOpenInVSCode={onOpenInVSCode}
                             onOpenDevTerminal={onOpenDevTerminal}
                             onToggleDevTerminal={onToggleDevTerminal}
+                            onResumeCodexThread={onResumeCodexThread}
                         />
                     ))}
                 </div>
@@ -93,6 +97,7 @@ type CloneCardProps = {
     onOpenInVSCode: (folderPath: string) => void;
     onOpenDevTerminal: (worktreePath: string, key: string) => void;
     onToggleDevTerminal: (worktreePath: string, isOpen: boolean) => void;
+    onResumeCodexThread: (worktreePath: string, threadId: string, comment: string) => Promise<void>;
 };
 
 function CloneCard({
@@ -105,10 +110,14 @@ function CloneCard({
     onOpenInVSCode,
     onOpenDevTerminal,
     onToggleDevTerminal,
+    onResumeCodexThread,
 }: CloneCardProps) {
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
     const hasDevTerminalSession = Boolean(devTerminalSessionId);
+    const [comment, setComment] = useState("");
+    const [commentError, setCommentError] = useState<string | null>(null);
+    const [submittingComment, setSubmittingComment] = useState(false);
     const dependenciesLink = `/dependencies?${new URLSearchParams({ path: clone.path }).toString()}`;
 
     const terminalButtonLabel = isStarting
@@ -118,6 +127,9 @@ function CloneCard({
           : hasDevTerminalSession
             ? "Show terminal"
             : "Open terminal";
+
+    const canSendComment =
+        Boolean(clone.codexThreadId) && Boolean(comment.trim()) && !submittingComment;
 
     return (
         <article className="space-y-2">
@@ -233,7 +245,7 @@ function CloneCard({
 
             {clone.isWorktree &&
                 (clone.codexThreadId || clone.codexLastMessage || clone.codexLastEvent) && (
-                    <div className="p-3 border border-base-300 rounded-xl bg-base-200/50 space-y-1">
+                    <div className="p-3 border border-base-300 rounded-xl bg-base-200/50 space-y-2">
                         <div className="text-xs font-semibold text-base-content/70">Codex log</div>
                         {clone.codexThreadId && (
                             <div className="font-mono text-xs text-base-content/70 break-all">
@@ -250,6 +262,62 @@ function CloneCard({
                                 {clone.codexLastMessage}
                             </div>
                         )}
+                        <div className="form-control gap-2 pt-1">
+                            <textarea
+                                placeholder="Add a follow-up comment to this Codex thread"
+                                className="textarea textarea-bordered w-full min-h-[80px] text-sm"
+                                value={comment}
+                                onChange={(event) => setComment(event.target.value)}
+                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    disabled={!canSendComment}
+                                    onClick={() => {
+                                        const trimmedComment = comment.trim();
+                                        if (!clone.codexThreadId) {
+                                            setCommentError(
+                                                "No Codex thread is available for this clone.",
+                                            );
+                                            return;
+                                        }
+                                        if (!trimmedComment) {
+                                            setCommentError(
+                                                "Enter a comment to resume this thread.",
+                                            );
+                                            return;
+                                        }
+
+                                        setCommentError(null);
+                                        setSubmittingComment(true);
+                                        void onResumeCodexThread(
+                                            clone.path,
+                                            clone.codexThreadId,
+                                            trimmedComment,
+                                        )
+                                            .then(() => {
+                                                setComment("");
+                                            })
+                                            .catch((error) => {
+                                                const message =
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to resume Codex thread.";
+                                                setCommentError(message);
+                                            })
+                                            .finally(() => {
+                                                setSubmittingComment(false);
+                                            });
+                                    }}
+                                >
+                                    {submittingComment ? "Sending..." : "Resume with comment"}
+                                </button>
+                            </div>
+                            {commentError && (
+                                <div className="text-xs text-error break-words">{commentError}</div>
+                            )}
+                        </div>
                     </div>
                 )}
         </article>
