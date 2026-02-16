@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "./Markdown";
-import { ClonesSection } from "./project-details/ClonesSection";
+import { CloneCard, ClonesSection } from "./project-details/ClonesSection";
 import { buildPreviewTargets } from "./project-details/helpers";
 import { LivePreviewSection } from "./project-details/LivePreviewSection";
 import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
@@ -52,6 +52,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
+    const [selectedWorktreePath, setSelectedWorktreePath] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
@@ -111,6 +112,34 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             return firstKey;
         });
     }, [previewTargets]);
+
+    const worktrees = useMemo(() => {
+        return (project?.clones ?? []).filter((clone) => clone.isWorktree);
+    }, [project?.clones]);
+
+    useEffect(() => {
+        if (!selectedWorktreePath) return;
+        if (worktrees.some((worktree) => worktree.path === selectedWorktreePath)) return;
+        setSelectedWorktreePath(null);
+    }, [selectedWorktreePath, worktrees]);
+
+    const selectedWorktree = useMemo(() => {
+        if (!selectedWorktreePath) return null;
+        return worktrees.find((worktree) => worktree.path === selectedWorktreePath) ?? null;
+    }, [selectedWorktreePath, worktrees]);
+
+    const selectedWorktreePreviewTargets = useMemo<PreviewTarget[]>(() => {
+        if (!selectedWorktree) return [];
+        return previewTargets.filter((target) => target.key === `clone:${selectedWorktree.path}`);
+    }, [previewTargets, selectedWorktree]);
+
+    const shouldHideRightSidebar = Boolean(selectedWorktree);
+
+    useEffect(() => {
+        if (!selectedWorktree) return;
+        const firstSelectedPreviewKey = selectedWorktreePreviewTargets[0]?.key ?? null;
+        setActivePreviewKey(firstSelectedPreviewKey);
+    }, [selectedWorktree, selectedWorktreePreviewTargets]);
 
     const activePreviewTarget = previewTargets.find((target) => target.key === activePreviewKey);
     const previewPort = activePreviewTarget?.port ?? null;
@@ -568,7 +597,81 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             )}
 
             {!loading && !error && project && (
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+                <div
+                    className={`grid gap-6 ${
+                        shouldHideRightSidebar
+                            ? "xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]"
+                            : "xl:grid-cols-[minmax(260px,320px)_minmax(0,1.6fr)_minmax(320px,1fr)]"
+                    }`}
+                >
+                    <div className="space-y-4 xl:sticky xl:top-6 self-start">
+                        <div className="card bg-base-200 border border-base-300 shadow-sm">
+                            <div className="card-body p-5 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="text-sm font-semibold">Worktrees</div>
+                                    <div className="text-xs text-base-content/60">
+                                        {worktrees.length}
+                                    </div>
+                                </div>
+                                {worktrees.length === 0 ? (
+                                    <div className="text-sm text-base-content/70">
+                                        No worktrees found for this project.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+                                        {worktrees.map((worktree) => {
+                                            const isSelected =
+                                                selectedWorktreePath === worktree.path;
+                                            return (
+                                                <button
+                                                    key={worktree.path}
+                                                    type="button"
+                                                    className={`w-full text-left rounded-xl border p-3 transition-colors ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/10"
+                                                            : "border-base-300 bg-base-100 hover:border-primary/40"
+                                                    }`}
+                                                    onClick={() =>
+                                                        setSelectedWorktreePath(worktree.path)
+                                                    }
+                                                >
+                                                    <div className="font-mono text-xs break-all">
+                                                        {worktree.path}
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                        <div
+                                                            className={`badge badge-outline ${
+                                                                worktree.inUse
+                                                                    ? "badge-error"
+                                                                    : "badge-ghost"
+                                                            }`}
+                                                        >
+                                                            {worktree.inUse ? "in use" : "idle"}
+                                                        </div>
+                                                        {typeof worktree.port === "number" && (
+                                                            <div className="badge badge-success badge-outline">
+                                                                port {worktree.port}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {selectedWorktreePath && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => setSelectedWorktreePath(null)}
+                                    >
+                                        Close worktree details
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="space-y-6">
                         {project.url && (
                             <div className="card bg-base-200 border border-base-300 shadow-sm">
@@ -588,183 +691,258 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                         )}
                         <div className="card bg-base-200 border border-base-300 shadow-sm">
                             <div className="card-body p-5 sm:p-6 space-y-5">
-                                <ClonesSection
-                                    clones={project.clones}
-                                    actionError={actionError}
-                                    onDismissActionError={() => setActionError(null)}
-                                    startingDevKey={startingDevKey}
-                                    openingVSCodePath={openingVSCodePath}
-                                    openDevTerminals={openDevTerminals}
-                                    devTerminalSessions={devTerminalSessions}
-                                    onOpenInVSCode={(path) => void openInVSCode(path)}
-                                    onOpenDevTerminal={(path, key) =>
-                                        void startDevTerminal(path, key)
-                                    }
-                                    onToggleDevTerminal={(worktreePath, isOpen) =>
-                                        setOpenDevTerminals((prev) => ({
-                                            ...prev,
-                                            [worktreePath]: isOpen,
-                                        }))
-                                    }
-                                    onResumeCodexThread={(worktreePath, threadId, comment) =>
-                                        resumeCodexThreadWithComment(
-                                            worktreePath,
-                                            threadId,
-                                            comment,
-                                        )
-                                    }
-                                />
-                                <LivePreviewSection
-                                    previewTargets={previewTargets}
-                                    activePreviewKey={activePreviewKey}
-                                    previewUrl={previewUrl}
-                                    onChangeActivePreviewKey={(key) => setActivePreviewKey(key)}
-                                />
+                                {selectedWorktree ? (
+                                    <section className="space-y-3">
+                                        <div>
+                                            <div className="text-sm font-semibold">
+                                                Worktree details
+                                            </div>
+                                            <div className="text-xs text-base-content/60">
+                                                Selected worktree information and actions
+                                            </div>
+                                        </div>
+                                        <CloneCard
+                                            clone={selectedWorktree}
+                                            actionKey={`clone:${selectedWorktree.path}`}
+                                            startingDevKey={startingDevKey}
+                                            openingVSCodePath={openingVSCodePath}
+                                            devTerminalOpen={
+                                                openDevTerminals[selectedWorktree.path] ?? false
+                                            }
+                                            devTerminalSessionId={
+                                                devTerminalSessions[selectedWorktree.path] ?? null
+                                            }
+                                            onOpenInVSCode={(path) => void openInVSCode(path)}
+                                            onOpenDevTerminal={(path, key) =>
+                                                void startDevTerminal(path, key)
+                                            }
+                                            onToggleDevTerminal={(worktreePath, isOpen) =>
+                                                setOpenDevTerminals((prev) => ({
+                                                    ...prev,
+                                                    [worktreePath]: isOpen,
+                                                }))
+                                            }
+                                            onResumeCodexThread={(
+                                                worktreePath,
+                                                threadId,
+                                                comment,
+                                            ) =>
+                                                resumeCodexThreadWithComment(
+                                                    worktreePath,
+                                                    threadId,
+                                                    comment,
+                                                )
+                                            }
+                                        />
+                                        <LivePreviewSection
+                                            previewTargets={selectedWorktreePreviewTargets}
+                                            activePreviewKey={activePreviewKey}
+                                            previewUrl={previewUrl}
+                                            onChangeActivePreviewKey={(key) =>
+                                                setActivePreviewKey(key)
+                                            }
+                                        />
+                                    </section>
+                                ) : (
+                                    <>
+                                        <ClonesSection
+                                            clones={project.clones}
+                                            actionError={actionError}
+                                            onDismissActionError={() => setActionError(null)}
+                                            startingDevKey={startingDevKey}
+                                            openingVSCodePath={openingVSCodePath}
+                                            openDevTerminals={openDevTerminals}
+                                            devTerminalSessions={devTerminalSessions}
+                                            onOpenInVSCode={(path) => void openInVSCode(path)}
+                                            onOpenDevTerminal={(path, key) =>
+                                                void startDevTerminal(path, key)
+                                            }
+                                            onToggleDevTerminal={(worktreePath, isOpen) =>
+                                                setOpenDevTerminals((prev) => ({
+                                                    ...prev,
+                                                    [worktreePath]: isOpen,
+                                                }))
+                                            }
+                                            onResumeCodexThread={(
+                                                worktreePath,
+                                                threadId,
+                                                comment,
+                                            ) =>
+                                                resumeCodexThreadWithComment(
+                                                    worktreePath,
+                                                    threadId,
+                                                    comment,
+                                                )
+                                            }
+                                        />
+                                        <LivePreviewSection
+                                            previewTargets={previewTargets}
+                                            activePreviewKey={activePreviewKey}
+                                            previewUrl={previewUrl}
+                                            onChangeActivePreviewKey={(key) =>
+                                                setActivePreviewKey(key)
+                                            }
+                                        />
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="space-y-6 xl:sticky xl:top-6 self-start">
-                        <div className="card bg-base-200 border border-base-300 shadow-sm">
-                            <div className="card-body p-5 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-semibold">Task history</div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline btn-xs"
-                                        onClick={() => void refetchTaskHistory()}
-                                        disabled={taskHistoryLoading || taskHistoryFetching}
-                                    >
-                                        {taskHistoryLoading || taskHistoryFetching
-                                            ? "Refreshing..."
-                                            : "Refresh"}
-                                    </button>
-                                </div>
-                                {taskHistoryError && (
-                                    <div className="alert alert-error py-2">
-                                        <span className="text-sm">{taskHistoryError}</span>
-                                    </div>
-                                )}
-                                {markTaskDoneErrorMessage && (
-                                    <div className="alert alert-error py-2">
-                                        <span className="text-sm">{markTaskDoneErrorMessage}</span>
-                                    </div>
-                                )}
-                                {taskHistoryLoading ? (
-                                    <div className="flex items-center gap-2 text-sm text-base-content/70">
-                                        <span className="loading loading-spinner loading-sm" />
-                                        <span>Loading task history...</span>
-                                    </div>
-                                ) : taskHistory.length === 0 ? (
-                                    <div className="text-sm text-base-content/70">
-                                        No pending tasks for this project.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
-                                        {taskHistory.map((task) => (
-                                            <div
-                                                key={task.id}
-                                                className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <div className="text-xs text-base-content/60">
-                                                        {new Date(task.createdAt).toLocaleString()}
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-xs btn-success"
-                                                        onClick={() => markTaskDone(task.id)}
-                                                        disabled={
-                                                            markingTaskDone &&
-                                                            markingTaskId === task.id
-                                                        }
-                                                    >
-                                                        {markingTaskDone &&
-                                                        markingTaskId === task.id
-                                                            ? "Marking..."
-                                                            : "Mark Done"}
-                                                    </button>
-                                                </div>
-                                                <p className="text-sm whitespace-pre-wrap break-words">
-                                                    {task.prompt}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="card bg-base-200 border border-base-300 shadow-sm">
-                            <div className="card-body p-5 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-semibold">Related documents</div>
-                                    <div className="flex items-center gap-2">
+                    {!shouldHideRightSidebar && (
+                        <div className="space-y-6 xl:sticky xl:top-6 self-start">
+                            <div className="card bg-base-200 border border-base-300 shadow-sm">
+                                <div className="card-body p-5 space-y-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="text-sm font-semibold">Task history</div>
                                         <button
                                             type="button"
                                             className="btn btn-outline btn-xs"
-                                            onClick={() => void loadDocuments()}
-                                            disabled={documentsLoading}
+                                            onClick={() => void refetchTaskHistory()}
+                                            disabled={taskHistoryLoading || taskHistoryFetching}
                                         >
-                                            {documentsLoading ? "Refreshing..." : "Refresh"}
+                                            {taskHistoryLoading || taskHistoryFetching
+                                                ? "Refreshing..."
+                                                : "Refresh"}
                                         </button>
-                                        <Link to="/documents" className="btn btn-outline btn-xs">
-                                            Open documents
-                                        </Link>
                                     </div>
-                                </div>
-                                {documentsError && (
-                                    <div className="alert alert-error py-2">
-                                        <span className="text-sm">{documentsError}</span>
-                                    </div>
-                                )}
-                                {documentsLoading ? (
-                                    <div className="flex items-center gap-2 text-sm text-base-content/70">
-                                        <span className="loading loading-spinner loading-sm" />
-                                        <span>Loading documents...</span>
-                                    </div>
-                                ) : documents.length === 0 ? (
-                                    <div className="text-sm text-base-content/70">
-                                        No documents linked to this project yet.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                                        {documents.map((doc, index) => (
-                                            <div
-                                                key={doc.id}
-                                                className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-2"
-                                            >
-                                                <div className="text-xs text-base-content/60">
-                                                    Document {index + 1}
+                                    {taskHistoryError && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">{taskHistoryError}</span>
+                                        </div>
+                                    )}
+                                    {markTaskDoneErrorMessage && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">
+                                                {markTaskDoneErrorMessage}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {taskHistoryLoading ? (
+                                        <div className="flex items-center gap-2 text-sm text-base-content/70">
+                                            <span className="loading loading-spinner loading-sm" />
+                                            <span>Loading task history...</span>
+                                        </div>
+                                    ) : taskHistory.length === 0 ? (
+                                        <div className="text-sm text-base-content/70">
+                                            No pending tasks for this project.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+                                            {taskHistory.map((task) => (
+                                                <div
+                                                    key={task.id}
+                                                    className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="text-xs text-base-content/60">
+                                                            {new Date(
+                                                                task.createdAt,
+                                                            ).toLocaleString()}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-xs btn-success"
+                                                            onClick={() => markTaskDone(task.id)}
+                                                            disabled={
+                                                                markingTaskDone &&
+                                                                markingTaskId === task.id
+                                                            }
+                                                        >
+                                                            {markingTaskDone &&
+                                                            markingTaskId === task.id
+                                                                ? "Marking..."
+                                                                : "Mark Done"}
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-sm whitespace-pre-wrap break-words">
+                                                        {task.prompt}
+                                                    </p>
                                                 </div>
-                                                <Markdown
-                                                    markdown={doc.markdown}
-                                                    className="text-sm space-y-2"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="card bg-error/10 border border-error/40 shadow-sm">
-                            <div className="card-body p-5 space-y-3">
-                                <div className="text-sm font-semibold text-error">Danger zone</div>
-                                <p className="text-sm text-base-content/70">
-                                    Delete this project and unlink all related documents.
-                                </p>
-                                <button
-                                    type="button"
-                                    className="btn btn-error btn-sm w-full sm:w-auto"
-                                    onClick={() => void deleteProject()}
-                                    disabled={deletingProject}
-                                >
-                                    {deletingProject ? "Deleting..." : "Delete project"}
-                                </button>
+                            <div className="card bg-base-200 border border-base-300 shadow-sm">
+                                <div className="card-body p-5 space-y-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="text-sm font-semibold">
+                                            Related documents
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline btn-xs"
+                                                onClick={() => void loadDocuments()}
+                                                disabled={documentsLoading}
+                                            >
+                                                {documentsLoading ? "Refreshing..." : "Refresh"}
+                                            </button>
+                                            <Link
+                                                to="/documents"
+                                                className="btn btn-outline btn-xs"
+                                            >
+                                                Open documents
+                                            </Link>
+                                        </div>
+                                    </div>
+                                    {documentsError && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">{documentsError}</span>
+                                        </div>
+                                    )}
+                                    {documentsLoading ? (
+                                        <div className="flex items-center gap-2 text-sm text-base-content/70">
+                                            <span className="loading loading-spinner loading-sm" />
+                                            <span>Loading documents...</span>
+                                        </div>
+                                    ) : documents.length === 0 ? (
+                                        <div className="text-sm text-base-content/70">
+                                            No documents linked to this project yet.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                                            {documents.map((doc, index) => (
+                                                <div
+                                                    key={doc.id}
+                                                    className="rounded-xl border border-base-300 bg-base-100 p-4 space-y-2"
+                                                >
+                                                    <div className="text-xs text-base-content/60">
+                                                        Document {index + 1}
+                                                    </div>
+                                                    <Markdown
+                                                        markdown={doc.markdown}
+                                                        className="text-sm space-y-2"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="card bg-error/10 border border-error/40 shadow-sm">
+                                <div className="card-body p-5 space-y-3">
+                                    <div className="text-sm font-semibold text-error">
+                                        Danger zone
+                                    </div>
+                                    <p className="text-sm text-base-content/70">
+                                        Delete this project and unlink all related documents.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className="btn btn-error btn-sm w-full sm:w-auto"
+                                        onClick={() => void deleteProject()}
+                                        disabled={deletingProject}
+                                    >
+                                        {deletingProject ? "Deleting..." : "Delete project"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>
