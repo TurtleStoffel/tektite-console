@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { DevTerminalPanel } from "../DevTerminalPanel";
 import { prBadgeClass, prBadgeLabel } from "./helpers";
 import type { ProjectDetailsClone } from "./types";
@@ -108,6 +109,7 @@ function CloneCard({
     const isStarting = startingDevKey === actionKey;
     const isOpeningVSCode = openingVSCodePath === clone.path;
     const hasDevTerminalSession = Boolean(devTerminalSessionId);
+    const dependenciesLink = `/dependencies?${new URLSearchParams({ path: clone.path }).toString()}`;
 
     const terminalButtonLabel = isStarting
         ? "Opening"
@@ -190,6 +192,9 @@ function CloneCard({
                     )}
 
                 <div className="flex flex-wrap items-center gap-2">
+                    <Link to={dependenciesLink} className="btn btn-outline btn-sm">
+                        Dependencies
+                    </Link>
                     <button
                         type="button"
                         className="btn btn-outline btn-sm"
