@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "./Markdown";
@@ -24,6 +24,8 @@ type TaskHistoryItem = {
     projectId: string | null;
     prompt: string;
     createdAt: string;
+    isDone: boolean;
+    doneAt: string | null;
 };
 
 export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
@@ -199,6 +201,27 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     });
     const taskHistoryError =
         taskHistoryQueryError instanceof Error ? taskHistoryQueryError.message : null;
+    const {
+        mutate: markTaskDone,
+        isPending: markingTaskDone,
+        variables: markingTaskId,
+        error: markTaskDoneError,
+    } = useMutation({
+        mutationFn: async (taskId: string) => {
+            const res = await fetch(`/api/tasks/${taskId}/done`, { method: "POST" });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to mark task as done.");
+            }
+            return payload?.data as TaskHistoryItem;
+        },
+        onSuccess: async () => {
+            if (!id) return;
+            await queryClient.invalidateQueries({ queryKey: ["project-task-history", id] });
+        },
+    });
+    const markTaskDoneErrorMessage =
+        markTaskDoneError instanceof Error ? markTaskDoneError.message : null;
 
     const startDevTerminal = async (worktreePath: string, key: string) => {
         setActionError(null);
@@ -534,6 +557,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         <span className="text-sm">{taskHistoryError}</span>
                                     </div>
                                 )}
+                                {markTaskDoneErrorMessage && (
+                                    <div className="alert alert-error py-2">
+                                        <span className="text-sm">{markTaskDoneErrorMessage}</span>
+                                    </div>
+                                )}
                                 {taskHistoryLoading ? (
                                     <div className="flex items-center gap-2 text-sm text-base-content/70">
                                         <span className="loading loading-spinner loading-sm" />
@@ -550,12 +578,40 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 key={task.id}
                                                 className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
                                             >
-                                                <div className="text-xs text-base-content/60">
-                                                    {new Date(task.createdAt).toLocaleString()}
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className="text-xs text-base-content/60">
+                                                        {new Date(task.createdAt).toLocaleString()}
+                                                    </div>
+                                                    {task.isDone ? (
+                                                        <span className="badge badge-success badge-outline">
+                                                            Done
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-xs btn-success"
+                                                            onClick={() => markTaskDone(task.id)}
+                                                            disabled={
+                                                                markingTaskDone &&
+                                                                markingTaskId === task.id
+                                                            }
+                                                        >
+                                                            {markingTaskDone &&
+                                                            markingTaskId === task.id
+                                                                ? "Marking..."
+                                                                : "Mark Done"}
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 <p className="text-sm whitespace-pre-wrap break-words">
                                                     {task.prompt}
                                                 </p>
+                                                {task.doneAt && (
+                                                    <div className="text-xs text-base-content/60">
+                                                        Completed{" "}
+                                                        {new Date(task.doneAt).toLocaleString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

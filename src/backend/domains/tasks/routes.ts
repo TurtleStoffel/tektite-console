@@ -11,6 +11,7 @@ const createTaskHistorySchema = z.object({
     prompt: z.string().trim().min(1),
     projectId: z.string().optional().nullable(),
 });
+const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
 export function createTaskRoutes(options: { db: Db }) {
@@ -53,6 +54,27 @@ export function createTaskRoutes(options: { db: Db }) {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const result = await service.listProjectTaskHistory(parsedParams.data.id);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+        },
+        "/api/tasks/:id/done": {
+            async POST(req: RouteRequest) {
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: taskIdParamSchema,
+                    domain: "tasks",
+                    context: "tasks:mark-done",
+                    errorMessage: "Task id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const result = await service.markTaskHistoryDone(parsedParams.data.id);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
