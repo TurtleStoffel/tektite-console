@@ -191,7 +191,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         refetchInterval: 15000,
         queryFn: async () => {
             if (!id) return [];
-            const res = await fetch(`/api/projects/${id}/tasks`);
+            const res = await fetch(`/api/projects/${id}/tasks?isDone=false`);
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load task history.");
@@ -657,7 +657,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                     </div>
                                 ) : taskHistory.length === 0 ? (
                                     <div className="text-sm text-base-content/70">
-                                        No task history for this project yet.
+                                        No pending tasks for this project.
                                     </div>
                                 ) : (
                                     <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
@@ -670,36 +670,24 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                     <div className="text-xs text-base-content/60">
                                                         {new Date(task.createdAt).toLocaleString()}
                                                     </div>
-                                                    {task.isDone ? (
-                                                        <span className="badge badge-success badge-outline">
-                                                            Done
-                                                        </span>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-xs btn-success"
-                                                            onClick={() => markTaskDone(task.id)}
-                                                            disabled={
-                                                                markingTaskDone &&
-                                                                markingTaskId === task.id
-                                                            }
-                                                        >
-                                                            {markingTaskDone &&
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-xs btn-success"
+                                                        onClick={() => markTaskDone(task.id)}
+                                                        disabled={
+                                                            markingTaskDone &&
                                                             markingTaskId === task.id
-                                                                ? "Marking..."
-                                                                : "Mark Done"}
-                                                        </button>
-                                                    )}
+                                                        }
+                                                    >
+                                                        {markingTaskDone &&
+                                                        markingTaskId === task.id
+                                                            ? "Marking..."
+                                                            : "Mark Done"}
+                                                    </button>
                                                 </div>
                                                 <p className="text-sm whitespace-pre-wrap break-words">
                                                     {task.prompt}
                                                 </p>
-                                                {task.doneAt && (
-                                                    <div className="text-xs text-base-content/60">
-                                                        Completed{" "}
-                                                        {new Date(task.doneAt).toLocaleString()}
-                                                    </div>
-                                                )}
                                             </div>
                                         ))}
                                     </div>

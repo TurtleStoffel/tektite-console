@@ -26,11 +26,11 @@ export function createTasksService(options: { db: Db }) {
             }));
         },
 
-        async listProjectTaskHistory(projectId: string) {
+        async listProjectTaskHistory(projectId: string, filter?: { isDone?: boolean }) {
             const project = await repository.findProject(db, projectId);
             if (!project) return { error: "Project not found.", status: 404 as const };
 
-            const rows = await repository.listProjectTaskHistory(db, projectId);
+            const rows = await repository.listProjectTaskHistory(db, projectId, filter);
             return rows.map((row) => ({
                 id: row.id,
                 projectId: row.projectId,
