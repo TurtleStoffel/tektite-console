@@ -1,6 +1,7 @@
 import { Result } from "typescript-result";
 import { streamCodexRun } from "../../codex";
 import { ensureClonesDir, prepareWorktree } from "../../git";
+import { streamOpenCodeRun } from "../../opencode";
 
 class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
@@ -22,6 +23,11 @@ class ExecuteStreamError extends Error {
 
 export function createExecuteService(options: { clonesDir: string }) {
     const { clonesDir } = options;
+    const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
+    console.info("[execute] configured runner", {
+        nodeEnv: process.env.NODE_ENV ?? null,
+        runner: process.env.NODE_ENV === "development" ? "opencode" : "codex",
+    });
 
     return {
         async execute(input: { prompt: string; repositoryUrl: string }) {
@@ -46,7 +52,7 @@ export function createExecuteService(options: { clonesDir: string }) {
 
             const streamResult = Result.try(
                 () =>
-                    streamCodexRun({
+                    streamRun({
                         prompt: input.prompt,
                         workingDirectory: preparedResult.value.worktreePath,
                         clonesDir,
@@ -74,7 +80,7 @@ export function createExecuteService(options: { clonesDir: string }) {
         }) {
             const streamResult = Result.try(
                 () =>
-                    streamCodexRun({
+                    streamRun({
                         prompt: input.comment,
                         workingDirectory: input.workingDirectory,
                         threadId: input.threadId,
