@@ -1,7 +1,9 @@
 import { Result } from "typescript-result";
 import { streamCodexRun } from "../../codex";
 import { ensureClonesDir, prepareWorktree } from "../../git";
+import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamOpenCodeRun } from "../../opencode";
+import { writeWorktreeMetadata } from "../../worktreeMetadata";
 
 class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
@@ -48,6 +50,18 @@ export function createExecuteService(options: { clonesDir: string }) {
             );
             if (!preparedResult.ok) {
                 return Result.error(preparedResult.error);
+            }
+            try {
+                const promptSummary = await summarizeWorktreePromptWithLmStudio(input.prompt);
+                writeWorktreeMetadata({
+                    worktreePath: preparedResult.value.worktreePath,
+                    promptSummary,
+                });
+            } catch (error) {
+                console.warn("[execute] failed to generate worktree prompt summary", {
+                    workingDirectory: preparedResult.value.worktreePath,
+                    error,
+                });
             }
 
             const streamResult = Result.try(
