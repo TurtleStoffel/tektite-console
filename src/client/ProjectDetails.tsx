@@ -2,10 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Markdown } from "./Markdown";
-import { CloneCard, ClonesSection } from "./project-details/ClonesSection";
-import { buildPreviewTargets } from "./project-details/helpers";
-import { LivePreviewSection } from "./project-details/LivePreviewSection";
-import type { PreviewTarget, ProjectDetailsPayload } from "./project-details/types";
+import type { ProjectDetailsPayload } from "./project-details/types";
+import { WorktreePanel } from "./project-details/WorktreePanel";
 import TaskExecutionPanel from "./TaskExecutionPanel";
 import type { RepositorySummary } from "./types/repositories";
 
@@ -34,14 +32,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [project, setProject] = useState<ProjectDetailsPayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
-    const [startingDevKey, setStartingDevKey] = useState<string | null>(null);
-    const [openingVSCodePath, setOpeningVSCodePath] = useState<string | null>(null);
-    const [openDevTerminals, setOpenDevTerminals] = useState<Record<string, boolean>>({});
-    const [devTerminalSessions, setDevTerminalSessions] = useState<Record<string, string | null>>(
-        {},
-    );
-    const [actionError, setActionError] = useState<string | null>(null);
     const [repositories, setRepositories] = useState<RepositorySummary[]>([]);
     const [repositoriesLoading, setRepositoriesLoading] = useState(false);
     const [repositoriesError, setRepositoriesError] = useState<string | null>(null);
@@ -52,12 +42,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
-    const [selectedWorktreePath, setSelectedWorktreePath] = useState<string | null>(null);
+    const [projectActionError, setProjectActionError] = useState<string | null>(null);
+    const [isWorktreeDetailsOpen, setIsWorktreeDetailsOpen] = useState(false);
     const queryClient = useQueryClient();
-
-    const previewTargets = useMemo<PreviewTarget[]>(() => {
-        return buildPreviewTargets(project);
-    }, [project?.clones, project]);
+    const shouldHideRightSidebar = isWorktreeDetailsOpen;
 
     useEffect(() => {
         if (!id) return;
@@ -100,60 +88,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
         setRepositorySelection(project?.repositoryId ?? "");
     }, [project?.repositoryId]);
 
-    useEffect(() => {
-        if (previewTargets.length === 0) {
-            setActivePreviewKey(null);
-            return;
-        }
-
-        const firstKey = previewTargets[0]?.key ?? null;
-        setActivePreviewKey((prev) => {
-            if (prev && previewTargets.some((target) => target.key === prev)) return prev;
-            return firstKey;
-        });
-    }, [previewTargets]);
-
-    const worktrees = useMemo(() => {
-        return (project?.clones ?? []).filter((clone) => clone.isWorktree);
-    }, [project?.clones]);
-
-    useEffect(() => {
-        if (!selectedWorktreePath) return;
-        if (worktrees.some((worktree) => worktree.path === selectedWorktreePath)) return;
-        setSelectedWorktreePath(null);
-    }, [selectedWorktreePath, worktrees]);
-
-    const selectedWorktree = useMemo(() => {
-        if (!selectedWorktreePath) return null;
-        return worktrees.find((worktree) => worktree.path === selectedWorktreePath) ?? null;
-    }, [selectedWorktreePath, worktrees]);
-
-    const selectedWorktreePreviewTargets = useMemo<PreviewTarget[]>(() => {
-        if (!selectedWorktree) return [];
-        return previewTargets.filter((target) => target.key === `clone:${selectedWorktree.path}`);
-    }, [previewTargets, selectedWorktree]);
-
-    const shouldHideRightSidebar = Boolean(selectedWorktree);
-
-    useEffect(() => {
-        if (!selectedWorktree) return;
-        const firstSelectedPreviewKey = selectedWorktreePreviewTargets[0]?.key ?? null;
-        setActivePreviewKey(firstSelectedPreviewKey);
-    }, [selectedWorktree, selectedWorktreePreviewTargets]);
-
-    const activePreviewTarget = previewTargets.find((target) => target.key === activePreviewKey);
-    const previewPort = activePreviewTarget?.port ?? null;
-    const previewProtocol =
-        typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
-    const previewHost =
-        typeof window !== "undefined" && window.location.hostname
-            ? window.location.hostname
-            : "localhost";
-    const previewUrl =
-        typeof previewPort === "number"
-            ? `${previewProtocol}://${previewHost}:${previewPort}/`
-            : null;
-
     const refreshProject = useCallback(async () => {
         if (!id) return;
         try {
@@ -165,7 +99,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             setProject(payload as ProjectDetailsPayload);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to refresh project.";
-            setActionError(message);
+            setError(message);
         }
     }, [id]);
 
@@ -252,139 +186,9 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const markTaskDoneErrorMessage =
         markTaskDoneError instanceof Error ? markTaskDoneError.message : null;
 
-    const startDevTerminal = async (worktreePath: string, key: string) => {
-        setActionError(null);
-        setStartingDevKey(key);
-        setOpenDevTerminals((prev) => ({ ...prev, [worktreePath]: true }));
-        try {
-            const res = await fetch("/api/worktrees/dev-terminal/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: worktreePath }),
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to start terminal.");
-            }
-            const sessionId = typeof payload?.sessionId === "string" ? payload.sessionId : null;
-            setDevTerminalSessions((prev) => ({
-                ...prev,
-                [worktreePath]: sessionId,
-            }));
-            await refreshProject();
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to start terminal.";
-            setActionError(message);
-        } finally {
-            setStartingDevKey(null);
-        }
-    };
-
-    const openInVSCode = async (folderPath: string) => {
-        setActionError(null);
-        setOpeningVSCodePath(folderPath);
-        try {
-            const res = await fetch("/api/editor/open-vscode", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: folderPath }),
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || "Failed to open VSCode.");
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to open VSCode.";
-            setActionError(message);
-        } finally {
-            setOpeningVSCodePath(null);
-        }
-    };
-
-    const resumeCodexThreadWithComment = async (
-        worktreePath: string,
-        threadId: string,
-        comment: string,
-    ) => {
-        if (!id) {
-            throw new Error("Project id is required.");
-        }
-
-        setActionError(null);
-        const res = await fetch("/api/resume", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "text/event-stream",
-            },
-            body: JSON.stringify({
-                comment,
-                projectId: id,
-                worktreePath,
-                threadId,
-            }),
-        });
-
-        if (!res.ok) {
-            const payload = await res.json().catch(() => ({}));
-            throw new Error(payload?.error || "Failed to resume Codex thread.");
-        }
-
-        if (!res.body) {
-            throw new Error("Server did not return a streaming response.");
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        const processEvent = (rawEvent: string) => {
-            const dataLines = rawEvent
-                .split("\n")
-                .map((line) => line.trim())
-                .filter((line) => line.startsWith("data:"))
-                .map((line) => line.replace(/^data:\s?/, ""))
-                .filter(Boolean);
-            if (!dataLines.length) return;
-
-            const payload = JSON.parse(dataLines.join("\n")) as { type?: string; error?: string };
-            if (payload.type === "error") {
-                throw new Error(payload.error || "Codex run failed.");
-            }
-        };
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            let boundaryIndex = buffer.indexOf("\n\n");
-            while (boundaryIndex !== -1) {
-                const rawEvent = buffer.slice(0, boundaryIndex);
-                buffer = buffer.slice(boundaryIndex + 2);
-                processEvent(rawEvent);
-                boundaryIndex = buffer.indexOf("\n\n");
-            }
-        }
-
-        buffer += decoder.decode();
-        let boundaryIndex = buffer.indexOf("\n\n");
-        while (boundaryIndex !== -1) {
-            const rawEvent = buffer.slice(0, boundaryIndex);
-            buffer = buffer.slice(boundaryIndex + 2);
-            processEvent(rawEvent);
-            boundaryIndex = buffer.indexOf("\n\n");
-        }
-
-        await refreshProject();
-        await queryClient.invalidateQueries({
-            queryKey: ["project-task-history", id],
-        });
-    };
-
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
-        setActionError(null);
+        setProjectActionError(null);
         setUpdatingRepository(true);
         try {
             const res = await fetch(`/api/projects/${id}`, {
@@ -402,7 +206,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             await loadRepositories();
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to update repository.";
-            setActionError(message);
+            setProjectActionError(message);
         } finally {
             setUpdatingRepository(false);
         }
@@ -414,7 +218,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             "Delete this project? Linked documents will be unassigned.",
         );
         if (!confirmed) return;
-        setActionError(null);
+        setProjectActionError(null);
         setDeletingProject(true);
         try {
             const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
@@ -425,7 +229,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             navigate("/");
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to delete project.";
-            setActionError(message);
+            setProjectActionError(message);
         } finally {
             setDeletingProject(false);
         }
@@ -596,6 +400,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                 </div>
             )}
 
+            {projectActionError && (
+                <div className="alert alert-error">
+                    <span>{projectActionError}</span>
+                </div>
+            )}
+
             {!loading && !error && project && (
                 <div
                     className={`grid gap-6 ${
@@ -604,190 +414,29 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             : "xl:grid-cols-[minmax(260px,320px)_minmax(0,1.6fr)_minmax(320px,1fr)]"
                     }`}
                 >
-                    <div className="space-y-4 xl:sticky xl:top-6 self-start">
-                        <div className="card bg-base-200 border border-base-300 shadow-sm">
-                            <div className="card-body p-5 space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-semibold">Worktrees</div>
-                                    <div className="text-xs text-base-content/60">
-                                        {worktrees.length}
+                    <WorktreePanel
+                        project={project}
+                        onRefreshProject={refreshProject}
+                        onWorktreeDetailsOpenChange={(isOpen) => setIsWorktreeDetailsOpen(isOpen)}
+                        taskExecutionContent={
+                            project.url ? (
+                                <div className="card bg-base-200 border border-base-300 shadow-sm">
+                                    <div className="card-body p-5 sm:p-6">
+                                        <TaskExecutionPanel
+                                            selectedRepoUrl={project.url}
+                                            projectId={project.id}
+                                            onTaskStarted={() => {
+                                                void refreshProject();
+                                                void queryClient.invalidateQueries({
+                                                    queryKey: ["project-task-history", project.id],
+                                                });
+                                            }}
+                                        />
                                     </div>
                                 </div>
-                                {worktrees.length === 0 ? (
-                                    <div className="text-sm text-base-content/70">
-                                        No worktrees found for this project.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
-                                        {worktrees.map((worktree) => {
-                                            const isSelected =
-                                                selectedWorktreePath === worktree.path;
-                                            return (
-                                                <button
-                                                    key={worktree.path}
-                                                    type="button"
-                                                    className={`w-full text-left rounded-xl border p-3 transition-colors ${
-                                                        isSelected
-                                                            ? "border-primary bg-primary/10"
-                                                            : "border-base-300 bg-base-100 hover:border-primary/40"
-                                                    }`}
-                                                    onClick={() =>
-                                                        setSelectedWorktreePath(worktree.path)
-                                                    }
-                                                >
-                                                    <div className="font-mono text-xs break-all">
-                                                        {worktree.path}
-                                                    </div>
-                                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                        <div
-                                                            className={`badge badge-outline ${
-                                                                worktree.inUse
-                                                                    ? "badge-error"
-                                                                    : "badge-ghost"
-                                                            }`}
-                                                        >
-                                                            {worktree.inUse ? "in use" : "idle"}
-                                                        </div>
-                                                        {typeof worktree.port === "number" && (
-                                                            <div className="badge badge-success badge-outline">
-                                                                port {worktree.port}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                                {selectedWorktreePath && (
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost btn-sm"
-                                        onClick={() => setSelectedWorktreePath(null)}
-                                    >
-                                        Close worktree details
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        {project.url && (
-                            <div className="card bg-base-200 border border-base-300 shadow-sm">
-                                <div className="card-body p-5 sm:p-6">
-                                    <TaskExecutionPanel
-                                        selectedRepoUrl={project.url}
-                                        projectId={project.id}
-                                        onTaskStarted={() => {
-                                            void refreshProject();
-                                            void queryClient.invalidateQueries({
-                                                queryKey: ["project-task-history", project.id],
-                                            });
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                        <div className="card bg-base-200 border border-base-300 shadow-sm">
-                            <div className="card-body p-5 sm:p-6 space-y-5">
-                                {selectedWorktree ? (
-                                    <section className="space-y-3">
-                                        <div>
-                                            <div className="text-sm font-semibold">
-                                                Worktree details
-                                            </div>
-                                            <div className="text-xs text-base-content/60">
-                                                Selected worktree information and actions
-                                            </div>
-                                        </div>
-                                        <CloneCard
-                                            clone={selectedWorktree}
-                                            actionKey={`clone:${selectedWorktree.path}`}
-                                            startingDevKey={startingDevKey}
-                                            openingVSCodePath={openingVSCodePath}
-                                            devTerminalOpen={
-                                                openDevTerminals[selectedWorktree.path] ?? false
-                                            }
-                                            devTerminalSessionId={
-                                                devTerminalSessions[selectedWorktree.path] ?? null
-                                            }
-                                            onOpenInVSCode={(path) => void openInVSCode(path)}
-                                            onOpenDevTerminal={(path, key) =>
-                                                void startDevTerminal(path, key)
-                                            }
-                                            onToggleDevTerminal={(worktreePath, isOpen) =>
-                                                setOpenDevTerminals((prev) => ({
-                                                    ...prev,
-                                                    [worktreePath]: isOpen,
-                                                }))
-                                            }
-                                            onResumeCodexThread={(
-                                                worktreePath,
-                                                threadId,
-                                                comment,
-                                            ) =>
-                                                resumeCodexThreadWithComment(
-                                                    worktreePath,
-                                                    threadId,
-                                                    comment,
-                                                )
-                                            }
-                                        />
-                                        <LivePreviewSection
-                                            previewTargets={selectedWorktreePreviewTargets}
-                                            activePreviewKey={activePreviewKey}
-                                            previewUrl={previewUrl}
-                                            onChangeActivePreviewKey={(key) =>
-                                                setActivePreviewKey(key)
-                                            }
-                                        />
-                                    </section>
-                                ) : (
-                                    <>
-                                        <ClonesSection
-                                            clones={project.clones}
-                                            actionError={actionError}
-                                            onDismissActionError={() => setActionError(null)}
-                                            startingDevKey={startingDevKey}
-                                            openingVSCodePath={openingVSCodePath}
-                                            openDevTerminals={openDevTerminals}
-                                            devTerminalSessions={devTerminalSessions}
-                                            onOpenInVSCode={(path) => void openInVSCode(path)}
-                                            onOpenDevTerminal={(path, key) =>
-                                                void startDevTerminal(path, key)
-                                            }
-                                            onToggleDevTerminal={(worktreePath, isOpen) =>
-                                                setOpenDevTerminals((prev) => ({
-                                                    ...prev,
-                                                    [worktreePath]: isOpen,
-                                                }))
-                                            }
-                                            onResumeCodexThread={(
-                                                worktreePath,
-                                                threadId,
-                                                comment,
-                                            ) =>
-                                                resumeCodexThreadWithComment(
-                                                    worktreePath,
-                                                    threadId,
-                                                    comment,
-                                                )
-                                            }
-                                        />
-                                        <LivePreviewSection
-                                            previewTargets={previewTargets}
-                                            activePreviewKey={activePreviewKey}
-                                            previewUrl={previewUrl}
-                                            onChangeActivePreviewKey={(key) =>
-                                                setActivePreviewKey(key)
-                                            }
-                                        />
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                            ) : null
+                        }
+                    />
 
                     {!shouldHideRightSidebar && (
                         <div className="space-y-6 xl:sticky xl:top-6 self-start">
