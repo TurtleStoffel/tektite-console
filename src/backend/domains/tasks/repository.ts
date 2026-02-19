@@ -1,7 +1,7 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../../db/local/schema";
-import { projects, repositories, taskHistory } from "../../db/local/schema";
+import { projects, taskHistory } from "../../db/local/schema";
 
 type Db = BunSQLiteDatabase<typeof schema>;
 
@@ -92,32 +92,5 @@ export async function markTaskHistoryDone(db: Db, taskId: string, doneAt: string
             doneAt,
         })
         .where(eq(taskHistory.id, taskId))
-        .execute();
-}
-
-export function listProjectsWithRepositoryUrls(db: Db) {
-    return db
-        .select({
-            projectId: projects.id,
-            repositoryUrl: repositories.url,
-        })
-        .from(projects)
-        .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
-        .execute();
-}
-
-export function listPendingProjectTasks(db: Db, projectId: string) {
-    return db
-        .select({
-            id: taskHistory.id,
-            projectId: taskHistory.projectId,
-            prompt: taskHistory.prompt,
-            createdAt: taskHistory.createdAt,
-            isDone: taskHistory.isDone,
-            doneAt: taskHistory.doneAt,
-        })
-        .from(taskHistory)
-        .where(and(eq(taskHistory.projectId, projectId), eq(taskHistory.isDone, false)))
-        .orderBy(asc(taskHistory.createdAt), asc(taskHistory.id))
         .execute();
 }
