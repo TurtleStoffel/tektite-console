@@ -36,6 +36,13 @@ export async function initLocalStorage(databasePath: string): Promise<LocalStora
             is_done INTEGER NOT NULL DEFAULT 0,
             done_at TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS worktree_prompt_summaries (
+            worktree_path TEXT PRIMARY KEY NOT NULL,
+            prompt_summary TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     `);
 
     const taskHistoryColumns = sqlite.query("PRAGMA table_info(task_history)").all() as Array<{

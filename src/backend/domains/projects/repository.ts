@@ -1,7 +1,7 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type * as schema from "../../db/local/schema";
-import { projects, repositories } from "../../db/local/schema";
+import { projects, repositories, worktreePromptSummaries } from "../../db/local/schema";
 
 type Db = BunSQLiteDatabase<typeof schema>;
 
@@ -93,5 +93,20 @@ export function deleteProject(db: Db, projectId: string) {
         .delete(projects)
         .where(eq(projects.id, projectId))
         .returning({ id: projects.id })
+        .execute();
+}
+
+export function listWorktreePromptSummariesByPaths(db: Db, worktreePaths: string[]) {
+    if (worktreePaths.length === 0) {
+        return Promise.resolve([]);
+    }
+
+    return db
+        .select({
+            worktreePath: worktreePromptSummaries.worktreePath,
+            promptSummary: worktreePromptSummaries.promptSummary,
+        })
+        .from(worktreePromptSummaries)
+        .where(inArray(worktreePromptSummaries.worktreePath, worktreePaths))
         .execute();
 }

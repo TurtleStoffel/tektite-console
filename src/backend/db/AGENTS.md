@@ -2,6 +2,7 @@
 
 ## Default Database Target
 - All new database schema and persistence changes must use the local database under `src/backend/db/local/*` by default.
+- Persist newly introduced application data in the local database by default; use any non-local/remote store only when explicitly requested by the task.
 - Do not add or modify Supabase/Postgres schema, migrations, or persistence paths for new changes unless the task explicitly says to use Supabase.
 
 ## Exceptions

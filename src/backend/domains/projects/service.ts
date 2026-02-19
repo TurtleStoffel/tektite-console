@@ -57,9 +57,25 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
             if (!project) return { error: "Project not found.", status: 404 as const };
 
             const repositoryUrl = project.url?.trim() || null;
-            const clones = repositoryUrl
+            let clones = repositoryUrl
                 ? await findRepositoryClones({ repositoryUrl, clonesDir })
                 : [];
+            const worktreePaths = clones
+                .filter((clone) => clone.isWorktree)
+                .map((clone) => clone.path);
+            const promptSummaryRows = await repository.listWorktreePromptSummariesByPaths(
+                db,
+                worktreePaths,
+            );
+            const promptSummaryByWorktreePath = new Map(
+                promptSummaryRows.map((row) => [row.worktreePath, row.promptSummary]),
+            );
+            clones = clones.map((clone) => ({
+                ...clone,
+                promptSummary: clone.isWorktree
+                    ? (promptSummaryByWorktreePath.get(clone.path) ?? null)
+                    : null,
+            }));
             const threadMap = readThreadMap(clonesDir);
             const clonesWithCodex = clones.map((clone) => {
                 const thread = threadMap[clone.path];
