@@ -267,7 +267,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const repositoryChanged = repositorySelection !== currentRepositoryId;
 
     return (
-        <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
+        <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
             <div className="rounded-2xl border border-base-300 bg-gradient-to-br from-base-200 to-base-100 shadow-sm">
                 <div className="p-5 sm:p-6 space-y-5">
                     <div className="flex flex-wrap items-start justify-between gap-4">
