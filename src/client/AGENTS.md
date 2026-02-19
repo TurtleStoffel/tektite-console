@@ -18,3 +18,32 @@
 - Style with Tailwind utility classes and DaisyUI components.
 - Prefer explicit failures over hidden defaults.
 - Add logs that help trace important UI/runtime behavior.
+
+## Design patterns that scale in React
+1. `Data down, events up`
+
+Parent owns state that multiple children care about.
+
+Parent passes data as props to children.
+
+Children report user intent via callbacks (`onSelect`, `onChange`, etc.).
+
+2. Use effects for side effects, not state plumbing
+
+Good `useEffect` cases:
+- Fetching and mutations when not already handled by a data library.
+- Subscriptions (WebSocket, DOM events, external listeners).
+- Timers and intervals.
+- Imperative DOM interactions only when needed (prefer refs and declarative UI first).
+
+Avoid:
+- "When prop `X` changes, set state `Y`" when `Y` can be derived during render.
+- Keeping two state values synchronized when one can be a single source of truth.
+
+3. Split components by responsibility, not just by markup
+
+If a split introduces many props/callbacks, the boundary is likely too low-level.
+
+Prefer a feature/container component that owns closely-related UI state and actions, and pass a smaller, stable API to presentational children.
+
+When in doubt, reduce prop drilling before adding more wrapper components.

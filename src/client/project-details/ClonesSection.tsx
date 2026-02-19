@@ -100,7 +100,7 @@ type CloneCardProps = {
     onResumeCodexThread: (worktreePath: string, threadId: string, comment: string) => Promise<void>;
 };
 
-function CloneCard({
+export function CloneCard({
     clone,
     actionKey,
     startingDevKey,
