@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { readThreadMap } from "../../codex";
 import type * as schema from "../../db/local/schema";
+import { readThreadMap } from "../../executionState";
 import { findRepositoryClones } from "./cloneDiscovery";
 import * as repository from "./repository";
 

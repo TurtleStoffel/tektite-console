@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import {
     Codex,
     type Thread,
@@ -8,14 +6,16 @@ import {
     type Usage,
 } from "@openai/codex-sdk";
 import {
-    createOpencodeClient,
-    type Part as OpenCodePart,
-    type Session as OpenCodeSession,
-} from "@opencode-ai/sdk";
-import {
     markCodexWorkspaceActive,
     markCodexWorkspaceInactive,
 } from "./domains/worktrees/workspaceActivity";
+import {
+    appendCommitInstruction,
+    readThreadMap,
+    recordLastEvent,
+    recordLastMessage,
+    recordThreadId,
+} from "./executionState";
 import { finalizeGitState } from "./git";
 
 type StreamChunk =
@@ -35,152 +35,6 @@ const DEFAULT_THREAD_OPTIONS = {
 
 const codexClient = new Codex();
 const encoder = new TextEncoder();
-const COMMIT_AND_PR_INSTRUCTION =
-    "Before finishing, write your desired commit message into commit-details.txt";
-const WORKTREE_THREADS_FILENAME = "worktree-threads.json";
-const DEFAULT_OPENCODE_BASE_URL = "http://localhost:4096";
-
-type ThreadMetadata = {
-    threadId: string;
-    lastMessage?: string;
-    lastEvent?: string;
-};
-
-function threadMapPath(clonesDir: string) {
-    return path.join(clonesDir, WORKTREE_THREADS_FILENAME);
-}
-
-export function readThreadMap(clonesDir: string): Record<string, ThreadMetadata> {
-    try {
-        const mapPath = threadMapPath(clonesDir);
-        if (!fs.existsSync(mapPath)) {
-            return {};
-        }
-
-        const raw = fs.readFileSync(mapPath, "utf8").trim();
-        if (!raw) {
-            return {};
-        }
-
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== "object") {
-            return {};
-        }
-
-        const entries = Object.entries(parsed)
-            .map(([key, value]) => {
-                if (typeof value === "string") {
-                    return [key, { threadId: value } satisfies ThreadMetadata] as const;
-                }
-
-                if (
-                    value &&
-                    typeof value === "object" &&
-                    typeof (value as { threadId?: unknown }).threadId === "string"
-                ) {
-                    const threadId = (value as { threadId: string }).threadId;
-                    const lastMessage =
-                        typeof (value as { lastMessage?: unknown }).lastMessage === "string"
-                            ? (value as { lastMessage: string }).lastMessage
-                            : undefined;
-                    const lastEvent =
-                        typeof (value as { lastEvent?: unknown }).lastEvent === "string"
-                            ? (value as { lastEvent: string }).lastEvent
-                            : undefined;
-                    return [
-                        key,
-                        { threadId, lastMessage, lastEvent } satisfies ThreadMetadata,
-                    ] as const;
-                }
-
-                return null;
-            })
-            .filter((entry): entry is [string, ThreadMetadata] => Boolean(entry));
-
-        return Object.fromEntries(entries) as Record<string, ThreadMetadata>;
-    } catch (error) {
-        console.warn("Failed to read thread map", error);
-        return {};
-    }
-}
-
-function writeThreadMap(clonesDir: string, map: Record<string, ThreadMetadata>) {
-    try {
-        const mapPath = threadMapPath(clonesDir);
-        fs.writeFileSync(mapPath, JSON.stringify(map, null, 2), "utf8");
-    } catch (error) {
-        console.warn("Failed to write thread map", error);
-    }
-}
-
-function recordThreadId(clonesDir: string, worktreePath: string, threadId?: string | null) {
-    if (!worktreePath || !threadId) {
-        return;
-    }
-
-    const threadMap = readThreadMap(clonesDir);
-    const existing = threadMap[worktreePath];
-    if (existing?.threadId === threadId) {
-        return;
-    }
-
-    threadMap[worktreePath] = {
-        threadId,
-        lastMessage: existing?.lastMessage,
-        lastEvent: existing?.lastEvent,
-    };
-    writeThreadMap(clonesDir, threadMap);
-}
-
-function recordLastMessage(clonesDir: string, worktreePath: string, lastMessage?: string | null) {
-    if (!worktreePath || !lastMessage) {
-        return;
-    }
-
-    const threadMap = readThreadMap(clonesDir);
-    const existing = threadMap[worktreePath];
-    if (!existing?.threadId) {
-        return;
-    }
-
-    if (existing.lastMessage === lastMessage) {
-        return;
-    }
-
-    threadMap[worktreePath] = {
-        threadId: existing.threadId,
-        lastMessage,
-        lastEvent: existing.lastEvent,
-    };
-    writeThreadMap(clonesDir, threadMap);
-}
-
-function recordLastEvent(clonesDir: string, worktreePath: string, lastEvent?: string | null) {
-    if (!worktreePath || !lastEvent) {
-        return;
-    }
-
-    const threadMap = readThreadMap(clonesDir);
-    const existing = threadMap[worktreePath];
-    if (!existing?.threadId) {
-        return;
-    }
-
-    if (existing.lastEvent === lastEvent) {
-        return;
-    }
-
-    threadMap[worktreePath] = {
-        threadId: existing.threadId,
-        lastMessage: existing.lastMessage,
-        lastEvent,
-    };
-    writeThreadMap(clonesDir, threadMap);
-}
-
-function appendCommitInstruction(prompt: string) {
-    return `${prompt}\n\n${COMMIT_AND_PR_INSTRUCTION}`;
-}
 
 function summarizeThreadEvent(event: ThreadEvent) {
     const summary: string[] = [`type=${event.type}`];
@@ -268,7 +122,6 @@ function startThread(workingDirectory: string, threadId?: string | null): Thread
             });
             return thread;
         } catch (error) {
-            // eslint-disable-next-line no-console
             console.warn(`[codex] Failed to resume thread ${threadId}; starting new thread`, error);
         }
     }
@@ -279,161 +132,12 @@ function startThread(workingDirectory: string, threadId?: string | null): Thread
     });
 }
 
-function resolveOpenCodeBaseUrl() {
-    return process.env.OPENCODE_BASE_URL?.trim() || DEFAULT_OPENCODE_BASE_URL;
-}
-
-function getTextFromOpenCodeParts(parts: OpenCodePart[] | undefined) {
-    if (!parts) return "";
-    return parts
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("");
-}
-
-async function resolveOpenCodeSession(
-    workingDirectory: string,
-    mappedThreadId?: string | null,
-): Promise<{ client: ReturnType<typeof createOpencodeClient>; session: OpenCodeSession }> {
-    const client = createOpencodeClient({
-        baseUrl: resolveOpenCodeBaseUrl(),
-        directory: workingDirectory,
-    });
-
-    if (mappedThreadId) {
-        const { data: resumed } = await client.session.get({
-            path: { id: mappedThreadId },
-        });
-        if (resumed) {
-            return { client, session: resumed };
-        }
-        console.warn(
-            `[opencode] Failed to resume session ${mappedThreadId}; creating a new session`,
-        );
-    }
-
-    const { data: createdSession } = await client.session.create();
-    if (!createdSession) {
-        throw new Error("OpenCode did not return a created session.");
-    }
-
-    return { client, session: createdSession };
-}
-
-function streamOpenCodeRun(options: {
-    prompt: string;
-    workingDirectory: string;
-    threadId?: string | null;
-    clonesDir: string;
-}) {
-    const { prompt, workingDirectory, threadId, clonesDir } = options;
-    const augmentedPrompt = appendCommitInstruction(prompt);
-    const threadMap = readThreadMap(clonesDir);
-    const mappedThreadId = threadId ?? threadMap[workingDirectory]?.threadId ?? null;
-
-    let cancelled = false;
-    const stream = new ReadableStream({
-        start: async (controller) => {
-            markCodexWorkspaceActive(workingDirectory);
-
-            const send = (chunk: StreamChunk) => {
-                if (cancelled) return;
-                try {
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
-                } catch {
-                    cancelled = true;
-                }
-            };
-
-            const latest = { text: "", usage: null as Usage | null };
-
-            const closeStream = () => {
-                if (!cancelled) {
-                    cancelled = true;
-                    controller.close();
-                }
-            };
-
-            try {
-                const { client, session } = await resolveOpenCodeSession(
-                    workingDirectory,
-                    mappedThreadId,
-                );
-                const sessionId = session.id;
-                send({ type: "thread", threadId: sessionId });
-
-                const { data: promptResult } = await client.session.prompt({
-                    path: { id: sessionId },
-                    body: {
-                        parts: [{ type: "text", text: augmentedPrompt }],
-                    },
-                });
-                if (!promptResult) {
-                    throw new Error("OpenCode did not return a prompt response.");
-                }
-
-                const usage: Usage = {
-                    input_tokens: promptResult.info.tokens.input,
-                    cached_input_tokens: promptResult.info.tokens.cache.read,
-                    output_tokens: promptResult.info.tokens.output,
-                };
-                latest.usage = usage;
-                send({ type: "usage", usage });
-
-                const finalText = getTextFromOpenCodeParts(promptResult.parts);
-                if (finalText) {
-                    latest.text = finalText;
-                    send({ type: "agent_message", text: finalText });
-                }
-
-                send({
-                    type: "done",
-                    threadId: sessionId,
-                    response: latest.text,
-                    usage: latest.usage,
-                });
-                recordThreadId(clonesDir, workingDirectory, sessionId);
-                recordLastMessage(clonesDir, workingDirectory, latest.text);
-                recordLastEvent(
-                    clonesDir,
-                    workingDirectory,
-                    "type=turn.completed | provider=opencode",
-                );
-                await finalizeGitState(workingDirectory);
-            } catch (error) {
-                const message =
-                    error instanceof Error ? error.message : "Unexpected OpenCode error";
-                send({ type: "error", error: message });
-            } finally {
-                closeStream();
-                markCodexWorkspaceInactive(workingDirectory);
-            }
-        },
-        cancel: () => {
-            cancelled = true;
-            markCodexWorkspaceInactive(workingDirectory);
-        },
-    });
-
-    return new Response(stream, {
-        headers: {
-            "Content-Type": "text/event-stream; charset=utf-8",
-            "Cache-Control": "no-cache, no-transform",
-            Connection: "keep-alive",
-        },
-    });
-}
-
 export function streamCodexRun(options: {
     prompt: string;
     workingDirectory: string;
     threadId?: string | null;
     clonesDir: string;
 }) {
-    if (process.env.NODE_ENV === "development") {
-        return streamOpenCodeRun(options);
-    }
-
     const { prompt, workingDirectory, threadId, clonesDir } = options;
     const augmentedPrompt = appendCommitInstruction(prompt);
     const threadMap = readThreadMap(clonesDir);
@@ -477,7 +181,6 @@ export function streamCodexRun(options: {
                             "thread_id" in event && typeof event.thread_id === "string"
                                 ? event.thread_id
                                 : (thread.id ?? "unknown");
-                        // eslint-disable-next-line no-console
                         console.log(`[codex] threadId=${eventThreadId} | ${summary}`);
                     }
                     mapEventChunk(event, latest, send);
