@@ -77,17 +77,11 @@ export function createExecuteRoutes(options: {
                     context: "execute:resume",
                 });
                 if ("response" in parsed) return parsed.response;
-
-                const createTaskResult = await tasksService.createTaskHistory({
-                    prompt: parsed.data.comment,
-                    projectId: parsed.data.projectId,
+                console.info("[execute] received thread follow-up comment; skipping task history", {
+                    worktreePath: parsed.data.worktreePath,
+                    threadId: parsed.data.threadId,
+                    projectId: parsed.data.projectId ?? null,
                 });
-                if ("error" in createTaskResult) {
-                    return new Response(JSON.stringify({ error: createTaskResult.error }), {
-                        status: createTaskResult.status,
-                        headers: jsonHeaders,
-                    });
-                }
 
                 const result = service.executeThreadComment({
                     comment: parsed.data.comment,
