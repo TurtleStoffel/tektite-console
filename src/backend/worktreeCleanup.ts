@@ -1,5 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import type * as schema from "./db/local/schema";
+import { createTasksService } from "./domains/tasks/service";
 import { isWorkspaceActive } from "./domains/worktrees/workspaceActivity";
 import {
     detectRepoChanges,
@@ -11,8 +14,9 @@ import {
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";
 const PR_CLEANUP_INTERVAL_MS = 30_000;
+type Db = BunSQLiteDatabase<typeof schema>;
 
-async function removeWorktreeIfEligible(worktreePath: string) {
+async function removeWorktreeIfEligible(worktreePath: string, db: Db) {
     const worktreeName = path.basename(worktreePath);
 
     if (isWorkspaceActive(worktreePath)) {
@@ -53,6 +57,9 @@ async function removeWorktreeIfEligible(worktreePath: string) {
         return;
     }
 
+    const tasksService = createTasksService({ db });
+    await tasksService.autoMarkTaskDoneForRemovableWorktree(worktreePath);
+
     try {
         if (fs.existsSync(worktreePath)) {
             fs.rmSync(worktreePath, { recursive: true, force: true });
@@ -65,7 +72,7 @@ async function removeWorktreeIfEligible(worktreePath: string) {
     }
 }
 
-async function runPullRequestCleanup(clonesDir: string) {
+async function runPullRequestCleanup(clonesDir: string, db: Db) {
     let entries: fs.Dirent[];
     try {
         entries = fs.readdirSync(clonesDir, { withFileTypes: true });
@@ -79,12 +86,16 @@ async function runPullRequestCleanup(clonesDir: string) {
 
         const fullPath = path.join(clonesDir, entry.name);
         if (!isWorktreeDir(fullPath)) continue;
-        await removeWorktreeIfEligible(fullPath);
+        await removeWorktreeIfEligible(fullPath, db);
     }
 }
 
-export function startPullRequestCleanup(options: { clonesDir: string; intervalMs?: number }) {
-    const { clonesDir } = options;
+export function startPullRequestCleanup(options: {
+    clonesDir: string;
+    db: Db;
+    intervalMs?: number;
+}) {
+    const { clonesDir, db } = options;
     const intervalMs = options.intervalMs ?? PR_CLEANUP_INTERVAL_MS;
     let running = false;
 
@@ -93,7 +104,7 @@ export function startPullRequestCleanup(options: { clonesDir: string; intervalMs
         running = true;
 
         try {
-            await runPullRequestCleanup(clonesDir);
+            await runPullRequestCleanup(clonesDir, db);
         } catch (error) {
             console.warn(`[${PR_CLEANUP_JOB_NAME}] Job failed`, error);
         } finally {

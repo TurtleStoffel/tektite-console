@@ -73,7 +73,7 @@ console.info("[storage] dual database mode enabled", {
 });
 await seedDevelopmentDataIfEmpty({ db: localDb, nodeEnv: process.env.NODE_ENV });
 
-startPullRequestCleanup({ clonesDir });
+startPullRequestCleanup({ clonesDir, db: localDb });
 
 const corsOrigin = "http://localhost:5173";
 const corsHeaders = {
