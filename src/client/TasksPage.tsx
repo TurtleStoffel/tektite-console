@@ -11,6 +11,8 @@ type TaskHistoryItem = {
     projectId: string | null;
     prompt: string;
     createdAt: string;
+    isDone: boolean;
+    doneAt: string | null;
 };
 
 function formatTimestamp(value: string) {
@@ -95,6 +97,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         <thead>
                             <tr>
                                 <th>Created</th>
+                                <th>State</th>
                                 <th>Project</th>
                                 <th>Prompt</th>
                             </tr>
@@ -104,6 +107,15 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                 <tr key={task.id}>
                                     <td className="whitespace-nowrap text-sm text-base-content/80">
                                         {formatTimestamp(task.createdAt)}
+                                    </td>
+                                    <td className="whitespace-nowrap">
+                                        <span
+                                            className={`badge ${
+                                                task.isDone ? "badge-success" : "badge-warning"
+                                            }`}
+                                        >
+                                            {task.isDone ? "Done" : "In progress"}
+                                        </span>
                                     </td>
                                     <td className="whitespace-nowrap text-sm text-base-content/80">
                                         {task.projectId ?? "Unassigned"}
