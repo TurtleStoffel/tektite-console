@@ -4,6 +4,7 @@ import {
     detectRepoChanges,
     extractWorktreeRepoRoot,
     getPullRequestStatus,
+    hasUnpushedCommits,
     isWorktreeDir,
     removeWorktree,
 } from "../../git";
@@ -21,6 +22,20 @@ async function removeWorktreeIfEligible(worktreePath: string) {
 
     const hasChanges = await detectRepoChanges(worktreePath);
     if (hasChanges) {
+        return;
+    }
+
+    const unpushedCommits = await hasUnpushedCommits(worktreePath);
+    if (unpushedCommits === null) {
+        console.warn(
+            `[${PR_CLEANUP_JOB_NAME}] Skipping removal for ${worktreeName}; unable to determine unpushed commit status.`,
+        );
+        return;
+    }
+    if (unpushedCommits) {
+        console.log(
+            `[${PR_CLEANUP_JOB_NAME}] Skipping removal for ${worktreeName}; branch has unpushed commits.`,
+        );
         return;
     }
 
