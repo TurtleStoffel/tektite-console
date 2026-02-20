@@ -8,6 +8,7 @@ export type ProjectDetailsClonePrStatus = {
 export type ProjectDetailsClone = {
     path: string;
     location: "clonesDir";
+    promptSummary?: string | null;
     port?: number | null;
     commitHash?: string | null;
     commitDescription?: string | null;

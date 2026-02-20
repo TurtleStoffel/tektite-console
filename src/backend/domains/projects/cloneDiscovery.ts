@@ -23,6 +23,7 @@ type CloneInfo = {
     inUse: boolean;
     hasChanges?: boolean;
     prStatus?: Awaited<ReturnType<typeof getPullRequestStatus>>;
+    promptSummary?: string | null;
 };
 
 function canonicalRepoId(repoUrl: string): string | null {
@@ -210,6 +211,7 @@ export async function findRepositoryClones(options: {
                 port,
                 commitHash: hash,
                 commitDescription: description,
+                promptSummary: null,
                 isWorktree,
                 inUse: isWorktree ? Boolean(getTerminalSessionByWorkspacePath(clone.path)) : false,
                 hasChanges,

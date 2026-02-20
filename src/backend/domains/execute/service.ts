@@ -1,7 +1,11 @@
+import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { Result } from "typescript-result";
 import { streamCodexRun } from "../../codex";
+import type * as schema from "../../db/local/schema";
 import { ensureClonesDir, prepareWorktree } from "../../git";
+import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamOpenCodeRun } from "../../opencode";
+import * as repository from "./repository";
 
 class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
@@ -21,8 +25,10 @@ class ExecuteStreamError extends Error {
     }
 }
 
-export function createExecuteService(options: { clonesDir: string }) {
-    const { clonesDir } = options;
+type Db = BunSQLiteDatabase<typeof schema>;
+
+export function createExecuteService(options: { clonesDir: string; db: Db }) {
+    const { clonesDir, db } = options;
     const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
     console.info("[execute] configured runner", {
         nodeEnv: process.env.NODE_ENV ?? null,
@@ -48,6 +54,21 @@ export function createExecuteService(options: { clonesDir: string }) {
             );
             if (!preparedResult.ok) {
                 return Result.error(preparedResult.error);
+            }
+            try {
+                const promptSummary = await summarizeWorktreePromptWithLmStudio(input.prompt);
+                await repository.upsertWorktreePromptSummary(db, {
+                    worktreePath: preparedResult.value.worktreePath,
+                    promptSummary,
+                });
+                console.info("[execute] saved worktree prompt summary", {
+                    workingDirectory: preparedResult.value.worktreePath,
+                });
+            } catch (error) {
+                console.warn("[execute] failed to generate worktree prompt summary", {
+                    workingDirectory: preparedResult.value.worktreePath,
+                    error,
+                });
             }
 
             const streamResult = Result.try(

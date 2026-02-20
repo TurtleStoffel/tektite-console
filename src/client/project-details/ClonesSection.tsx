@@ -137,6 +137,11 @@ export function CloneCard({
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="space-y-1 min-w-0">
                         <div className="font-mono text-xs break-all">{clone.path}</div>
+                        {clone.promptSummary && (
+                            <div className="text-xs text-base-content/90 break-words">
+                                Task summary: {clone.promptSummary}
+                            </div>
+                        )}
                         {clone.commitHash && clone.commitDescription && (
                             <div className="text-xs text-base-content/70 break-all">
                                 <span className="font-mono">{clone.commitHash.slice(0, 12)}</span>

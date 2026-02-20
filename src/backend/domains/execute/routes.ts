@@ -28,7 +28,7 @@ export function createExecuteRoutes(options: {
     clonesDir: string;
     db: BunSQLiteDatabase<typeof schema>;
 }) {
-    const service = createExecuteService({ clonesDir: options.clonesDir });
+    const service = createExecuteService({ clonesDir: options.clonesDir, db: options.db });
     const tasksService = createTasksService({ db: options.db });
 
     return {

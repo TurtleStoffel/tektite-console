@@ -32,3 +32,10 @@ export const taskHistory = sqliteTable("task_history", {
     isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
     doneAt: text("done_at"),
 });
+
+export const worktreePromptSummaries = sqliteTable("worktree_prompt_summaries", {
+    worktreePath: text("worktree_path").primaryKey(),
+    promptSummary: text("prompt_summary").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+});
