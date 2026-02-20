@@ -182,6 +182,14 @@ export async function removeWorktree(worktreePath: string, repoRoot: string, bra
     }
 }
 
+export async function hasUnpushedCommits(dir: string): Promise<boolean | null> {
+    const status = await getBranchStatus(dir);
+    if (!status) {
+        return null;
+    }
+    return status.aheadCount > 0;
+}
+
 export function cleanRepositoryUrl(repoUrl: string) {
     return repoUrl.replace(/^git\+/, "");
 }
