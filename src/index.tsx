@@ -12,6 +12,7 @@ import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
 import { createTaskRoutes } from "./backend/domains/tasks/routes";
 import { createDevServerRoutes } from "./backend/domains/worktrees/routes";
+import { startPullRequestCleanup } from "./backend/domains/worktrees/service";
 import {
     attachSocketToTerminalSession,
     detachSocketFromTerminalSession,
@@ -23,7 +24,6 @@ import { ensureClonesDir } from "./backend/git";
 import { findFirstFreePort } from "./backend/port";
 import { seedDevelopmentDataIfEmpty } from "./backend/seedDevelopmentData";
 import { initStorage } from "./backend/storage";
-import { startPullRequestCleanup } from "./backend/worktreeCleanup";
 import index from "./client/index.html";
 import { TEKTITE_PORT_FILE } from "./constants";
 

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { startPullRequestCleanup as startPullRequestCleanupJob } from "./cleanup";
 import * as repository from "./repository";
 import { startOrReuseTerminal } from "./terminal";
 
@@ -30,4 +31,8 @@ export function createWorktreesService(options: { clonesDir: string }) {
             }
         },
     };
+}
+
+export function startPullRequestCleanup(options: { clonesDir: string; intervalMs?: number }) {
+    return startPullRequestCleanupJob(options);
 }

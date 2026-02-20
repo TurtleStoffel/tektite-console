@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isWorkspaceActive } from "./domains/worktrees/workspaceActivity";
 import {
     detectRepoChanges,
     extractWorktreeRepoRoot,
     getPullRequestStatus,
     isWorktreeDir,
     removeWorktree,
-} from "./git";
+} from "../../git";
+import { isWorkspaceActive } from "./workspaceActivity";
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";
 const PR_CLEANUP_INTERVAL_MS = 30_000;
