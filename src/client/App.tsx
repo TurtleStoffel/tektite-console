@@ -4,6 +4,7 @@ import { CodexThreadsPage } from "./CodexThreadsPage";
 import { DependenciesPage } from "./DependenciesPage";
 import { DocumentsPage } from "./DocumentsPage";
 import { EnvIndicator } from "./EnvIndicator";
+import { FeatureFlagsPage } from "./FeatureFlagsPage";
 import { ProjectDetails } from "./ProjectDetails";
 import { ProjectsPage } from "./ProjectsPage";
 import { RepositoriesPage } from "./RepositoriesPage";
@@ -20,6 +21,7 @@ export function App() {
         { to: "/documents", label: "Documents" },
         { to: "/tasks", label: "Tasks" },
         { to: "/canvas", label: "Canvas" },
+        { to: "/feature-flags", label: "Feature Flags" },
         { to: "/dependencies", label: "Dependencies" },
         { to: "/codex-threads", label: "Codex Threads" },
     ];
@@ -70,6 +72,10 @@ export function App() {
                     <Route
                         path="/dependencies"
                         element={<DependenciesPage drawerToggleId={entityDrawerId} />}
+                    />
+                    <Route
+                        path="/feature-flags"
+                        element={<FeatureFlagsPage drawerToggleId={entityDrawerId} />}
                     />
                     <Route
                         path="/codex-threads"

@@ -39,3 +39,11 @@ export const worktreePromptSummaries = sqliteTable("worktree_prompt_summaries", 
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
 });
+
+export const featureFlags = sqliteTable("feature_flags", {
+    key: text("key").primaryKey(),
+    description: text("description").notNull(),
+    isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+});
