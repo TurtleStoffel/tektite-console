@@ -310,65 +310,10 @@ async function ensurePullRequest(dir: string, branch: string) {
     });
 }
 
-async function readCommitMessage(workingDirectory: string): Promise<string | null> {
-    const commitDetailsPath = path.join(workingDirectory, "commit-details.txt");
-    if (!fs.existsSync(commitDetailsPath)) {
-        return null;
-    }
-
-    try {
-        const raw = fs.readFileSync(commitDetailsPath, "utf8").trim();
-        return raw.length > 0 ? raw : null;
-    } catch (error) {
-        console.warn("Failed to read commit-details.txt", error);
-        return null;
-    } finally {
-        try {
-            fs.rmSync(commitDetailsPath);
-        } catch (error) {
-            console.warn("Failed to remove commit-details.txt", error);
-        }
-    }
-}
-
-async function hasStagedChanges(dir: string) {
-    try {
-        await execAsync("git diff --cached --quiet", { cwd: dir });
-        return false;
-    } catch {
-        return true;
-    }
-}
-
-async function maybeCommitChanges(workingDirectory: string) {
-    const commitMessage = (await readCommitMessage(workingDirectory)) ?? "Codex changes";
-    const quotedMessage = JSON.stringify(commitMessage);
-
-    try {
-        await execAsync("git add -A", { cwd: workingDirectory });
-    } catch (error) {
-        console.warn("Failed to stage changes before commit", error);
-        return;
-    }
-
-    const staged = await hasStagedChanges(workingDirectory);
-    if (!staged) {
-        return;
-    }
-
-    try {
-        await execAsync(`git commit -m ${quotedMessage}`, { cwd: workingDirectory });
-    } catch (error) {
-        console.warn("Failed to create commit", error);
-    }
-}
-
 export async function finalizeGitState(workingDirectory?: string | null) {
     if (!workingDirectory) {
         return;
     }
-
-    await maybeCommitChanges(workingDirectory);
 
     const status = await getBranchStatus(workingDirectory);
     if (!status) {

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const COMMIT_AND_PR_INSTRUCTION =
-    "Before finishing, write your desired commit message into commit-details.txt";
+    "When you are done with code changes, create a git commit yourself. If the current branch does not already have a pull request, create one with an appropriate title and description.";
 const WORKTREE_THREADS_FILENAME = "worktree-threads.json";
 
 type ThreadMetadata = {
