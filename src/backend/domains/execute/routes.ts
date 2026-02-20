@@ -1,7 +1,5 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import { createTasksService } from "@/backend/domains/tasks/service";
-import type * as schema from "../../db/local/schema";
+import { tasksService } from "@/backend/domains/tasks/service";
 import { jsonHeaders, parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
 
@@ -24,12 +22,8 @@ const resumePayloadSchema = z.object({
     projectId: z.string().trim().min(1).optional().nullable(),
 });
 
-export function createExecuteRoutes(options: {
-    clonesDir: string;
-    db: BunSQLiteDatabase<typeof schema>;
-}) {
-    const service = createExecuteService({ clonesDir: options.clonesDir, db: options.db });
-    const tasksService = createTasksService({ db: options.db });
+export function createExecuteRoutes(options: { clonesDir: string }) {
+    const service = createExecuteService({ clonesDir: options.clonesDir });
 
     return {
         "/api/execute": {

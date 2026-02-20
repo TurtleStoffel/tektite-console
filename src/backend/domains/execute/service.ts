@@ -1,7 +1,5 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { Result } from "typescript-result";
 import { streamCodexRun } from "../../codex";
-import type * as schema from "../../db/local/schema";
 import { ensureClonesDir, prepareWorktree } from "../../git";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamOpenCodeRun } from "../../opencode";
@@ -25,10 +23,8 @@ class ExecuteStreamError extends Error {
     }
 }
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export function createExecuteService(options: { clonesDir: string; db: Db }) {
-    const { clonesDir, db } = options;
+export function createExecuteService(options: { clonesDir: string }) {
+    const { clonesDir } = options;
     const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
     console.info("[execute] configured runner", {
         nodeEnv: process.env.NODE_ENV ?? null,
@@ -57,7 +53,7 @@ export function createExecuteService(options: { clonesDir: string; db: Db }) {
             }
             try {
                 const promptSummary = await summarizeWorktreePromptWithLmStudio(input.prompt);
-                await repository.upsertWorktreePromptSummary(db, {
+                await repository.upsertWorktreePromptSummary({
                     worktreePath: preparedResult.value.worktreePath,
                     promptSummary,
                 });

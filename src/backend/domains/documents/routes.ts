@@ -1,11 +1,8 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import type * as schema from "../../db/local/schema";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
-import { createDocumentsService } from "./service";
+import { documentsService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
-type Db = BunSQLiteDatabase<typeof schema>;
 
 const createDocumentSchema = z.object({
     markdown: z.string(),
@@ -19,13 +16,11 @@ const updateDocumentSchema = z.object({
 const requiredProjectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const requiredDocumentIdParamSchema = z.object({ id: z.string().trim().min(1) });
 
-export function createDocumentRoutes(options: { db: Db }) {
-    const service = createDocumentsService({ db: options.db });
-
+export function createDocumentRoutes() {
     return {
         "/api/documents": {
             async GET() {
-                const data = await service.listDocuments();
+                const data = await documentsService.listDocuments();
                 return Response.json({ data });
             },
             async POST(req: RouteRequest) {
@@ -37,7 +32,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const result = await service.createDocument(parsed.data);
+                const result = await documentsService.createDocument(parsed.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
@@ -59,7 +54,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const projectId = parsedParams.data.id;
-                const result = await service.listProjectDocuments(projectId);
+                const result = await documentsService.listProjectDocuments(projectId);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
@@ -88,7 +83,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const result = await service.createProjectDocument({
+                const result = await documentsService.createProjectDocument({
                     projectId,
                     markdown: parsed.data.markdown,
                 });
@@ -113,7 +108,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const documentId = parsedParams.data.id;
-                const result = await service.getDocument(documentId);
+                const result = await documentsService.getDocument(documentId);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
@@ -141,7 +136,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const result = await service.updateDocument({
+                const result = await documentsService.updateDocument({
                     documentId,
                     markdown: parsed.data.markdown,
                     projectId: parsed.data.projectId,
@@ -165,7 +160,7 @@ export function createDocumentRoutes(options: { db: Db }) {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const documentId = parsedParams.data.id;
-                return Response.json(await service.deleteDocument(documentId));
+                return Response.json(await documentsService.deleteDocument(documentId));
             },
         },
     } as const;

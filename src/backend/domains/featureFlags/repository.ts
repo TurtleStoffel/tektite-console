@@ -1,11 +1,9 @@
 import { asc, eq } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { featureFlags } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export function listFeatureFlags(db: Db) {
+export function listFeatureFlags() {
+    const db = getDb();
     return db
         .select({
             key: featureFlags.key,
@@ -19,7 +17,8 @@ export function listFeatureFlags(db: Db) {
         .execute();
 }
 
-export async function findFeatureFlagByKey(db: Db, key: string) {
+export async function findFeatureFlagByKey(key: string) {
+    const db = getDb();
     const rows = await db
         .select({
             key: featureFlags.key,
@@ -34,16 +33,14 @@ export async function findFeatureFlagByKey(db: Db, key: string) {
     return rows[0] ?? null;
 }
 
-export async function upsertFeatureFlag(
-    db: Db,
-    input: {
-        key: string;
-        description: string;
-        isEnabled: boolean;
-        createdAt: string;
-        updatedAt: string;
-    },
-) {
+export async function upsertFeatureFlag(input: {
+    key: string;
+    description: string;
+    isEnabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+}) {
+    const db = getDb();
     await db
         .insert(featureFlags)
         .values(input)

@@ -1,14 +1,12 @@
 import { eq } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { worktreePromptSummaries } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export async function upsertWorktreePromptSummary(
-    db: Db,
-    input: { worktreePath: string; promptSummary: string },
-) {
+export async function upsertWorktreePromptSummary(input: {
+    worktreePath: string;
+    promptSummary: string;
+}) {
+    const db = getDb();
     const now = new Date().toISOString();
     const existing = await db
         .select({ worktreePath: worktreePromptSummaries.worktreePath })

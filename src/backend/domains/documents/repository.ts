@@ -1,11 +1,9 @@
 import { asc, eq } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { documents, projects } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export async function findProject(db: Db, projectId: string) {
+export async function findProject(projectId: string) {
+    const db = getDb();
     const rows = await db
         .select({ id: projects.id })
         .from(projects)
@@ -14,7 +12,8 @@ export async function findProject(db: Db, projectId: string) {
     return rows[0] ?? null;
 }
 
-export function listDocuments(db: Db) {
+export function listDocuments() {
+    const db = getDb();
     return db
         .select({
             id: documents.id,
@@ -28,14 +27,17 @@ export function listDocuments(db: Db) {
         .execute();
 }
 
-export async function createDocument(
-    db: Db,
-    values: { id: string; projectId: string | null; markdown: string },
-) {
+export async function createDocument(values: {
+    id: string;
+    projectId: string | null;
+    markdown: string;
+}) {
+    const db = getDb();
     await db.insert(documents).values(values).execute();
 }
 
-export function listProjectDocuments(db: Db, projectId: string) {
+export function listProjectDocuments(projectId: string) {
+    const db = getDb();
     return db
         .select({
             id: documents.id,
@@ -48,7 +50,8 @@ export function listProjectDocuments(db: Db, projectId: string) {
         .execute();
 }
 
-export async function findDocument(db: Db, documentId: string) {
+export async function findDocument(documentId: string) {
+    const db = getDb();
     const rows = await db
         .select({
             id: documents.id,
@@ -62,10 +65,10 @@ export async function findDocument(db: Db, documentId: string) {
 }
 
 export async function updateDocument(
-    db: Db,
     documentId: string,
     values: { projectId: string | null; markdown: string },
 ) {
+    const db = getDb();
     await db
         .update(documents)
         .set({ markdown: values.markdown, projectId: values.projectId })
@@ -73,6 +76,7 @@ export async function updateDocument(
         .execute();
 }
 
-export async function deleteDocument(db: Db, documentId: string) {
+export async function deleteDocument(documentId: string) {
+    const db = getDb();
     await db.delete(documents).where(eq(documents.id, documentId)).execute();
 }

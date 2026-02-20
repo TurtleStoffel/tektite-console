@@ -1,11 +1,9 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { projects, repositories, worktreePromptSummaries } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export function listProjects(db: Db) {
+export function listProjects() {
+    const db = getDb();
     return db
         .select({
             id: projects.id,
@@ -19,7 +17,8 @@ export function listProjects(db: Db) {
         .execute();
 }
 
-export async function findRepositoryById(db: Db, repositoryId: string) {
+export async function findRepositoryById(repositoryId: string) {
+    const db = getDb();
     const rows = await db
         .select({ id: repositories.id, url: repositories.url })
         .from(repositories)
@@ -28,7 +27,8 @@ export async function findRepositoryById(db: Db, repositoryId: string) {
     return rows[0] ?? null;
 }
 
-export async function hasProjectForRepository(db: Db, repositoryId: string) {
+export async function hasProjectForRepository(repositoryId: string) {
+    const db = getDb();
     const rows = await db
         .select({ id: projects.id })
         .from(projects)
@@ -37,10 +37,11 @@ export async function hasProjectForRepository(db: Db, repositoryId: string) {
     return Boolean(rows[0]);
 }
 
-export async function hasOtherProjectForRepository(
-    db: Db,
-    options: { projectId: string; repositoryId: string },
-) {
+export async function hasOtherProjectForRepository(options: {
+    projectId: string;
+    repositoryId: string;
+}) {
+    const db = getDb();
     const rows = await db
         .select({ id: projects.id })
         .from(projects)
@@ -54,14 +55,17 @@ export async function hasOtherProjectForRepository(
     return Boolean(rows[0]);
 }
 
-export async function createProject(
-    db: Db,
-    values: { id: string; name: string; repositoryId: string | null },
-) {
+export async function createProject(values: {
+    id: string;
+    name: string;
+    repositoryId: string | null;
+}) {
+    const db = getDb();
     await db.insert(projects).values(values).execute();
 }
 
-export async function findProjectById(db: Db, projectId: string) {
+export async function findProjectById(projectId: string) {
+    const db = getDb();
     const rows = await db
         .select({
             id: projects.id,
@@ -76,10 +80,11 @@ export async function findProjectById(db: Db, projectId: string) {
     return rows[0] ?? null;
 }
 
-export function updateProjectRepository(
-    db: Db,
-    options: { projectId: string; repositoryId: string | null },
-) {
+export function updateProjectRepository(options: {
+    projectId: string;
+    repositoryId: string | null;
+}) {
+    const db = getDb();
     return db
         .update(projects)
         .set({ repositoryId: options.repositoryId })
@@ -88,7 +93,8 @@ export function updateProjectRepository(
         .execute();
 }
 
-export function deleteProject(db: Db, projectId: string) {
+export function deleteProject(projectId: string) {
+    const db = getDb();
     return db
         .delete(projects)
         .where(eq(projects.id, projectId))
@@ -96,7 +102,8 @@ export function deleteProject(db: Db, projectId: string) {
         .execute();
 }
 
-export function listWorktreePromptSummariesByPaths(db: Db, worktreePaths: string[]) {
+export function listWorktreePromptSummariesByPaths(worktreePaths: string[]) {
+    const db = getDb();
     if (worktreePaths.length === 0) {
         return Promise.resolve([]);
     }

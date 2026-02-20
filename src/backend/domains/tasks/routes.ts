@@ -1,11 +1,8 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import type * as schema from "../../db/local/schema";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
-import { createTasksService } from "./service";
+import { tasksService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
-type Db = BunSQLiteDatabase<typeof schema>;
 
 const createTaskHistorySchema = z.object({
     prompt: z.string().trim().min(1),
@@ -17,13 +14,11 @@ const projectTasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
 });
 
-export function createTaskRoutes(options: { db: Db }) {
-    const service = createTasksService({ db: options.db });
-
+export function createTaskRoutes() {
     return {
         "/api/tasks": {
             async GET() {
-                const data = await service.listTaskHistory();
+                const data = await tasksService.listTaskHistory();
                 return Response.json({ data });
             },
             async POST(req: Request) {
@@ -35,7 +30,7 @@ export function createTaskRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const result = await service.createTaskHistory(parsed.data);
+                const result = await tasksService.createTaskHistory(parsed.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
@@ -66,7 +61,7 @@ export function createTaskRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsedQuery) return parsedQuery.response;
 
-                const result = await service.listProjectTaskHistory(parsedParams.data.id, {
+                const result = await tasksService.listProjectTaskHistory(parsedParams.data.id, {
                     isDone:
                         parsedQuery.data.isDone === undefined
                             ? undefined
@@ -92,7 +87,7 @@ export function createTaskRoutes(options: { db: Db }) {
                 });
                 if ("response" in parsedParams) return parsedParams.response;
 
-                const result = await service.markTaskHistoryDone(parsedParams.data.id);
+                const result = await tasksService.markTaskHistoryDone(parsedParams.data.id);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

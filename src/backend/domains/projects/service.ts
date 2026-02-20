@@ -1,18 +1,14 @@
 import { randomUUID } from "node:crypto";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { readThreadMap } from "../../executionState";
 import { findRepositoryClones } from "./cloneDiscovery";
 import * as repository from "./repository";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export function createProjectsService(options: { db: Db; clonesDir: string }) {
-    const { db, clonesDir } = options;
+export function createProjectsService(options: { clonesDir: string }) {
+    const { clonesDir } = options;
 
     return {
         async listProjects() {
-            const rows = await repository.listProjects(db);
+            const rows = await repository.listProjects();
             return rows.map((project) => ({
                 id: project.id,
                 name: project.name,
@@ -25,17 +21,11 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
             let linkedRepositoryUrl: string | null = null;
 
             if (input.repositoryId) {
-                const linkedRepository = await repository.findRepositoryById(
-                    db,
-                    input.repositoryId,
-                );
+                const linkedRepository = await repository.findRepositoryById(input.repositoryId);
                 if (!linkedRepository)
                     return { error: "Repository not found.", status: 400 as const };
 
-                const alreadyLinked = await repository.hasProjectForRepository(
-                    db,
-                    input.repositoryId,
-                );
+                const alreadyLinked = await repository.hasProjectForRepository(input.repositoryId);
                 if (alreadyLinked) {
                     return { error: "Repository already has a project.", status: 409 as const };
                 }
@@ -44,7 +34,7 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
             }
 
             const projectId = randomUUID();
-            await repository.createProject(db, {
+            await repository.createProject({
                 id: projectId,
                 name: input.name,
                 repositoryId: input.repositoryId || null,
@@ -53,7 +43,7 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
         },
 
         async getProject(projectId: string) {
-            const project = await repository.findProjectById(db, projectId);
+            const project = await repository.findProjectById(projectId);
             if (!project) return { error: "Project not found.", status: 404 as const };
 
             const repositoryUrl = project.url?.trim() || null;
@@ -63,10 +53,8 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
             const worktreePaths = clones
                 .filter((clone) => clone.isWorktree)
                 .map((clone) => clone.path);
-            const promptSummaryRows = await repository.listWorktreePromptSummariesByPaths(
-                db,
-                worktreePaths,
-            );
+            const promptSummaryRows =
+                await repository.listWorktreePromptSummariesByPaths(worktreePaths);
             const promptSummaryByWorktreePath = new Map(
                 promptSummaryRows.map((row) => [row.worktreePath, row.promptSummary]),
             );
@@ -98,14 +86,11 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
 
         async updateProjectRepository(input: { projectId: string; repositoryId: string | null }) {
             if (input.repositoryId) {
-                const linkedRepository = await repository.findRepositoryById(
-                    db,
-                    input.repositoryId,
-                );
+                const linkedRepository = await repository.findRepositoryById(input.repositoryId);
                 if (!linkedRepository)
                     return { error: "Repository not found.", status: 400 as const };
 
-                const alreadyLinked = await repository.hasOtherProjectForRepository(db, {
+                const alreadyLinked = await repository.hasOtherProjectForRepository({
                     projectId: input.projectId,
                     repositoryId: input.repositoryId,
                 });
@@ -114,11 +99,11 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
                 }
             }
 
-            const updatedRows = await repository.updateProjectRepository(db, input);
+            const updatedRows = await repository.updateProjectRepository(input);
             if (updatedRows.length === 0)
                 return { error: "Project not found.", status: 404 as const };
 
-            const updatedProject = await repository.findProjectById(db, input.projectId);
+            const updatedProject = await repository.findProjectById(input.projectId);
             if (!updatedProject) return { error: "Project not found.", status: 404 as const };
 
             console.info("[projects] updated repository", {
@@ -135,7 +120,7 @@ export function createProjectsService(options: { db: Db; clonesDir: string }) {
         },
 
         async deleteProject(projectId: string) {
-            const deleted = await repository.deleteProject(db, projectId);
+            const deleted = await repository.deleteProject(projectId);
             if (deleted.length === 0) return { error: "Project not found.", status: 404 as const };
 
             console.info("[projects] deleted", { projectId });

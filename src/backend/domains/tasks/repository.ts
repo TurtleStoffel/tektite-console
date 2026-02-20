@@ -1,11 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { projects, taskHistory } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export async function findProject(db: Db, projectId: string) {
+export async function findProject(projectId: string) {
+    const db = getDb();
     const rows = await db
         .select({ id: projects.id })
         .from(projects)
@@ -14,7 +12,8 @@ export async function findProject(db: Db, projectId: string) {
     return rows[0] ?? null;
 }
 
-export function listTaskHistory(db: Db) {
+export function listTaskHistory() {
+    const db = getDb();
     return db
         .select({
             id: taskHistory.id,
@@ -29,11 +28,8 @@ export function listTaskHistory(db: Db) {
         .execute();
 }
 
-export function listProjectTaskHistory(
-    db: Db,
-    projectId: string,
-    filter: { isDone?: boolean } = {},
-) {
+export function listProjectTaskHistory(projectId: string, filter: { isDone?: boolean } = {}) {
+    const db = getDb();
     const whereClause =
         filter.isDone === undefined
             ? eq(taskHistory.projectId, projectId)
@@ -54,7 +50,8 @@ export function listProjectTaskHistory(
         .execute();
 }
 
-export async function findTaskHistoryById(db: Db, taskId: string) {
+export async function findTaskHistoryById(taskId: string) {
+    const db = getDb();
     const rows = await db
         .select({
             id: taskHistory.id,
@@ -70,21 +67,20 @@ export async function findTaskHistoryById(db: Db, taskId: string) {
     return rows[0] ?? null;
 }
 
-export async function createTaskHistory(
-    db: Db,
-    values: {
-        id: string;
-        projectId: string | null;
-        prompt: string;
-        createdAt: string;
-        isDone: boolean;
-        doneAt: string | null;
-    },
-) {
+export async function createTaskHistory(values: {
+    id: string;
+    projectId: string | null;
+    prompt: string;
+    createdAt: string;
+    isDone: boolean;
+    doneAt: string | null;
+}) {
+    const db = getDb();
     await db.insert(taskHistory).values(values).execute();
 }
 
-export async function markTaskHistoryDone(db: Db, taskId: string, doneAt: string) {
+export async function markTaskHistoryDone(taskId: string, doneAt: string) {
+    const db = getDb();
     await db
         .update(taskHistory)
         .set({

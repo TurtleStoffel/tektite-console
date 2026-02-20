@@ -1,6 +1,4 @@
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { z } from "zod";
-import type * as schema from "../../db/local/schema";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
 import { createProjectsService } from "./service";
 
@@ -14,12 +12,8 @@ const updateProjectRepositoryBodySchema = z.object({
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 type RouteRequest = Request & { params?: Record<string, string | undefined> };
 
-export function createProjectRoutes(options: {
-    db: BunSQLiteDatabase<typeof schema>;
-    clonesDir: string;
-}) {
+export function createProjectRoutes(options: { clonesDir: string }) {
     const service = createProjectsService({
-        db: options.db,
         clonesDir: options.clonesDir,
     });
 

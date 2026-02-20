@@ -1,12 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq, min } from "drizzle-orm";
-import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import type * as schema from "../../db/local/schema";
 import { projects, repositories } from "../../db/local/schema";
+import { getDb } from "../../db/provider";
 
-type Db = BunSQLiteDatabase<typeof schema>;
-
-export function listRepositories(db: Db) {
+export function listRepositories() {
+    const db = getDb();
     return db
         .select({
             id: repositories.id,
@@ -21,12 +19,14 @@ export function listRepositories(db: Db) {
         .execute();
 }
 
-export async function listExistingRepositoryUrls(db: Db) {
+export async function listExistingRepositoryUrls() {
+    const db = getDb();
     const existing = await db.select({ url: repositories.url }).from(repositories).execute();
     return new Set(existing.map((row) => row.url));
 }
 
-export async function insertRepository(db: Db, input: { name: string; url: string }) {
+export async function insertRepository(input: { name: string; url: string }) {
+    const db = getDb();
     await db
         .insert(repositories)
         .values({ id: randomUUID(), name: input.name, url: input.url })

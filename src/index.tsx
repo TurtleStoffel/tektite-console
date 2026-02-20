@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { serve } from "bun";
+import { initDb } from "./backend/db/provider";
 import { createCodexThreadsRoutes } from "./backend/domains/codexThreads/routes";
 import { createDependencyRoutes } from "./backend/domains/dependencies/routes";
 import { createDocumentRoutes } from "./backend/domains/documents/routes";
@@ -68,6 +69,7 @@ const { localDb } = await initStorage({
     localDatabasePath: databasePath,
     supabaseDatabaseUrl,
 });
+initDb(localDb);
 console.info("[storage] dual database mode enabled", {
     local: "sqlite",
     remote: "supabase",
@@ -165,14 +167,14 @@ const server = serve<TerminalSocketData>({
     routes: withCorsRoutes({
         ...envRoutes,
         ...createGithubRoutes(),
-        ...createDocumentRoutes({ db: localDb }),
+        ...createDocumentRoutes(),
         ...createDependencyRoutes(),
         ...createCodexThreadsRoutes(),
-        ...createProjectRoutes({ db: localDb, clonesDir }),
-        ...createRepositoryRoutes({ db: localDb }),
-        ...createTaskRoutes({ db: localDb }),
-        ...createExecuteRoutes({ clonesDir, db: localDb }),
-        ...createFeatureFlagRoutes({ db: localDb }),
+        ...createProjectRoutes({ clonesDir }),
+        ...createRepositoryRoutes(),
+        ...createTaskRoutes(),
+        ...createExecuteRoutes({ clonesDir }),
+        ...createFeatureFlagRoutes(),
         ...createDevServerRoutes({ clonesDir }),
         ...createEditorRoutes({ clonesDir }),
 
