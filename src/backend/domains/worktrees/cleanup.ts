@@ -8,7 +8,7 @@ import {
     isWorktreeDir,
     removeWorktree,
 } from "@/backend/domains/git/service";
-import { isWorkspaceActive } from "./workspaceActivity";
+import { isWorktreeInUse } from "./workspaceActivity";
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";
 const PR_CLEANUP_INTERVAL_MS = 30_000;
@@ -16,7 +16,7 @@ const PR_CLEANUP_INTERVAL_MS = 30_000;
 async function removeWorktreeIfEligible(worktreePath: string) {
     const worktreeName = path.basename(worktreePath);
 
-    if (isWorkspaceActive(worktreePath)) {
+    if (isWorktreeInUse(worktreePath)) {
         return;
     }
 

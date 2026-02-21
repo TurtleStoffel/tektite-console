@@ -102,22 +102,6 @@ export function getTerminalSessionById(sessionId: string) {
     return sessionsById.get(sessionId);
 }
 
-export function getTerminalSessionByWorkspacePath(workspacePath: string) {
-    const normalizedWorkspacePath = path.resolve(workspacePath);
-    const sessionId = sessionIdByWorkspace.get(normalizedWorkspacePath);
-    if (!sessionId) return null;
-    const session = sessionsById.get(sessionId);
-    if (!session) {
-        sessionIdByWorkspace.delete(normalizedWorkspacePath);
-        return null;
-    }
-    return {
-        sessionId: session.id,
-        pid: session.pty.pid,
-        startedAt: session.startedAt,
-    };
-}
-
 export function handleTerminalSocketMessage(
     session: TerminalSession,
     rawMessage: string | Buffer | Uint8Array,

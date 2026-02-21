@@ -36,7 +36,7 @@ function hasActiveTektiteServer(workspacePath: string) {
     }
 }
 
-export function isWorkspaceActive(workspacePath: string) {
+export function isWorktreeInUse(workspacePath: string) {
     if (!workspacePath) return false;
     return (
         hasActiveTektiteServer(workspacePath) || codexWorkspaceActivity.get(workspacePath) === true

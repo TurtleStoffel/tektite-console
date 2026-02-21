@@ -9,7 +9,7 @@ import {
 } from "@/backend/domains/git/service";
 import { TEKTITE_PORT_FILE } from "../../../constants";
 import { execAsync } from "../../exec";
-import { getTerminalSessionByWorkspacePath } from "../worktrees/terminal";
+import { isWorktreeInUse } from "../worktrees/workspaceActivity";
 
 type CloneLocation = "clonesDir";
 
@@ -213,7 +213,7 @@ export async function findRepositoryClones(options: {
                 commitDescription: description,
                 promptSummary: null,
                 isWorktree,
-                inUse: isWorktree ? Boolean(getTerminalSessionByWorkspacePath(clone.path)) : false,
+                inUse: isWorktree ? isWorktreeInUse(clone.path) : false,
                 hasChanges,
                 prStatus,
             };
