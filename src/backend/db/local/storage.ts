@@ -53,14 +53,14 @@ export async function initLocalStorage(databasePath: string): Promise<LocalStora
         );
     `);
 
-    const taskHistoryColumns = sqlite.query("PRAGMA table_info(task_history)").all() as Array<{
+    const tasksColumns = sqlite.query("PRAGMA table_info(task_history)").all() as Array<{
         name: string;
     }>;
-    const taskHistoryColumnNames = new Set(taskHistoryColumns.map((column) => column.name));
-    if (!taskHistoryColumnNames.has("is_done")) {
+    const tasksColumnNames = new Set(tasksColumns.map((column) => column.name));
+    if (!tasksColumnNames.has("is_done")) {
         sqlite.exec("ALTER TABLE task_history ADD COLUMN is_done INTEGER NOT NULL DEFAULT 0");
     }
-    if (!taskHistoryColumnNames.has("done_at")) {
+    if (!tasksColumnNames.has("done_at")) {
         sqlite.exec("ALTER TABLE task_history ADD COLUMN done_at TEXT");
     }
 

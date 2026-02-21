@@ -256,7 +256,7 @@ export function WorktreePanel({
 
         await onRefreshProject();
         await queryClient.invalidateQueries({
-            queryKey: ["project-task-history", project.id],
+            queryKey: ["project-tasks", project.id],
         });
     };
 

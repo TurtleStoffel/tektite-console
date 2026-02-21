@@ -1,54 +1,54 @@
 # tasks domain
 
 ## Purpose
-Stores and updates task execution history.
+Stores and updates tasks that are pending or completed.
 
 ## Exported service functions
 
-### `tasksService.listTaskHistory()`
+### `tasksService.listTasks()`
 ```mermaid
 sequenceDiagram
     participant Caller
     participant TasksService
     participant Repo
-    Caller->>TasksService: listTaskHistory()
-    TasksService->>Repo: listTaskHistory()
+    Caller->>TasksService: listTasks()
+    TasksService->>Repo: listTasks()
     TasksService-->>Caller: tasks
 ```
 
-### `tasksService.listProjectTaskHistory(projectId, filter?)`
+### `tasksService.listProjectTasks(projectId, filter?)`
 ```mermaid
 sequenceDiagram
     participant Caller
     participant TasksService
     participant Repo
-    Caller->>TasksService: listProjectTaskHistory(...)
+    Caller->>TasksService: listProjectTasks(...)
     TasksService->>Repo: findProject(projectId)
-    TasksService->>Repo: listProjectTaskHistory(...)
+    TasksService->>Repo: listProjectTasks(...)
     TasksService-->>Caller: tasks/404
 ```
 
-### `tasksService.createTaskHistory(input)`
+### `tasksService.createTask(input)`
 ```mermaid
 sequenceDiagram
     participant Caller
     participant TasksService
     participant Repo
-    Caller->>TasksService: createTaskHistory(...)
+    Caller->>TasksService: createTask(...)
     TasksService->>Repo: validate project (optional)
-    TasksService->>Repo: createTaskHistory(...)
+    TasksService->>Repo: createTask(...)
     TasksService-->>Caller: created task/404
 ```
 
-### `tasksService.markTaskHistoryDone(taskId)`
+### `tasksService.markTaskDone(taskId)`
 ```mermaid
 sequenceDiagram
     participant Caller
     participant TasksService
     participant Repo
-    Caller->>TasksService: markTaskHistoryDone(taskId)
-    TasksService->>Repo: findTaskHistoryById(taskId)
-    TasksService->>Repo: markTaskHistoryDone(...)
+    Caller->>TasksService: markTaskDone(taskId)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: markTaskDone(...)
     TasksService-->>Caller: updated task/404
 ```
 
@@ -61,7 +61,7 @@ sequenceDiagram
     participant Route
     participant TasksService
     Client->>Route: GET /api/tasks
-    Route->>TasksService: listTaskHistory()
+    Route->>TasksService: listTasks()
     TasksService-->>Route: tasks
     Route-->>Client: JSON
 ```
@@ -73,7 +73,7 @@ sequenceDiagram
     participant Route
     participant TasksService
     Client->>Route: POST /api/tasks
-    Route->>TasksService: createTaskHistory(...)
+    Route->>TasksService: createTask(...)
     TasksService-->>Route: created/error
     Route-->>Client: JSON
 ```
@@ -85,7 +85,7 @@ sequenceDiagram
     participant Route
     participant TasksService
     Client->>Route: GET /api/projects/:id/tasks
-    Route->>TasksService: listProjectTaskHistory(...)
+    Route->>TasksService: listProjectTasks(...)
     TasksService-->>Route: tasks/404
     Route-->>Client: JSON
 ```
@@ -97,7 +97,7 @@ sequenceDiagram
     participant Route
     participant TasksService
     Client->>Route: POST /api/tasks/:id/done
-    Route->>TasksService: markTaskHistoryDone(id)
+    Route->>TasksService: markTaskDone(id)
     TasksService-->>Route: updated/404
     Route-->>Client: JSON
 ```

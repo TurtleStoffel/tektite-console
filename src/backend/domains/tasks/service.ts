@@ -7,8 +7,8 @@ function normalizeProjectId(projectId: string | null | undefined) {
 }
 
 export const tasksService = {
-    async listTaskHistory() {
-        const rows = await repository.listTaskHistory();
+    async listTasks() {
+        const rows = await repository.listTasks();
         return rows.map((row) => ({
             id: row.id,
             projectId: row.projectId,
@@ -19,11 +19,11 @@ export const tasksService = {
         }));
     },
 
-    async listProjectTaskHistory(projectId: string, filter?: { isDone?: boolean }) {
+    async listProjectTasks(projectId: string, filter?: { isDone?: boolean }) {
         const project = await repository.findProject(projectId);
         if (!project) return { error: "Project not found.", status: 404 as const };
 
-        const rows = await repository.listProjectTaskHistory(projectId, filter);
+        const rows = await repository.listProjectTasks(projectId, filter);
         return rows.map((row) => ({
             id: row.id,
             projectId: row.projectId,
@@ -34,7 +34,7 @@ export const tasksService = {
         }));
     },
 
-    async createTaskHistory(input: { projectId?: string | null; prompt: string }) {
+    async createTask(input: { projectId?: string | null; prompt: string }) {
         const projectId = normalizeProjectId(input.projectId);
         if (projectId) {
             const project = await repository.findProject(projectId);
@@ -43,7 +43,7 @@ export const tasksService = {
 
         const id = randomUUID();
         const createdAt = new Date().toISOString();
-        await repository.createTaskHistory({
+        await repository.createTask({
             id,
             projectId,
             prompt: input.prompt,
@@ -51,7 +51,7 @@ export const tasksService = {
             isDone: false,
             doneAt: null,
         });
-        console.info("[tasks] created task history", { id, projectId });
+        console.info("[tasks] created task", { id, projectId });
         return {
             id,
             projectId,
@@ -62,13 +62,13 @@ export const tasksService = {
         };
     },
 
-    async markTaskHistoryDone(taskId: string) {
-        const task = await repository.findTaskHistoryById(taskId);
+    async markTaskDone(taskId: string) {
+        const task = await repository.findTaskById(taskId);
         if (!task) return { error: "Task not found.", status: 404 as const };
         if (task.isDone) return task;
 
         const doneAt = new Date().toISOString();
-        await repository.markTaskHistoryDone(taskId, doneAt);
+        await repository.markTaskDone(taskId, doneAt);
         console.info("[tasks] marked task done", { taskId, doneAt });
         return { ...task, isDone: true, doneAt };
     },

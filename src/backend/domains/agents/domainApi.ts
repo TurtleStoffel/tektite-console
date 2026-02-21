@@ -254,12 +254,12 @@ export function createAgentsService(options: { clonesDir: string }) {
     };
 
     return {
-        async executeWithTaskHistory(input: {
+        async executeWithTask(input: {
             prompt: string;
             projectId?: string | null;
             repositoryUrl: string;
         }) {
-            const createTaskResult = await tasksService.createTaskHistory({
+            const createTaskResult = await tasksService.createTask({
                 prompt: input.prompt,
                 projectId: input.projectId,
             });

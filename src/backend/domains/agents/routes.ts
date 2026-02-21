@@ -48,7 +48,7 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                     throw new Error("Command text is required.");
                 }
                 const repositoryUrl = parsed.data.repository.url;
-                const result = await service.executeWithTaskHistory({
+                const result = await service.executeWithTask({
                     prompt: basePrompt,
                     projectId: parsed.data.projectId,
                     repositoryUrl,
@@ -77,7 +77,7 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                     context: "execute:resume",
                 });
                 if ("response" in parsed) return parsed.response;
-                console.info("[execute] received thread follow-up comment; skipping task history", {
+                console.info("[execute] received thread follow-up comment; skipping tasks", {
                     worktreePath: parsed.data.worktreePath,
                     threadId: parsed.data.threadId,
                     projectId: parsed.data.projectId ?? null,

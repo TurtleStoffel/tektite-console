@@ -22,7 +22,7 @@ export const documents = sqliteTable("documents", {
     markdown: text("markdown").notNull(),
 });
 
-export const taskHistory = sqliteTable("task_history", {
+export const tasks = sqliteTable("task_history", {
     id: text("id").primaryKey(),
     projectId: text("project_id").references(() => projects.id, {
         onDelete: "set null",

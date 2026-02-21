@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { projects, taskHistory } from "../../db/local/schema";
+import { projects, tasks } from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
 export async function findProject(projectId: string) {
@@ -12,62 +12,62 @@ export async function findProject(projectId: string) {
     return rows[0] ?? null;
 }
 
-export function listTaskHistory() {
+export function listTasks() {
     const db = getDb();
     return db
         .select({
-            id: taskHistory.id,
-            projectId: taskHistory.projectId,
-            prompt: taskHistory.prompt,
-            createdAt: taskHistory.createdAt,
-            isDone: taskHistory.isDone,
-            doneAt: taskHistory.doneAt,
+            id: tasks.id,
+            projectId: tasks.projectId,
+            prompt: tasks.prompt,
+            createdAt: tasks.createdAt,
+            isDone: tasks.isDone,
+            doneAt: tasks.doneAt,
         })
-        .from(taskHistory)
-        .orderBy(desc(taskHistory.createdAt), desc(taskHistory.id))
+        .from(tasks)
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
 }
 
-export function listProjectTaskHistory(projectId: string, filter: { isDone?: boolean } = {}) {
+export function listProjectTasks(projectId: string, filter: { isDone?: boolean } = {}) {
     const db = getDb();
     const whereClause =
         filter.isDone === undefined
-            ? eq(taskHistory.projectId, projectId)
-            : and(eq(taskHistory.projectId, projectId), eq(taskHistory.isDone, filter.isDone));
+            ? eq(tasks.projectId, projectId)
+            : and(eq(tasks.projectId, projectId), eq(tasks.isDone, filter.isDone));
 
     return db
         .select({
-            id: taskHistory.id,
-            projectId: taskHistory.projectId,
-            prompt: taskHistory.prompt,
-            createdAt: taskHistory.createdAt,
-            isDone: taskHistory.isDone,
-            doneAt: taskHistory.doneAt,
+            id: tasks.id,
+            projectId: tasks.projectId,
+            prompt: tasks.prompt,
+            createdAt: tasks.createdAt,
+            isDone: tasks.isDone,
+            doneAt: tasks.doneAt,
         })
-        .from(taskHistory)
+        .from(tasks)
         .where(whereClause)
-        .orderBy(desc(taskHistory.createdAt), desc(taskHistory.id))
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
 }
 
-export async function findTaskHistoryById(taskId: string) {
+export async function findTaskById(taskId: string) {
     const db = getDb();
     const rows = await db
         .select({
-            id: taskHistory.id,
-            projectId: taskHistory.projectId,
-            prompt: taskHistory.prompt,
-            createdAt: taskHistory.createdAt,
-            isDone: taskHistory.isDone,
-            doneAt: taskHistory.doneAt,
+            id: tasks.id,
+            projectId: tasks.projectId,
+            prompt: tasks.prompt,
+            createdAt: tasks.createdAt,
+            isDone: tasks.isDone,
+            doneAt: tasks.doneAt,
         })
-        .from(taskHistory)
-        .where(eq(taskHistory.id, taskId))
+        .from(tasks)
+        .where(eq(tasks.id, taskId))
         .execute();
     return rows[0] ?? null;
 }
 
-export async function createTaskHistory(values: {
+export async function createTask(values: {
     id: string;
     projectId: string | null;
     prompt: string;
@@ -76,17 +76,17 @@ export async function createTaskHistory(values: {
     doneAt: string | null;
 }) {
     const db = getDb();
-    await db.insert(taskHistory).values(values).execute();
+    await db.insert(tasks).values(values).execute();
 }
 
-export async function markTaskHistoryDone(taskId: string, doneAt: string) {
+export async function markTaskDone(taskId: string, doneAt: string) {
     const db = getDb();
     await db
-        .update(taskHistory)
+        .update(tasks)
         .set({
             isDone: true,
             doneAt,
         })
-        .where(eq(taskHistory.id, taskId))
+        .where(eq(tasks.id, taskId))
         .execute();
 }

@@ -4,7 +4,7 @@ import { tasksService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
 
-const createTaskHistorySchema = z.object({
+const createTaskSchema = z.object({
     prompt: z.string().trim().min(1),
     projectId: z.string().optional().nullable(),
 });
@@ -18,19 +18,19 @@ export function createTaskRoutes() {
     return {
         "/api/tasks": {
             async GET() {
-                const data = await tasksService.listTaskHistory();
+                const data = await tasksService.listTasks();
                 return Response.json({ data });
             },
             async POST(req: Request) {
                 const parsed = await parseJsonBody({
                     req,
-                    schema: createTaskHistorySchema,
+                    schema: createTaskSchema,
                     domain: "tasks",
                     context: "tasks:create",
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const result = await tasksService.createTaskHistory(parsed.data);
+                const result = await tasksService.createTask(parsed.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,
@@ -61,7 +61,7 @@ export function createTaskRoutes() {
                 });
                 if ("response" in parsedQuery) return parsedQuery.response;
 
-                const result = await tasksService.listProjectTaskHistory(parsedParams.data.id, {
+                const result = await tasksService.listProjectTasks(parsedParams.data.id, {
                     isDone:
                         parsedQuery.data.isDone === undefined
                             ? undefined
@@ -87,7 +87,7 @@ export function createTaskRoutes() {
                 });
                 if ("response" in parsedParams) return parsedParams.response;
 
-                const result = await tasksService.markTaskHistoryDone(parsedParams.data.id);
+                const result = await tasksService.markTaskDone(parsedParams.data.id);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

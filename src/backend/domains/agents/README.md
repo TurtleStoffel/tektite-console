@@ -17,8 +17,8 @@ sequenceDiagram
     participant Tasks
     participant Git
     Client->>Route: POST /api/execute
-    Route->>DomainApi: executeWithTaskHistory(...)
-    DomainApi->>Tasks: createTaskHistory(...)
+    Route->>DomainApi: executeWithTask(...)
+    DomainApi->>Tasks: createTask(...)
     DomainApi->>Git: prepareWorktree(...)
     DomainApi-->>Route: stream response
     Route-->>Client: execution stream

@@ -6,7 +6,7 @@ type TasksPageProps = {
     drawerToggleId: string;
 };
 
-type TaskHistoryItem = {
+type TaskItem = {
     id: string;
     projectId: string | null;
     prompt: string;
@@ -28,7 +28,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         isFetching,
         error: tasksErrorRaw,
         refetch,
-    } = useQuery<TaskHistoryItem[]>({
+    } = useQuery<TaskItem[]>({
         queryKey: ["tasks"],
         queryFn: async () => {
             console.info("[tasks] loading all tasks...");
@@ -37,7 +37,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load tasks.");
             }
-            const list = Array.isArray(payload?.data) ? (payload.data as TaskHistoryItem[]) : [];
+            const list = Array.isArray(payload?.data) ? (payload.data as TaskItem[]) : [];
             console.info(`[tasks] loaded ${list.length} tasks.`);
             return list;
         },
@@ -51,7 +51,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold">Tasks</h1>
                     <p className="text-sm text-base-content/70">
-                        Complete history of task prompts executed in this workspace.
+                        Tasks in this workspace, including pending and completed runs.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

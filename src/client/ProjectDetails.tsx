@@ -17,7 +17,7 @@ type DocumentSummary = {
     markdown: string;
 };
 
-type TaskHistoryItem = {
+type TaskItem = {
     id: string;
     projectId: string | null;
     prompt: string;
@@ -143,13 +143,13 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     }, [id]);
 
     const {
-        data: taskHistory = [],
-        isLoading: taskHistoryLoading,
-        isFetching: taskHistoryFetching,
-        error: taskHistoryQueryError,
-        refetch: refetchTaskHistory,
-    } = useQuery<TaskHistoryItem[]>({
-        queryKey: ["project-task-history", id],
+        data: tasks = [],
+        isLoading: tasksLoading,
+        isFetching: tasksFetching,
+        error: tasksQueryError,
+        refetch: refetchTasks,
+    } = useQuery<TaskItem[]>({
+        queryKey: ["project-tasks", id],
         enabled: Boolean(id),
         refetchInterval: 15000,
         queryFn: async () => {
@@ -157,13 +157,12 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             const res = await fetch(`/api/projects/${id}/tasks?isDone=false`);
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load task history.");
+                throw new Error(payload?.error || "Failed to load tasks.");
             }
-            return Array.isArray(payload?.data) ? (payload.data as TaskHistoryItem[]) : [];
+            return Array.isArray(payload?.data) ? (payload.data as TaskItem[]) : [];
         },
     });
-    const taskHistoryError =
-        taskHistoryQueryError instanceof Error ? taskHistoryQueryError.message : null;
+    const tasksError = tasksQueryError instanceof Error ? tasksQueryError.message : null;
     const {
         mutate: markTaskDone,
         isPending: markingTaskDone,
@@ -176,11 +175,11 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to mark task as done.");
             }
-            return payload?.data as TaskHistoryItem;
+            return payload?.data as TaskItem;
         },
         onSuccess: async () => {
             if (!id) return;
-            await queryClient.invalidateQueries({ queryKey: ["project-task-history", id] });
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks", id] });
         },
     });
     const markTaskDoneErrorMessage =
@@ -428,7 +427,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             onTaskStarted={() => {
                                                 void refreshProject();
                                                 void queryClient.invalidateQueries({
-                                                    queryKey: ["project-task-history", project.id],
+                                                    queryKey: ["project-tasks", project.id],
                                                 });
                                             }}
                                         />
@@ -443,21 +442,21 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             <div className="card bg-base-200 border border-base-300 shadow-sm">
                                 <div className="card-body p-5 space-y-3">
                                     <div className="flex items-center justify-between gap-2">
-                                        <div className="text-sm font-semibold">Task history</div>
+                                        <div className="text-sm font-semibold">Tasks</div>
                                         <button
                                             type="button"
                                             className="btn btn-outline btn-xs"
-                                            onClick={() => void refetchTaskHistory()}
-                                            disabled={taskHistoryLoading || taskHistoryFetching}
+                                            onClick={() => void refetchTasks()}
+                                            disabled={tasksLoading || tasksFetching}
                                         >
-                                            {taskHistoryLoading || taskHistoryFetching
+                                            {tasksLoading || tasksFetching
                                                 ? "Refreshing..."
                                                 : "Refresh"}
                                         </button>
                                     </div>
-                                    {taskHistoryError && (
+                                    {tasksError && (
                                         <div className="alert alert-error py-2">
-                                            <span className="text-sm">{taskHistoryError}</span>
+                                            <span className="text-sm">{tasksError}</span>
                                         </div>
                                     )}
                                     {markTaskDoneErrorMessage && (
@@ -467,18 +466,18 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                             </span>
                                         </div>
                                     )}
-                                    {taskHistoryLoading ? (
+                                    {tasksLoading ? (
                                         <div className="flex items-center gap-2 text-sm text-base-content/70">
                                             <span className="loading loading-spinner loading-sm" />
-                                            <span>Loading task history...</span>
+                                            <span>Loading tasks...</span>
                                         </div>
-                                    ) : taskHistory.length === 0 ? (
+                                    ) : tasks.length === 0 ? (
                                         <div className="text-sm text-base-content/70">
                                             No pending tasks for this project.
                                         </div>
                                     ) : (
                                         <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
-                                            {taskHistory.map((task) => (
+                                            {tasks.map((task) => (
                                                 <div
                                                     key={task.id}
                                                     className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
