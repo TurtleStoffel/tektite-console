@@ -8,6 +8,7 @@ import { tasksService } from "@/backend/domains/tasks/service";
 import { ensureDirectoryExists } from "@/backend/filesystem";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamCodexRun } from "./codex";
+import { readThreadMap } from "./executionState";
 import { streamOpenCodeRun } from "./opencode";
 import * as repository from "./repository";
 
@@ -177,6 +178,10 @@ function streamAgentRun(input: {
 }) {
     const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
     return streamRun(input);
+}
+
+export function readAgentThreadMap(clonesDir: string) {
+    return readThreadMap(clonesDir);
 }
 
 export function createAgentsService(options: { clonesDir: string }) {

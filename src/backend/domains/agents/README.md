@@ -5,6 +5,7 @@ Owns coding agent integrations:
 - Analyze local Codex thread logs from `~/.codex/sessions`.
 - Stream execution runs through Codex or OpenCode.
 - Execute prompt-driven tasks in prepared worktrees and stream results.
+- Persist and read worktree thread metadata via domain-local `executionState.ts`.
 
 ## Dependencies with other domains
 - `git/service` (worktree preparation).
@@ -86,3 +87,6 @@ sequenceDiagram
 Chooses the runtime provider based on `NODE_ENV`:
 - `development`: OpenCode (`opencode.ts`)
 - otherwise: Codex (`codex.ts`)
+
+### `readAgentThreadMap(clonesDir)`
+Reads persisted worktree thread metadata so other domains can consume agent thread state via `agents/service` instead of importing agents internals.

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readThreadMap } from "../../executionState";
+import { readAgentThreadMap } from "@/backend/domains/agents/service";
 import { findRepositoryClones } from "./cloneDiscovery";
 import * as repository from "./repository";
 
@@ -64,7 +64,7 @@ export function createProjectsService(options: { clonesDir: string }) {
                     ? (promptSummaryByWorktreePath.get(clone.path) ?? null)
                     : null,
             }));
-            const threadMap = readThreadMap(clonesDir);
+            const threadMap = readAgentThreadMap(clonesDir);
             const clonesWithCodex = clones.map((clone) => {
                 const thread = threadMap[clone.path];
                 return {

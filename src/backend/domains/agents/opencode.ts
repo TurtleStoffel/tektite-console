@@ -14,7 +14,7 @@ import {
     recordLastEvent,
     recordLastMessage,
     recordThreadId,
-} from "../../executionState";
+} from "./executionState";
 
 type StreamUsage = {
     input_tokens: number;

@@ -16,7 +16,7 @@ import {
     recordLastEvent,
     recordLastMessage,
     recordThreadId,
-} from "../../executionState";
+} from "./executionState";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }
