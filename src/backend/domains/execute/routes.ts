@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { tasksService } from "@/backend/domains/tasks/service";
 import { jsonHeaders, parseJsonBody } from "../../http/validation";
 import { createExecuteService } from "./service";
 
@@ -41,18 +40,17 @@ export function createExecuteRoutes(options: { clonesDir: string }) {
                     throw new Error("Command text is required.");
                 }
                 const repositoryUrl = parsed.data.repository.url;
-                const createTaskResult = await tasksService.createTaskHistory({
+                const result = await service.executeWithTaskHistory({
                     prompt: basePrompt,
                     projectId: parsed.data.projectId,
+                    repositoryUrl,
                 });
-                if ("error" in createTaskResult) {
-                    return new Response(JSON.stringify({ error: createTaskResult.error }), {
-                        status: createTaskResult.status,
+                if ("error" in result && "status" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
                         headers: jsonHeaders,
                     });
                 }
-
-                const result = await service.execute({ prompt: basePrompt, repositoryUrl });
                 if (result.error) {
                     return new Response(JSON.stringify({ error: result.error.message }), {
                         status: 500,

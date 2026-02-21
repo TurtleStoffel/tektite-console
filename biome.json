@@ -5,6 +5,33 @@
         "indentWidth": 4,
         "lineWidth": 100
     },
+    "overrides": [
+        {
+            "includes": ["src/backend/domains/*/routes.ts"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "noRestrictedImports": {
+                            "level": "error",
+                            "options": {
+                                "patterns": [
+                                    {
+                                        "group": [
+                                            "@/backend/domains/*/service",
+                                            "@/backend/domains/*/service.ts",
+                                            "../**/service",
+                                            "../**/service.ts"
+                                        ],
+                                        "message": "Routes must import only their same-domain service via ./service"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ],
     "linter": {
         "enabled": true,
         "rules": {
