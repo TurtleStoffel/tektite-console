@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { Codex, type ThreadEvent } from "@openai/codex-sdk";
 import { Result } from "typescript-result";
+import { streamCodexRun } from "./codex";
+import { streamOpenCodeRun } from "./opencode";
 
 type CodexThreadSummary = {
     id: string;
@@ -144,7 +146,17 @@ async function runAnalysisPrompt(input: { threadContent: string }): Promise<stri
     return extractAgentMarkdown(collectedEvents);
 }
 
-export function createCodexThreadsService() {
+export function streamAgentRun(input: {
+    prompt: string;
+    workingDirectory: string;
+    threadId?: string | null;
+    clonesDir: string;
+}) {
+    const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
+    return streamRun(input);
+}
+
+export function createAgentsService() {
     return {
         async listThreads() {
             const codexHomeResult = resolveCodexHome();

@@ -2,7 +2,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { serve } from "bun";
 import { initDb } from "./backend/db/provider";
-import { createCodexThreadsRoutes } from "./backend/domains/codexThreads/routes";
+import { createAgentsRoutes } from "./backend/domains/agents/routes";
 import { createDependencyRoutes } from "./backend/domains/dependencies/routes";
 import { createDocumentRoutes } from "./backend/domains/documents/routes";
 import { createEditorRoutes } from "./backend/domains/editor/routes";
@@ -169,7 +169,7 @@ const server = serve<TerminalSocketData>({
         ...createGithubRoutes(),
         ...createDocumentRoutes(),
         ...createDependencyRoutes(),
-        ...createCodexThreadsRoutes(),
+        ...createAgentsRoutes(),
         ...createProjectRoutes({ clonesDir }),
         ...createRepositoryRoutes(),
         ...createTaskRoutes(),

@@ -1,18 +1,20 @@
-# codexThreads domain
+# agents domain
 
 ## Purpose
-Analyze local Codex thread logs from `~/.codex/sessions`.
+Owns coding agent integrations:
+- Analyze local Codex thread logs from `~/.codex/sessions`.
+- Stream execution runs through Codex or OpenCode.
 
 ## Dependencies with other domains
-- None.
+- `worktrees/service` (activity tracking).
 
 ## Exposed service functions
 
-### `createCodexThreadsService().listThreads()`
+### `createAgentsService().listThreads()`
 ```mermaid
 sequenceDiagram
     participant Route
-    participant Service as codexThreads service
+    participant Service as agents service
     participant FS as File system (~/.codex/sessions)
     Route->>Service: listThreads()
     Service->>FS: walk directories + stat *.jsonl
@@ -20,11 +22,11 @@ sequenceDiagram
     Service-->>Route: Result.ok(thread summaries)
 ```
 
-### `createCodexThreadsService().analyzeThread(input)`
+### `createAgentsService().analyzeThread(input)`
 ```mermaid
 sequenceDiagram
     participant Route
-    participant Service as codexThreads service
+    participant Service as agents service
     participant FS as File system (~/.codex)
     participant Codex as Codex SDK
     Route->>Service: analyzeThread(threadPath)
@@ -34,3 +36,8 @@ sequenceDiagram
     Codex-->>Service: streamed events
     Service-->>Route: Result.ok({ markdown })
 ```
+
+### `streamAgentRun(input)`
+Chooses the runtime provider based on `NODE_ENV`:
+- `development`: OpenCode (`opencode.ts`)
+- otherwise: Codex (`codex.ts`)

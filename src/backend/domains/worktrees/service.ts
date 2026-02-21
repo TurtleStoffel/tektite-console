@@ -2,6 +2,7 @@ import path from "node:path";
 import { startPullRequestCleanup as startPullRequestCleanupJob } from "./cleanup";
 import * as repository from "./repository";
 import { startOrReuseTerminal } from "./terminal";
+import { markCodexWorkspaceActive, markCodexWorkspaceInactive } from "./workspaceActivity";
 
 export function createWorktreesService(options: { clonesDir: string }) {
     const allowedRoots = [options.clonesDir];
@@ -35,4 +36,12 @@ export function createWorktreesService(options: { clonesDir: string }) {
 
 export function startPullRequestCleanup(options: { clonesDir: string; intervalMs?: number }) {
     return startPullRequestCleanupJob(options);
+}
+
+export function markAgentWorkspaceActive(workspacePath: string) {
+    markCodexWorkspaceActive(workspacePath);
+}
+
+export function markAgentWorkspaceInactive(workspacePath: string) {
+    markCodexWorkspaceInactive(workspacePath);
 }

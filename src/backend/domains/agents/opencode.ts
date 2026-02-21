@@ -4,17 +4,17 @@ import {
     type Session as OpenCodeSession,
 } from "@opencode-ai/sdk";
 import {
-    markCodexWorkspaceActive,
-    markCodexWorkspaceInactive,
-} from "./domains/worktrees/workspaceActivity";
+    markAgentWorkspaceActive,
+    markAgentWorkspaceInactive,
+} from "@/backend/domains/worktrees/service";
 import {
     appendCommitInstruction,
     readThreadMap,
     recordLastEvent,
     recordLastMessage,
     recordThreadId,
-} from "./executionState";
-import { finalizeGitState } from "./git";
+} from "../../executionState";
+import { finalizeGitState } from "../../git";
 
 type StreamUsage = {
     input_tokens: number;
@@ -87,7 +87,7 @@ export function streamOpenCodeRun(options: {
     let cancelled = false;
     const stream = new ReadableStream({
         start: async (controller) => {
-            markCodexWorkspaceActive(workingDirectory);
+            markAgentWorkspaceActive(workingDirectory);
 
             const send = (chunk: StreamChunk) => {
                 if (cancelled) return;
@@ -159,12 +159,12 @@ export function streamOpenCodeRun(options: {
                 send({ type: "error", error: message });
             } finally {
                 closeStream();
-                markCodexWorkspaceInactive(workingDirectory);
+                markAgentWorkspaceInactive(workingDirectory);
             }
         },
         cancel: () => {
             cancelled = true;
-            markCodexWorkspaceInactive(workingDirectory);
+            markAgentWorkspaceInactive(workingDirectory);
         },
     });
 

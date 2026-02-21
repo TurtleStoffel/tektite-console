@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { parseJsonBody } from "@/backend/http/validation";
-import { createCodexThreadsService } from "./service";
+import { createAgentsService } from "./service";
 
 const analyzePayloadSchema = z.object({
     threadPath: z.string().trim().min(1),
 });
 
-export function createCodexThreadsRoutes() {
-    const service = createCodexThreadsService();
+export function createAgentsRoutes() {
+    const service = createAgentsService();
 
     return {
         "/api/codex-threads": {

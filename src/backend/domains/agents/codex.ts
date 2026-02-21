@@ -6,17 +6,17 @@ import {
     type Usage,
 } from "@openai/codex-sdk";
 import {
-    markCodexWorkspaceActive,
-    markCodexWorkspaceInactive,
-} from "./domains/worktrees/workspaceActivity";
+    markAgentWorkspaceActive,
+    markAgentWorkspaceInactive,
+} from "@/backend/domains/worktrees/service";
 import {
     appendCommitInstruction,
     readThreadMap,
     recordLastEvent,
     recordLastMessage,
     recordThreadId,
-} from "./executionState";
-import { finalizeGitState } from "./git";
+} from "../../executionState";
+import { finalizeGitState } from "../../git";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }
@@ -150,7 +150,7 @@ export function streamCodexRun(options: {
     const stream = new ReadableStream({
         start: async (controller) => {
             _controllerRef = controller;
-            markCodexWorkspaceActive(workingDirectory);
+            markAgentWorkspaceActive(workingDirectory);
 
             const send = (chunk: StreamChunk) => {
                 if (cancelled) return;
@@ -229,13 +229,13 @@ export function streamCodexRun(options: {
             } finally {
                 closeStream();
                 _controllerRef = null;
-                markCodexWorkspaceInactive(workingDirectory);
+                markAgentWorkspaceInactive(workingDirectory);
             }
         },
         cancel: () => {
             cancelled = true;
             _controllerRef = null;
-            markCodexWorkspaceInactive(workingDirectory);
+            markAgentWorkspaceInactive(workingDirectory);
         },
     });
 

@@ -1,9 +1,8 @@
 import { Result } from "typescript-result";
+import { streamAgentRun } from "@/backend/domains/agents/service";
 import { tasksService } from "@/backend/domains/tasks/service";
-import { streamCodexRun } from "../../codex";
 import { ensureClonesDir, prepareWorktree } from "../../git";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
-import { streamOpenCodeRun } from "../../opencode";
 import * as repository from "./repository";
 
 class ExecutePrepareError extends Error {
@@ -26,7 +25,7 @@ class ExecuteStreamError extends Error {
 
 export function createExecuteService(options: { clonesDir: string }) {
     const { clonesDir } = options;
-    const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
+    const streamRun = streamAgentRun;
     console.info("[execute] configured runner", {
         nodeEnv: process.env.NODE_ENV ?? null,
         runner: process.env.NODE_ENV === "development" ? "opencode" : "codex",
