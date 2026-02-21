@@ -5,11 +5,11 @@ import {
     detectRepoChanges,
     getPullRequestStatus,
     isWorktreeDir,
+    isWorktreeInUse,
     sanitizeRepoName,
 } from "@/backend/domains/git/service";
 import { TEKTITE_PORT_FILE } from "../../../constants";
 import { execAsync } from "../../exec";
-import { isWorktreeInUse } from "../worktrees/workspaceActivity";
 
 type CloneLocation = "clonesDir";
 

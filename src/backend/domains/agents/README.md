@@ -6,7 +6,7 @@ Owns coding agent integrations:
 - Stream execution runs through Codex or OpenCode.
 
 ## Dependencies with other domains
-- `worktrees/service` (activity tracking).
+- `git/service` (activity tracking).
 
 ## Exposed service functions
 

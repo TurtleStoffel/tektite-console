@@ -5,11 +5,11 @@ import {
     type ThreadItem,
     type Usage,
 } from "@openai/codex-sdk";
-import { finalizeGitState } from "@/backend/domains/git/service";
 import {
+    finalizeGitState,
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
-} from "@/backend/domains/worktrees/service";
+} from "@/backend/domains/git/service";
 import {
     appendCommitInstruction,
     readThreadMap,

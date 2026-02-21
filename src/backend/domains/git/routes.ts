@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseJsonBody } from "../../http/validation";
-import { createWorktreesService } from "./service";
+import { createWorktreesService } from "./worktreesService";
 
 const worktreePathBodySchema = z.object({ path: z.string().trim().min(1) });
 

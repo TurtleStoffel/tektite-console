@@ -3,6 +3,15 @@ import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "../../exec";
+import {
+    isWorktreeInUse,
+    markCodexWorkspaceActive,
+    markCodexWorkspaceInactive,
+} from "./workspaceActivity";
+
+export { isWorktreeInUse };
+export const markAgentWorkspaceActive = markCodexWorkspaceActive;
+export const markAgentWorkspaceInactive = markCodexWorkspaceInactive;
 
 type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
 

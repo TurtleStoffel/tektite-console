@@ -3,11 +3,11 @@ import {
     type Part as OpenCodePart,
     type Session as OpenCodeSession,
 } from "@opencode-ai/sdk";
-import { finalizeGitState } from "@/backend/domains/git/service";
 import {
+    finalizeGitState,
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
-} from "@/backend/domains/worktrees/service";
+} from "@/backend/domains/git/service";
 import {
     appendCommitInstruction,
     readThreadMap,

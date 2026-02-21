@@ -9,20 +9,20 @@ import { createEditorRoutes } from "./backend/domains/editor/routes";
 import { envRoutes } from "./backend/domains/env/routes";
 import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createFeatureFlagRoutes } from "./backend/domains/featureFlags/routes";
-import { createGithubRoutes } from "./backend/domains/github/routes";
-import { createNotesRoutes } from "./backend/domains/notes/routes";
-import { createProjectRoutes } from "./backend/domains/projects/routes";
-import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
-import { createTaskRoutes } from "./backend/domains/tasks/routes";
-import { createDevServerRoutes } from "./backend/domains/worktrees/routes";
-import { startPullRequestCleanup } from "./backend/domains/worktrees/service";
+import { createDevServerRoutes } from "./backend/domains/git/routes";
 import {
     attachSocketToTerminalSession,
     detachSocketFromTerminalSession,
     getTerminalSessionById,
     handleTerminalSocketMessage,
     type TerminalSocketData,
-} from "./backend/domains/worktrees/terminal";
+} from "./backend/domains/git/terminal";
+import { startPullRequestCleanup } from "./backend/domains/git/worktreesService";
+import { createGithubRoutes } from "./backend/domains/github/routes";
+import { createNotesRoutes } from "./backend/domains/notes/routes";
+import { createProjectRoutes } from "./backend/domains/projects/routes";
+import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
+import { createTaskRoutes } from "./backend/domains/tasks/routes";
 import { ensureDirectoryExists } from "./backend/filesystem";
 import { findFirstFreePort } from "./backend/port";
 import { seedDevelopmentDataIfEmpty } from "./backend/seedDevelopmentData";
