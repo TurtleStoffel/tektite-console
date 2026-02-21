@@ -16,3 +16,8 @@
 
 ## Migration Rule
 - If a domain has legacy helper modules, keep them as internal implementation details and expose operations through `service.ts`, and through `repository.ts` when DB persistence is involved.
+
+## Documentation Freshness
+- After every change in `src/backend/domains/*`, verify the domain `README.md` is still accurate.
+- If behavior, dependencies, exposed service functions, or call flow changed, update the corresponding `README.md` in the same change.
+- Keep documentation aligned with current code reality; do not defer doc updates.
