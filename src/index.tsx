@@ -22,7 +22,7 @@ import {
     handleTerminalSocketMessage,
     type TerminalSocketData,
 } from "./backend/domains/worktrees/terminal";
-import { ensureClonesDir } from "./backend/git";
+import { ensureDirectoryExists } from "./backend/filesystem";
 import { findFirstFreePort } from "./backend/port";
 import { seedDevelopmentDataIfEmpty } from "./backend/seedDevelopmentData";
 import { initStorage } from "./backend/storage";
@@ -64,7 +64,7 @@ if (!clonesDirValue) {
 }
 const clonesDir = resolvePathFromEnv(clonesDirValue);
 
-void ensureClonesDir(clonesDir);
+void ensureDirectoryExists(clonesDir);
 const { localDb } = await initStorage({
     localDatabasePath: databasePath,
     supabaseDatabaseUrl,

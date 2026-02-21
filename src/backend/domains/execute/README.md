@@ -19,7 +19,8 @@ sequenceDiagram
     participant Runner as codex/opencode stream
     Route->>Service: executeWithTaskHistory(prompt, projectId, repositoryUrl)
     Service->>Tasks: createTaskHistory(...)
-    Service->>Git: ensureClonesDir + prepareWorktree
+    Service->>FS: ensureDirectoryExists
+    Service->>Git: prepareWorktree
     Service->>Repo: upsertWorktreePromptSummary(...)
     Service->>Runner: streamRun(prompt, workingDirectory)
     Service-->>Route: Result.ok(stream)
@@ -34,7 +35,8 @@ sequenceDiagram
     participant Repo as execute repository
     participant Runner as codex/opencode stream
     Route->>Service: execute(prompt, repositoryUrl)
-    Service->>Git: ensureClonesDir + prepareWorktree
+    Service->>FS: ensureDirectoryExists
+    Service->>Git: prepareWorktree
     Service->>Repo: upsertWorktreePromptSummary(...)
     Service->>Runner: streamRun(prompt, workingDirectory)
     Service-->>Route: Result.ok(stream)

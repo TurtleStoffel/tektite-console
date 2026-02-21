@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "./exec";
+import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "../../exec";
 
 type PullRequestState = "open" | "closed" | "merged" | "draft" | "none" | "unknown";
 
@@ -209,10 +209,6 @@ export async function prepareWorktree(repoUrl: string, clonesDir: string) {
     const { worktreePath, branchName } = await createWorktree(baseDir, repoName, clonesDir);
 
     return { worktreePath, repoName, baseDir, branchName };
-}
-
-export async function ensureClonesDir(clonesDir: string) {
-    await mkdir(clonesDir, { recursive: true });
 }
 
 async function getBranchStatus(

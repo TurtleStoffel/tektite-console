@@ -2,8 +2,8 @@
 
 ## Domain File Layout
 - Every domain under `src/backend/domains/<domain>/` should include:
-- `routes.ts`: HTTP contracts only (request parsing, status codes, response shaping).
 - `service.ts`: business logic and orchestration.
+- `routes.ts` (optional): HTTP contracts only (request parsing, status codes, response shaping). Omit for internal-only domains with no direct HTTP API.
 - `repository.ts` (optional): database persistence only.
 - Omit `repository.ts` for domains with no DB persistence concerns.
 - git/process/filesystem/external CLI interactions belong in `service.ts` or dedicated domain helper modules invoked by `service.ts`.

@@ -1,7 +1,8 @@
 import { Result } from "typescript-result";
 import { streamAgentRun } from "@/backend/domains/agents/service";
+import { prepareWorktree } from "@/backend/domains/git/service";
 import { tasksService } from "@/backend/domains/tasks/service";
-import { ensureClonesDir, prepareWorktree } from "../../git";
+import { ensureDirectoryExists } from "@/backend/filesystem";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import * as repository from "./repository";
 
@@ -34,7 +35,7 @@ export function createExecuteService(options: { clonesDir: string }) {
     const execute = async (input: { prompt: string; repositoryUrl: string }) => {
         const preparedResult = await Result.try(
             async () => {
-                await ensureClonesDir(clonesDir);
+                await ensureDirectoryExists(clonesDir);
                 return prepareWorktree(input.repositoryUrl, clonesDir);
             },
             (error) => {

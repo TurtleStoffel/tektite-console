@@ -5,6 +5,7 @@ import {
     type ThreadItem,
     type Usage,
 } from "@openai/codex-sdk";
+import { finalizeGitState } from "@/backend/domains/git/service";
 import {
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
@@ -16,7 +17,6 @@ import {
     recordLastMessage,
     recordThreadId,
 } from "../../executionState";
-import { finalizeGitState } from "../../git";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }

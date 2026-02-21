@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { TEKTITE_PORT_FILE } from "../../../constants";
-import { execAsync } from "../../exec";
 import {
     cleanRepositoryUrl,
     detectRepoChanges,
     getPullRequestStatus,
     isWorktreeDir,
     sanitizeRepoName,
-} from "../../git";
+} from "@/backend/domains/git/service";
+import { TEKTITE_PORT_FILE } from "../../../constants";
+import { execAsync } from "../../exec";
 import { getTerminalSessionByWorkspacePath } from "../worktrees/terminal";
 
 type CloneLocation = "clonesDir";

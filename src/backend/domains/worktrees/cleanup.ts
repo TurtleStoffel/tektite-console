@@ -7,7 +7,7 @@ import {
     hasUnpushedCommits,
     isWorktreeDir,
     removeWorktree,
-} from "../../git";
+} from "@/backend/domains/git/service";
 import { isWorkspaceActive } from "./workspaceActivity";
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";

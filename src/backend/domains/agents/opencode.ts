@@ -3,6 +3,7 @@ import {
     type Part as OpenCodePart,
     type Session as OpenCodeSession,
 } from "@opencode-ai/sdk";
+import { finalizeGitState } from "@/backend/domains/git/service";
 import {
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
@@ -14,7 +15,6 @@ import {
     recordLastMessage,
     recordThreadId,
 } from "../../executionState";
-import { finalizeGitState } from "../../git";
 
 type StreamUsage = {
     input_tokens: number;
