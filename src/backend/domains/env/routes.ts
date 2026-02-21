@@ -1,4 +1,4 @@
-import { createEnvService } from "./service";
+import { createEnvService } from "./domainApi";
 
 const service = createEnvService();
 

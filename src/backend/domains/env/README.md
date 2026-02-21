@@ -1,21 +1,23 @@
 # env domain
 
 ## Purpose
-Expose server environment summary values for clients.
+Exposes server environment summary values for clients.
 
-## Dependencies with other domains
-- None.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `createEnvService().getEnv()`
+### `GET /api/env`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as env service
-    participant Repo as env repository
-    Route->>Service: getEnv()
-    Service->>Repo: readNodeEnv()
-    Repo-->>Service: NODE_ENV
-    Service-->>Route: { nodeEnv, isProduction }
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/env
+    Route->>DomainApi: getEnv()
+    DomainApi->>Repo: readNodeEnv()
+    DomainApi-->>Route: env summary
+    Route-->>Client: JSON
 ```

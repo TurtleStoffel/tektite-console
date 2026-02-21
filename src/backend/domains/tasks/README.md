@@ -1,57 +1,103 @@
 # tasks domain
 
 ## Purpose
-Store and update task execution history, optionally linked to projects.
+Stores and updates task execution history.
 
-## Dependencies with other domains
-- None (project existence checks happen in this domain repository).
-
-## Exposed service functions
+## Exported service functions
 
 ### `tasksService.listTaskHistory()`
 ```mermaid
 sequenceDiagram
-    participant Route
-    participant Service as tasks service
-    participant Repo as tasks repository
-    Route->>Service: listTaskHistory()
-    Service->>Repo: listTaskHistory()
-    Repo-->>Service: rows
-    Service-->>Route: mapped tasks
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: listTaskHistory()
+    TasksService->>Repo: listTaskHistory()
+    TasksService-->>Caller: tasks
 ```
 
 ### `tasksService.listProjectTaskHistory(projectId, filter?)`
 ```mermaid
 sequenceDiagram
-    participant Route
-    participant Service as tasks service
-    participant Repo as tasks repository
-    Route->>Service: listProjectTaskHistory(projectId, filter)
-    Service->>Repo: findProject(projectId)
-    Service->>Repo: listProjectTaskHistory(projectId, filter)
-    Service-->>Route: tasks or 404
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: listProjectTaskHistory(...)
+    TasksService->>Repo: findProject(projectId)
+    TasksService->>Repo: listProjectTaskHistory(...)
+    TasksService-->>Caller: tasks/404
 ```
 
 ### `tasksService.createTaskHistory(input)`
 ```mermaid
 sequenceDiagram
-    participant Route
-    participant Service as tasks service
-    participant Repo as tasks repository
-    Route->>Service: createTaskHistory(projectId?, prompt)
-    Service->>Repo: findProject(projectId?)
-    Service->>Repo: createTaskHistory(...)
-    Service-->>Route: created task or 404
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: createTaskHistory(...)
+    TasksService->>Repo: validate project (optional)
+    TasksService->>Repo: createTaskHistory(...)
+    TasksService-->>Caller: created task/404
 ```
 
 ### `tasksService.markTaskHistoryDone(taskId)`
 ```mermaid
 sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: markTaskHistoryDone(taskId)
+    TasksService->>Repo: findTaskHistoryById(taskId)
+    TasksService->>Repo: markTaskHistoryDone(...)
+    TasksService-->>Caller: updated task/404
+```
+
+## HTTP APIs (routes)
+
+### `GET /api/tasks`
+```mermaid
+sequenceDiagram
+    participant Client
     participant Route
-    participant Service as tasks service
-    participant Repo as tasks repository
-    Route->>Service: markTaskHistoryDone(taskId)
-    Service->>Repo: findTaskHistoryById(taskId)
-    Service->>Repo: markTaskHistoryDone(taskId, doneAt)
-    Service-->>Route: updated task or 404
+    participant TasksService
+    Client->>Route: GET /api/tasks
+    Route->>TasksService: listTaskHistory()
+    TasksService-->>Route: tasks
+    Route-->>Client: JSON
+```
+
+### `POST /api/tasks`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: POST /api/tasks
+    Route->>TasksService: createTaskHistory(...)
+    TasksService-->>Route: created/error
+    Route-->>Client: JSON
+```
+
+### `GET /api/projects/:id/tasks`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: GET /api/projects/:id/tasks
+    Route->>TasksService: listProjectTaskHistory(...)
+    TasksService-->>Route: tasks/404
+    Route-->>Client: JSON
+```
+
+### `POST /api/tasks/:id/done`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: POST /api/tasks/:id/done
+    Route->>TasksService: markTaskHistoryDone(id)
+    TasksService-->>Route: updated/404
+    Route-->>Client: JSON
 ```

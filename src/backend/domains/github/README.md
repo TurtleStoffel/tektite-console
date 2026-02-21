@@ -1,24 +1,33 @@
 # github domain
 
 ## Purpose
-Read repository metadata from the GitHub CLI.
+Reads repository metadata from the GitHub CLI.
 
-## Dependencies with other domains
-- None.
-
-## Exposed service functions
+## Exported service functions
 
 ### `createGithubService().listRepos()`
 ```mermaid
 sequenceDiagram
-    participant Caller as Route/Service caller
-    participant Service as github service
-    participant GH as gh CLI
-    participant API as GitHub API
-    Caller->>Service: listRepos()
-    Service->>GH: gh repo list --json ...
-    GH->>API: list repositories
-    API-->>GH: repository payload
-    GH-->>Service: JSON stdout
-    Service-->>Caller: GithubRepo[]
+    participant Caller
+    participant GithubService
+    participant GhCLI
+    Caller->>GithubService: listRepos()
+    GithubService->>GhCLI: gh repo list --json ...
+    GithubService-->>Caller: repo list
+```
+
+## HTTP APIs (routes)
+
+### `GET /api/github/repos`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant GithubService
+    participant GhCLI
+    Client->>Route: GET /api/github/repos
+    Route->>GithubService: listRepos()
+    GithubService->>GhCLI: read repos
+    GithubService-->>Route: repos
+    Route-->>Client: JSON
 ```

@@ -1,4 +1,4 @@
-import { notesService } from "./service";
+import { notesService } from "./domainApi";
 
 export function createNotesRoutes() {
     return {

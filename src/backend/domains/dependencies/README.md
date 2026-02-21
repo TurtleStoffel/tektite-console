@@ -1,25 +1,25 @@
 # dependencies domain
 
 ## Purpose
-Generate an import graph for a target path using Madge, with git-aware input filtering when possible.
+Generates dependency graph data for a target path.
 
-## Dependencies with other domains
-- None.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `createDependencyService().generateGraphData(rawTargetPath)`
+### `GET /api/dependencies/graph`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as dependencies service
-    participant FS as File system
-    participant Git as git CLI
+    participant DomainApi
+    participant FS
     participant Madge
-    Route->>Service: generateGraphData(path)
-    Service->>FS: validate target path
-    Service->>Git: resolve repo root + tracked/unignored files
-    Service->>Madge: build dependency graph
-    Madge-->>Service: dependency object
-    Service-->>Route: Result.ok({ nodes, edges })
+    Client->>Route: GET /api/dependencies/graph?path=...
+    Route->>DomainApi: generateGraphData(path)
+    DomainApi->>FS: validate path / resolve files
+    DomainApi->>Madge: build graph
+    DomainApi-->>Route: nodes + edges
+    Route-->>Client: JSON
 ```

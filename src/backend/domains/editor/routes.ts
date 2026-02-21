@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseJsonBody } from "../../http/validation";
-import { createEditorService } from "./service";
+import { createEditorService } from "./domainApi";
 
 const openVscodeBodySchema = z.object({ path: z.string().trim().min(1) });
 

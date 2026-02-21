@@ -1,4 +1,4 @@
-import { repositoriesService } from "./service";
+import { repositoriesService } from "./domainApi";
 
 export function createRepositoryRoutes() {
     return {

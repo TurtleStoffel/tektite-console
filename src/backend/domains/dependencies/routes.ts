@@ -1,4 +1,4 @@
-import { createDependencyService } from "./service";
+import { createDependencyService } from "./domainApi";
 
 export function createDependencyRoutes() {
     const service = createDependencyService();

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseJsonBody } from "@/backend/http/validation";
-import { createAgentsService } from "./service";
+import { createAgentsService } from "./domainApi";
 
 const executePayloadSchema = z
     .object({

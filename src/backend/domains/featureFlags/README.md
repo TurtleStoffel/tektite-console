@@ -1,33 +1,65 @@
 # featureFlags domain
 
 ## Purpose
-List and upsert runtime feature flags.
+Lists and updates runtime feature flags.
 
-## Dependencies with other domains
-- None.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `featureFlagsService.listFeatureFlags()`
+### `GET /api/feature-flags`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as featureFlags service
-    participant Repo as featureFlags repository
-    Route->>Service: listFeatureFlags()
-    Service->>Repo: listFeatureFlags()
-    Repo-->>Service: rows
-    Service-->>Route: mapped flags
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/feature-flags
+    Route->>DomainApi: listFeatureFlags()
+    DomainApi->>Repo: listFeatureFlags()
+    DomainApi-->>Route: flags
+    Route-->>Client: JSON
 ```
 
-### `featureFlagsService.upsertFeatureFlag(input)`
+### `POST /api/feature-flags`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as featureFlags service
-    participant Repo as featureFlags repository
-    Route->>Service: upsertFeatureFlag(key, description, isEnabled)
-    Service->>Repo: findFeatureFlagByKey(key)
-    Service->>Repo: upsertFeatureFlag(...timestamps)
-    Service-->>Route: upserted flag
+    participant DomainApi
+    participant Repo
+    Client->>Route: POST /api/feature-flags
+    Route->>DomainApi: upsertFeatureFlag(...)
+    DomainApi->>Repo: upsert
+    DomainApi-->>Route: flag
+    Route-->>Client: JSON
+```
+
+### `PUT /api/feature-flags/:key`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant DomainApi
+    participant Repo
+    Client->>Route: PUT /api/feature-flags/:key
+    Route->>DomainApi: upsertFeatureFlag(...)
+    DomainApi->>Repo: upsert by key
+    DomainApi-->>Route: flag
+    Route-->>Client: JSON
+```
+
+### `POST /api/feature-flags/:key/toggle`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant DomainApi
+    participant Repo
+    Client->>Route: POST /api/feature-flags/:key/toggle
+    Route->>DomainApi: listFeatureFlags()+upsertFeatureFlag(...)
+    DomainApi->>Repo: read then update
+    DomainApi-->>Route: toggled flag
+    Route-->>Client: JSON
 ```

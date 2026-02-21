@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
-import { featureFlagsService } from "./service";
+import { featureFlagsService } from "./domainApi";
 
 const upsertFeatureFlagSchema = z.object({
     key: z.string().trim().min(1),

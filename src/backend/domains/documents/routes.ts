@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
-import { documentsService } from "./service";
+import { documentsService } from "./domainApi";
 
 type RouteRequest = Request & { params: Record<string, string> };
 

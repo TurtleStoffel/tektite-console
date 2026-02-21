@@ -1,22 +1,25 @@
 # editor domain
 
 ## Purpose
-Open an allowed local folder in VSCode.
+Opens an allowed local folder in VSCode.
 
-## Dependencies with other domains
-- None.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `createEditorService({ clonesDir }).openVscode(rawPath)`
+### `POST /api/editor/open-vscode`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as editor service
-    participant Repo as editor repository
-    participant VSCode as code CLI
-    Route->>Service: openVscode(rawPath)
-    Service->>Repo: resolveAllowedFolder(...)
-    Service->>VSCode: openInCode(folderPath)
-    Service-->>Route: { ok: true } or error status
+    participant DomainApi
+    participant Repo
+    participant CodeCLI
+    Client->>Route: POST /api/editor/open-vscode
+    Route->>DomainApi: openVscode(path)
+    DomainApi->>Repo: resolveAllowedFolder(...)
+    DomainApi->>CodeCLI: open folder
+    DomainApi-->>Route: ok/error
+    Route-->>Client: JSON
 ```

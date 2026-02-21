@@ -1,37 +1,39 @@
 # repositories domain
 
 ## Purpose
-List locally stored repositories and sync new ones from GitHub.
+Lists local repositories and syncs repositories from GitHub.
 
-## Dependencies with other domains
-- `github` domain via `createGithubService().listRepos`.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `repositoriesService.listRepositories()`
+### `GET /api/repositories`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as repositories service
-    participant Repo as repositories repository
-    Route->>Service: listRepositories()
-    Service->>Repo: listRepositories()
-    Repo-->>Service: rows
-    Service-->>Route: mapped repositories
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/repositories
+    Route->>DomainApi: listRepositories()
+    DomainApi->>Repo: listRepositories()
+    DomainApi-->>Route: repositories
+    Route-->>Client: JSON
 ```
 
-### `repositoriesService.syncRepositories()`
+### `POST /api/repositories/sync`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as repositories service
-    participant Github as github service
-    participant Repo as repositories repository
-    Route->>Service: syncRepositories()
-    Service->>Github: listRepos()
-    Service->>Repo: listExistingRepositoryUrls()
-    loop for each GitHub repo
-        Service->>Repo: insertRepository(name, url)
-    end
-    Service-->>Route: { insertedCount, total }
+    participant DomainApi
+    participant GithubService
+    participant Repo
+    Client->>Route: POST /api/repositories/sync
+    Route->>DomainApi: syncRepositories()
+    DomainApi->>GithubService: listRepos()
+    DomainApi->>Repo: insert missing repos
+    DomainApi-->>Route: sync summary
+    Route-->>Client: JSON
 ```

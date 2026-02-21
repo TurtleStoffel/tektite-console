@@ -1,92 +1,107 @@
 # documents domain
 
 ## Purpose
-Manage markdown documents, optionally linked to a project.
+Manages markdown documents linked to projects.
 
-## Dependencies with other domains
-- None (project validation is done through this domain's repository layer).
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `documentsService.listDocuments()`
+### `GET /api/documents`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: listDocuments()
-    Service->>Repo: listDocuments()
-    Repo-->>Service: rows
-    Service-->>Route: mapped documents
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/documents
+    Route->>DomainApi: listDocuments()
+    DomainApi->>Repo: listDocuments()
+    DomainApi-->>Route: documents
+    Route-->>Client: JSON
 ```
 
-### `documentsService.createDocument(input)`
+### `POST /api/documents`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: createDocument(markdown, projectId?)
-    Service->>Repo: findProject(projectId?)
-    Service->>Repo: createDocument(id, markdown, projectId)
-    Service-->>Route: created document or error
+    participant DomainApi
+    participant Repo
+    Client->>Route: POST /api/documents
+    Route->>DomainApi: createDocument(...)
+    DomainApi->>Repo: validate project + insert
+    DomainApi-->>Route: created/error
+    Route-->>Client: JSON
 ```
 
-### `documentsService.listProjectDocuments(projectId)`
+### `GET /api/projects/:id/documents`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: listProjectDocuments(projectId)
-    Service->>Repo: findProject(projectId)
-    Service->>Repo: listProjectDocuments(projectId)
-    Service-->>Route: documents or 404
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/projects/:id/documents
+    Route->>DomainApi: listProjectDocuments(id)
+    DomainApi->>Repo: fetch by project
+    DomainApi-->>Route: documents/404
+    Route-->>Client: JSON
 ```
 
-### `documentsService.createProjectDocument(input)`
+### `POST /api/projects/:id/documents`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: createProjectDocument(projectId, markdown)
-    Service->>Repo: findProject(projectId)
-    Service->>Repo: createDocument(id, markdown, projectId)
-    Service-->>Route: created document or 404
+    participant DomainApi
+    participant Repo
+    Client->>Route: POST /api/projects/:id/documents
+    Route->>DomainApi: createProjectDocument(...)
+    DomainApi->>Repo: validate project + insert
+    DomainApi-->>Route: created/404
+    Route-->>Client: JSON
 ```
 
-### `documentsService.getDocument(documentId)`
+### `GET /api/documents/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: getDocument(documentId)
-    Service->>Repo: findDocument(documentId)
-    Service-->>Route: document or 404
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/documents/:id
+    Route->>DomainApi: getDocument(id)
+    DomainApi->>Repo: findDocument(id)
+    DomainApi-->>Route: row/404
+    Route-->>Client: JSON
 ```
 
-### `documentsService.updateDocument(input)`
+### `PUT /api/documents/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: updateDocument(documentId, markdown, projectId?)
-    Service->>Repo: findProject(projectId?)
-    Service->>Repo: updateDocument(...)
-    Service->>Repo: findDocument(documentId)
-    Service-->>Route: updated document or error
+    participant DomainApi
+    participant Repo
+    Client->>Route: PUT /api/documents/:id
+    Route->>DomainApi: updateDocument(...)
+    DomainApi->>Repo: validate project + update
+    DomainApi-->>Route: updated/error
+    Route-->>Client: JSON
 ```
 
-### `documentsService.deleteDocument(documentId)`
+### `DELETE /api/documents/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as documents service
-    participant Repo as documents repository
-    Route->>Service: deleteDocument(documentId)
-    Service->>Repo: deleteDocument(documentId)
-    Service-->>Route: deleted id
+    participant DomainApi
+    participant Repo
+    Client->>Route: DELETE /api/documents/:id
+    Route->>DomainApi: deleteDocument(id)
+    DomainApi->>Repo: deleteDocument(id)
+    DomainApi-->>Route: deleted id
+    Route-->>Client: JSON
 ```

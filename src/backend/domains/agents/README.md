@@ -1,100 +1,79 @@
 # agents domain
 
 ## Purpose
-Owns coding agent integrations:
-- Analyze local Codex thread logs from `~/.codex/sessions`.
-- Stream execution runs through Codex or OpenCode.
-- Execute prompt-driven tasks in prepared worktrees and stream results.
-- Persist and read worktree thread metadata via domain-local `executionState.ts`.
+Owns coding agent integrations.
 
-## Dependencies with other domains
-- `git/service` (worktree preparation).
-- `tasks/service` (task-history creation for `/api/execute`).
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `createAgentsService({ clonesDir }).executeWithTaskHistory(input)`
+### `POST /api/execute`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as agents service
-    participant Tasks as tasks service
-    participant Git as git helpers
-    participant Repo as agents repository
-    participant Runner as codex/opencode stream
-    Route->>Service: executeWithTaskHistory(prompt, projectId, repositoryUrl)
-    Service->>Tasks: createTaskHistory(...)
-    Service->>Git: prepareWorktree
-    Service->>Repo: upsertWorktreePromptSummary(...)
-    Service->>Runner: streamRun(prompt, workingDirectory)
-    Service-->>Route: Result.ok(stream)
+    participant DomainApi
+    participant Tasks
+    participant Git
+    Client->>Route: POST /api/execute
+    Route->>DomainApi: executeWithTaskHistory(...)
+    DomainApi->>Tasks: createTaskHistory(...)
+    DomainApi->>Git: prepareWorktree(...)
+    DomainApi-->>Route: stream response
+    Route-->>Client: execution stream
 ```
 
-### `createAgentsService({ clonesDir }).execute(input)`
+### `POST /api/resume`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as agents service
-    participant Git as git helpers
-    participant Repo as agents repository
-    participant Runner as codex/opencode stream
-    Route->>Service: execute(prompt, repositoryUrl)
-    Service->>Git: prepareWorktree
-    Service->>Repo: upsertWorktreePromptSummary(...)
-    Service->>Runner: streamRun(prompt, workingDirectory)
-    Service-->>Route: Result.ok(stream)
+    participant DomainApi
+    Client->>Route: POST /api/resume
+    Route->>DomainApi: executeThreadComment(...)
+    DomainApi-->>Route: stream response
+    Route-->>Client: execution stream
 ```
 
-### `createAgentsService({ clonesDir }).executeThreadComment(input)`
+### `GET /api/codex-threads`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as agents service
-    participant Runner as codex/opencode stream
-    Route->>Service: executeThreadComment(comment, workingDirectory, threadId)
-    Service->>Runner: streamRun(comment, workingDirectory, threadId)
-    Service-->>Route: Result.ok(stream)
+    participant DomainApi
+    participant FS
+    Client->>Route: GET /api/codex-threads
+    Route->>DomainApi: listThreads()
+    DomainApi->>FS: read ~/.codex/sessions
+    DomainApi-->>Route: thread summaries
+    Route-->>Client: JSON
 ```
 
-### `createAgentsService({ clonesDir }).listThreads()`
+### `POST /api/codex-threads/analyze`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as agents service
-    participant FS as File system (~/.codex/sessions)
-    Route->>Service: listThreads()
-    Service->>FS: walk directories + stat *.jsonl
-    FS-->>Service: thread file metadata
-    Service-->>Route: Result.ok(thread summaries)
+    participant DomainApi
+    participant CodexSDK
+    Client->>Route: POST /api/codex-threads/analyze
+    Route->>DomainApi: analyzeThread(...)
+    DomainApi->>CodexSDK: run analysis prompt
+    DomainApi-->>Route: markdown analysis
+    Route-->>Client: JSON
 ```
 
-### `createAgentsService({ clonesDir }).analyzeThread(input)`
+### `POST /api/agents/worktree-thread-metadata`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as agents service
-    participant FS as File system (~/.codex)
-    participant Codex as Codex SDK
-    Route->>Service: analyzeThread(threadPath)
-    Service->>FS: validate path + stat + read file
-    FS-->>Service: thread content
-    Service->>Codex: run analysis prompt
-    Codex-->>Service: streamed events
-    Service-->>Route: Result.ok({ markdown })
+    participant DomainApi
+    participant State
+    Client->>Route: POST /api/agents/worktree-thread-metadata
+    Route->>DomainApi: getWorktreeThreadMetadata(...)
+    DomainApi->>State: read thread map
+    DomainApi-->>Route: metadata map
+    Route-->>Client: JSON
 ```
-
-### `createAgentsService({ clonesDir }).getWorktreeThreadMetadata(input)`
-```mermaid
-sequenceDiagram
-    participant Route
-    participant Service as agents service
-    participant State as executionState
-    Route->>Service: getWorktreeThreadMetadata(worktreePaths)
-    Service->>State: readThreadMap(clonesDir)
-    Service-->>Route: metadata keyed by worktree path
-```
-
-### `streamAgentRun(input)`
-Chooses the runtime provider based on `NODE_ENV`:
-- `development`: OpenCode (`opencode.ts`)
-- otherwise: Codex (`codex.ts`)

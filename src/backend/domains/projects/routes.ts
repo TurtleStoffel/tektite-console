@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
-import { createProjectsService } from "./service";
+import { createProjectsService } from "./domainApi";
 
 const createProjectBodySchema = z.object({
     name: z.string().trim().min(1),

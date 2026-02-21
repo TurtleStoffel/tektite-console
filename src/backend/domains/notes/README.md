@@ -1,21 +1,23 @@
 # notes domain
 
 ## Purpose
-Read notes data from Supabase `public.notes` for the Notes page.
+Reads notes data for the Notes page.
 
-## Dependencies with other domains
-- None.
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-## Exposed service functions
+## HTTP APIs (routes)
 
-### `notesService.listNotes()`
+### `GET /api/notes`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as notes service
-    participant Repo as notes repository
-    Route->>Service: listNotes()
-    Service->>Repo: listNotes()
-    Repo-->>Service: rows from public.notes
-    Service-->>Route: mapped notes
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/notes
+    Route->>DomainApi: listNotes()
+    DomainApi->>Repo: listNotes()
+    DomainApi-->>Route: notes
+    Route-->>Client: JSON
 ```

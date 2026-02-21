@@ -1,70 +1,81 @@
 # projects domain
 
 ## Purpose
-Manage projects and enrich project details with clone/worktree runtime metadata.
+Manages projects and enriches project data with clone metadata.
 
-## Exposed service functions
+## Exported service functions
+- None. This domain does not currently expose `service.ts`.
 
-### `createProjectsService({ clonesDir }).listProjects()`
+## HTTP APIs (routes)
+
+### `GET /api/projects`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as projects service
-    participant Repo as projects repository
-    Route->>Service: listProjects()
-    Service->>Repo: listProjects()
-    Repo-->>Service: rows
-    Service-->>Route: mapped projects
+    participant DomainApi
+    participant Repo
+    Client->>Route: GET /api/projects
+    Route->>DomainApi: listProjects()
+    DomainApi->>Repo: listProjects()
+    DomainApi-->>Route: projects
+    Route-->>Client: JSON
 ```
 
-### `createProjectsService({ clonesDir }).createProject(input)`
+### `POST /api/projects`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as projects service
-    participant Repo as projects repository
-    Route->>Service: createProject(name, repositoryId)
-    Service->>Repo: findRepositoryById(repositoryId)
-    Service->>Repo: hasProjectForRepository(repositoryId)
-    Service->>Repo: createProject(...)
-    Service-->>Route: created project or error
+    participant DomainApi
+    participant Repo
+    Client->>Route: POST /api/projects
+    Route->>DomainApi: createProject(...)
+    DomainApi->>Repo: validate + insert
+    DomainApi-->>Route: created/error
+    Route-->>Client: JSON
 ```
 
-### `createProjectsService({ clonesDir }).getProject(projectId)`
+### `GET /api/projects/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as projects service
-    participant Repo as projects repository
-    participant Clone as clone discovery
-    Route->>Service: getProject(projectId)
-    Service->>Repo: findProjectById(projectId)
-    Service->>Clone: findRepositoryClones(repositoryUrl)
-    Service->>Repo: listWorktreePromptSummariesByPaths(paths)
-    Service-->>Route: project + clones
+    participant DomainApi
+    participant Repo
+    participant CloneDiscovery
+    Client->>Route: GET /api/projects/:id
+    Route->>DomainApi: getProject(id)
+    DomainApi->>Repo: find project
+    DomainApi->>CloneDiscovery: inspect clones
+    DomainApi-->>Route: project details
+    Route-->>Client: JSON
 ```
 
-### `createProjectsService({ clonesDir }).updateProjectRepository(input)`
+### `PUT /api/projects/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as projects service
-    participant Repo as projects repository
-    Route->>Service: updateProjectRepository(projectId, repositoryId)
-    Service->>Repo: findRepositoryById(repositoryId)
-    Service->>Repo: hasOtherProjectForRepository(...)
-    Service->>Repo: updateProjectRepository(...)
-    Service->>Repo: findProjectById(projectId)
-    Service-->>Route: updated project or error
+    participant DomainApi
+    participant Repo
+    Client->>Route: PUT /api/projects/:id
+    Route->>DomainApi: updateProjectRepository(...)
+    DomainApi->>Repo: validate + update
+    DomainApi-->>Route: updated/error
+    Route-->>Client: JSON
 ```
 
-### `createProjectsService({ clonesDir }).deleteProject(projectId)`
+### `DELETE /api/projects/:id`
 ```mermaid
 sequenceDiagram
+    participant Client
     participant Route
-    participant Service as projects service
-    participant Repo as projects repository
-    Route->>Service: deleteProject(projectId)
-    Service->>Repo: deleteProject(projectId)
-    Service-->>Route: deleted id or 404
+    participant DomainApi
+    participant Repo
+    Client->>Route: DELETE /api/projects/:id
+    Route->>DomainApi: deleteProject(id)
+    DomainApi->>Repo: deleteProject(id)
+    DomainApi-->>Route: deleted/404
+    Route-->>Client: JSON
 ```
