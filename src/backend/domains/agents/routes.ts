@@ -2,17 +2,9 @@ import { z } from "zod";
 import { jsonHeaders, parseJsonBody } from "@/backend/http/validation";
 import { createAgentsService } from "./domainApi";
 
-const executePayloadSchema = z
-    .object({
-        command: z.string().trim().min(1).optional(),
-        prompt: z.string().trim().min(1).optional(),
-        projectId: z.string().trim().min(1).optional().nullable(),
-        repository: z.object({ url: z.string().trim().min(1) }),
-    })
-    .refine((value) => Boolean(value.command ?? value.prompt), {
-        message: "Command text is required.",
-        path: ["command"],
-    });
+const executePayloadSchema = z.object({
+    taskId: z.string().trim().min(1),
+});
 
 const resumePayloadSchema = z.object({
     comment: z.string().trim().min(1),
@@ -43,25 +35,22 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                 });
                 if ("response" in parsed) return parsed.response;
 
-                const basePrompt = parsed.data.command ?? parsed.data.prompt;
-                if (!basePrompt) {
-                    throw new Error("Command text is required.");
-                }
-                const repositoryUrl = parsed.data.repository.url;
-                const result = await service.executeWithTask({
-                    prompt: basePrompt,
-                    projectId: parsed.data.projectId,
-                    repositoryUrl,
+                const result = await service.executeByTaskId({
+                    taskId: parsed.data.taskId,
                 });
-                if ("error" in result && "status" in result) {
-                    return new Response(JSON.stringify({ error: result.error }), {
-                        status: result.status,
-                        headers: jsonHeaders,
-                    });
-                }
-                if (result.error) {
+                if (!result.ok) {
+                    const status =
+                        result.error.type === "task-not-found"
+                            ? 404
+                            : result.error.type === "project-not-found"
+                              ? 404
+                              : result.error.type === "task-project-missing" ||
+                                  result.error.type === "project-repository-missing"
+                                ? 400
+                                : 500;
                     return new Response(JSON.stringify({ error: result.error.message }), {
-                        status: 500,
+                        status,
+                        headers: jsonHeaders,
                     });
                 }
 

@@ -422,7 +422,6 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                 <div className="card bg-base-200 border border-base-300 shadow-sm">
                                     <div className="card-body p-5 sm:p-6">
                                         <TaskExecutionPanel
-                                            selectedRepoUrl={project.url}
                                             projectId={project.id}
                                             onTaskStarted={() => {
                                                 void refreshProject();

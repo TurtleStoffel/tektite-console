@@ -40,6 +40,17 @@ sequenceDiagram
     TasksService-->>Caller: created task/404
 ```
 
+### `tasksService.getTaskById(taskId)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: getTaskById(taskId)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService-->>Caller: task/404
+```
+
 ### `tasksService.markTaskDone(taskId)`
 ```mermaid
 sequenceDiagram

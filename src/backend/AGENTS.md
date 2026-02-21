@@ -22,6 +22,11 @@
 - Return `Result<OkType, ErrType>` from service and domain logic paths where failures are part of normal control flow.
 - Model domain errors as explicit typed variants (for example discriminated unions), and map them to HTTP responses at the route layer.
 - Throw only for truly exceptional/unrecoverable conditions; avoid mixing thrown errors and `Result` for the same failure mode.
+- Do not add new service/domain APIs that return `{ error, status }` objects for expected failures; keep those mappings in route handlers.
+- Prefer `Result` chaining (`map`, `mapError`, `recover`, `Result.fromAsync`, `Result.gen`) for linear multi-step fallible flows instead of deep `if (!result.ok)` nesting.
+- In chained flows, prefer central error handling at the end of the chain; avoid repetitive per-step error handling unless a step needs domain-specific translation.
+- Prefer built-in `typescript-result` combinators over custom chaining utilities. Add custom helpers only when they encode domain logic, not generic Result behavior.
+- Keep chain callbacks small and readable by extracting focused helpers (for example, one validation/transform per helper) so each `.map(...)` remains a one-liner or short block.
 
 ## Service Transaction and IO Boundaries
 - Define one clear transactional boundary per service entrypoint.

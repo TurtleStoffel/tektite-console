@@ -4,7 +4,16 @@
 Manages projects and enriches project data with clone metadata.
 
 ## Exported service functions
-- None. This domain does not currently expose `service.ts`.
+### `projectsService.getProjectById(projectId)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant ProjectsService
+    participant Repo
+    Caller->>ProjectsService: getProjectById(projectId)
+    ProjectsService->>Repo: findProjectById(projectId)
+    ProjectsService-->>Caller: project/404
+```
 
 ## HTTP APIs (routes)
 

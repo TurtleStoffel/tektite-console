@@ -3,13 +3,11 @@ import { useEffect, useRef, useState } from "react";
 type StreamMessage = { type: string; error?: string };
 
 type TaskExecutionPanelProps = {
-    selectedRepoUrl: string | null;
     projectId: string;
     onTaskStarted: () => void;
 };
 
 export default function TaskExecutionPanel({
-    selectedRepoUrl,
     projectId,
     onTaskStarted = () => {},
 }: TaskExecutionPanelProps) {
@@ -36,21 +34,37 @@ export default function TaskExecutionPanel({
             return;
         }
 
-        if (!selectedRepoUrl) {
-            setValidationMessage("Select a repository before executing.");
-            return;
-        }
-
         setValidationMessage(null);
         setTaskPrompt("");
         setActiveRuns((count) => count + 1);
-        setStatusMessage("Preparing workspace and starting Codex...");
+        setStatusMessage("Creating task and starting Codex...");
 
         const abortController = new AbortController();
         abortControllersRef.current.add(abortController);
-        console.log(`[task-execution-panel] starting run for ${selectedRepoUrl}`);
+        console.log("[task-execution-panel] creating and executing task");
 
         try {
+            const createTaskRes = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: trimmedPrompt,
+                    projectId,
+                }),
+                signal: abortController.signal,
+            });
+            const createTaskPayload = await createTaskRes.json().catch(() => ({}));
+            if (!createTaskRes.ok) {
+                throw new Error(
+                    typeof createTaskPayload?.error === "string"
+                        ? createTaskPayload.error
+                        : "Failed to create task.",
+                );
+            }
+            if (typeof createTaskPayload?.id !== "string" || createTaskPayload.id.length === 0) {
+                throw new Error("Task creation returned an invalid task id.");
+            }
+
             const res = await fetch("/api/execute", {
                 method: "POST",
                 headers: {
@@ -58,9 +72,7 @@ export default function TaskExecutionPanel({
                     Accept: "text/event-stream",
                 },
                 body: JSON.stringify({
-                    prompt: trimmedPrompt,
-                    projectId,
-                    repository: { type: "git", url: selectedRepoUrl },
+                    taskId: createTaskPayload.id,
                 }),
                 signal: abortController.signal,
             });
@@ -168,7 +180,7 @@ export default function TaskExecutionPanel({
         }
     };
 
-    const canExecute = Boolean(taskPrompt.trim()) && Boolean(selectedRepoUrl);
+    const canExecute = Boolean(taskPrompt.trim());
 
     return (
         <>

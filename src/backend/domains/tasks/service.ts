@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Result } from "typescript-result";
 import * as repository from "./repository";
 
 function normalizeProjectId(projectId: string | null | undefined) {
@@ -60,6 +61,17 @@ export const tasksService = {
             isDone: false,
             doneAt: null,
         };
+    },
+
+    async getTaskById(taskId: string) {
+        const task = await repository.findTaskById(taskId);
+        if (!task) {
+            return Result.error({
+                type: "task-not-found" as const,
+                message: "Task not found.",
+            });
+        }
+        return Result.ok(task);
     },
 
     async markTaskDone(taskId: string) {

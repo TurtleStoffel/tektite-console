@@ -4,6 +4,7 @@ import path from "node:path";
 import { Codex, type ThreadEvent } from "@openai/codex-sdk";
 import { Result } from "typescript-result";
 import { prepareWorktree } from "@/backend/domains/git/service";
+import { projectsService } from "@/backend/domains/projects/service";
 import { tasksService } from "@/backend/domains/tasks/service";
 import { ensureDirectoryExists } from "@/backend/filesystem";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
@@ -29,6 +30,52 @@ type WorktreeThreadMetadata = {
     lastMessage?: string;
     lastEvent?: string;
 };
+
+type ExecuteByTaskIdError =
+    | {
+          type: "task-not-found";
+          message: string;
+      }
+    | {
+          type: "project-not-found";
+          message: string;
+      }
+    | {
+          type: "task-project-missing";
+          message: string;
+      }
+    | {
+          type: "project-repository-missing";
+          message: string;
+      };
+
+function requireTaskProject(task: { prompt: string; projectId: string | null }) {
+    return task.projectId
+        ? Result.ok({ prompt: task.prompt, projectId: task.projectId })
+        : Result.error<ExecuteByTaskIdError>({
+              type: "task-project-missing",
+              message: "Task is not linked to a project.",
+          });
+}
+
+function requireProjectRepository(input: { prompt: string; repositoryUrl: string | null }) {
+    const repositoryUrl = input.repositoryUrl?.trim() ?? "";
+    return repositoryUrl
+        ? Result.ok({ prompt: input.prompt, repositoryUrl })
+        : Result.error<ExecuteByTaskIdError>({
+              type: "project-repository-missing",
+              message: "Project does not have a linked repository.",
+          });
+}
+
+async function resolveExecuteInput(task: { prompt: string; projectId: string }) {
+    return (await projectsService.getProjectById(task.projectId)).map((project) =>
+        requireProjectRepository({
+            prompt: task.prompt,
+            repositoryUrl: project.url,
+        }),
+    );
+}
 
 class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
@@ -254,19 +301,17 @@ export function createAgentsService(options: { clonesDir: string }) {
     };
 
     return {
-        async executeWithTask(input: {
-            prompt: string;
-            projectId?: string | null;
-            repositoryUrl: string;
-        }) {
-            const createTaskResult = await tasksService.createTask({
-                prompt: input.prompt,
-                projectId: input.projectId,
-            });
-            if ("error" in createTaskResult) {
-                return { error: createTaskResult.error, status: createTaskResult.status };
+        async executeByTaskId(input: { taskId: string }) {
+            const executionInputResult = await Result.fromAsync(
+                tasksService.getTaskById(input.taskId),
+            )
+                .map(requireTaskProject)
+                .map(resolveExecuteInput);
+            if (!executionInputResult.ok) {
+                return Result.error(executionInputResult.error);
             }
-            return execute({ prompt: input.prompt, repositoryUrl: input.repositoryUrl });
+
+            return execute(executionInputResult.value);
         },
 
         async execute(input: { prompt: string; repositoryUrl: string }) {

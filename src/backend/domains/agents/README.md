@@ -15,10 +15,12 @@ sequenceDiagram
     participant Route
     participant DomainApi
     participant Tasks
+    participant Projects
     participant Git
     Client->>Route: POST /api/execute
-    Route->>DomainApi: executeWithTask(...)
-    DomainApi->>Tasks: createTask(...)
+    Route->>DomainApi: executeByTaskId(taskId)
+    DomainApi->>Tasks: getTaskById(taskId)
+    DomainApi->>Projects: getProjectById(task.projectId)
     DomainApi->>Git: prepareWorktree(...)
     DomainApi-->>Route: stream response
     Route-->>Client: execution stream
