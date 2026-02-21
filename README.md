@@ -1,41 +1,68 @@
-# tektite-console
+# Tektite Console
 
-To install dependencies:
+Tektite Console is a tool for Coding Agent development workflows.
 
-```bash
-bun install
-```
+It provides:
+- task management for agent-driven work
+- automatic worktree setup and lifecycle support
+- visibility into repository structure and project entities
+- live preview/dev server support for worktree changes
+- integrated tooling for repositories, documents, dependencies, and feature flags
 
-To start a development server:
+## Tech stack
 
-```bash
-bun dev
-```
+- Runtime/server: Bun
+- Frontend: React + React Router
+- State: React Query
+- Validation: Zod
+- Styling: Tailwind + DaisyUI
+- Data: local SQLite + Supabase Postgres
 
-To run for production:
+## Prerequisites
 
-```bash
-bun start
-```
-
-## Environment
-
-Server startup requires:
-
-- `CLONES_DIR` (path to local clone workspace)
-- `SUPABASE_DATABASE_URL` (Postgres connection string for Supabase)
-
-Local SQLite storage defaults to `./.tektite.sqlite` and can be overridden with:
-
-- `SQLITE_PATH` (full sqlite file path), or
-- `DATA_DIR` (uses `<DATA_DIR>/tektite.sqlite`)
-
-## GitHub CLI
-
-Some repo/PR features use the GitHub CLI (`gh`). Install it and ensure you’re authenticated:
+- Bun installed
+- GitHub CLI (`gh`) installed and authenticated for GitHub-related features
 
 ```bash
 gh auth status
 ```
 
-This project was created using `bun init` in bun v1.3.0. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Environment variables
+
+Required:
+- `CLONES_DIR`: path to local clone/worktree directory
+- `SUPABASE_DATABASE_URL`: Supabase/Postgres connection string
+
+Optional (SQLite location):
+- `SQLITE_PATH`: explicit sqlite file path
+- `DATA_DIR`: if set, sqlite path becomes `<DATA_DIR>/tektite.sqlite`
+
+If neither `SQLITE_PATH` nor `DATA_DIR` is set, local SQLite defaults to `./.tektite.sqlite`.
+
+## Run
+
+1. Install dependencies:
+
+```bash
+bun install
+```
+
+2. Start the development server (hot reload):
+
+```bash
+bun dev
+```
+
+3. Open the app in your browser (default):
+
+```text
+http://localhost:3000
+```
+
+If port `3000` is occupied, the server picks the next available port.
+
+4. Run in production mode:
+
+```bash
+bun start
+```

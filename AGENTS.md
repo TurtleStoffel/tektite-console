@@ -37,6 +37,7 @@
 - Before making any code changes, do a constraints check:
   - Read every `AGENTS.md` file that applies to directories you will modify.
   - List those files and the key constraints you will follow for this task.
+- If the change introduces significant new functionality or adds/changes environment variables, update `README.md` to reflect the new behavior and setup requirements.
 - When you are finished, run `bun run format`.
 - Then run `bun run lint`.
 - Then run `TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache BUN_INSTALL_CACHE_DIR=/tmp/.bun bun install`.
