@@ -5,6 +5,7 @@ import { DependenciesPage } from "./DependenciesPage";
 import { DocumentsPage } from "./DocumentsPage";
 import { EnvIndicator } from "./EnvIndicator";
 import { FeatureFlagsPage } from "./FeatureFlagsPage";
+import { NotesPage } from "./NotesPage";
 import { ProjectDetails } from "./ProjectDetails";
 import { ProjectsPage } from "./ProjectsPage";
 import { RepositoriesPage } from "./RepositoriesPage";
@@ -19,6 +20,7 @@ export function App() {
         { to: "/", label: "Projects" },
         { to: "/repositories", label: "Repositories" },
         { to: "/documents", label: "Documents" },
+        { to: "/notes", label: "Notes" },
         { to: "/tasks", label: "Tasks" },
         { to: "/canvas", label: "Canvas" },
         { to: "/feature-flags", label: "Feature Flags" },
@@ -64,6 +66,7 @@ export function App() {
                         path="/documents"
                         element={<DocumentsPage drawerToggleId={entityDrawerId} />}
                     />
+                    <Route path="/notes" element={<NotesPage drawerToggleId={entityDrawerId} />} />
                     <Route path="/tasks" element={<TasksPage drawerToggleId={entityDrawerId} />} />
                     <Route
                         path="/canvas"

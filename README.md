@@ -8,6 +8,7 @@ It provides:
 - visibility into repository structure and project entities
 - live preview/dev server support for worktree changes
 - integrated tooling for repositories, documents, dependencies, and feature flags
+- Supabase-backed notes browsing in the Notes page (`public.notes`)
 
 ## Tech stack
 

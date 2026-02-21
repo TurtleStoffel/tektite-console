@@ -10,6 +10,7 @@ import { envRoutes } from "./backend/domains/env/routes";
 import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createFeatureFlagRoutes } from "./backend/domains/featureFlags/routes";
 import { createGithubRoutes } from "./backend/domains/github/routes";
+import { createNotesRoutes } from "./backend/domains/notes/routes";
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
 import { createTaskRoutes } from "./backend/domains/tasks/routes";
@@ -65,11 +66,11 @@ if (!clonesDirValue) {
 const clonesDir = resolvePathFromEnv(clonesDirValue);
 
 void ensureDirectoryExists(clonesDir);
-const { localDb } = await initStorage({
+const { localDb, supabaseSql } = await initStorage({
     localDatabasePath: databasePath,
     supabaseDatabaseUrl,
 });
-initDb(localDb);
+initDb(localDb, supabaseSql);
 console.info("[storage] dual database mode enabled", {
     local: "sqlite",
     remote: "supabase",
@@ -168,6 +169,7 @@ const server = serve<TerminalSocketData>({
         ...envRoutes,
         ...createGithubRoutes(),
         ...createDocumentRoutes(),
+        ...createNotesRoutes(),
         ...createDependencyRoutes(),
         ...createAgentsRoutes(),
         ...createProjectRoutes({ clonesDir }),
