@@ -1,10 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ClonesSection } from "./ClonesSection";
 import { buildPreviewTargets } from "./helpers";
 import { LivePreviewSection } from "./LivePreviewSection";
-import type { PreviewTarget, ProjectDetailsPayload } from "./types";
+import type { PreviewTarget, ProjectDetailsClone, ProjectDetailsPayload } from "./types";
 import { SelectedWorktreeDetails, WorktreeSelector } from "./WorktreesDisplay";
 
 type WorktreePanelProps = {
@@ -30,10 +30,53 @@ export function WorktreePanel({
     );
     const [actionError, setActionError] = useState<string | null>(null);
     const [selectedWorktreePath, setSelectedWorktreePath] = useState<string | null>(null);
+    const worktreePaths = useMemo(
+        () => (project.clones ?? []).filter((clone) => clone.isWorktree).map((clone) => clone.path),
+        [project.clones],
+    );
+    const { data: worktreeThreadMetadataByPath = {} } = useQuery<
+        Record<string, { threadId: string; lastMessage?: string; lastEvent?: string }>
+    >({
+        queryKey: ["worktree-thread-metadata", ...worktreePaths],
+        enabled: worktreePaths.length > 0,
+        refetchInterval: 15000,
+        queryFn: async () => {
+            const res = await fetch("/api/agents/worktree-thread-metadata", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ worktreePaths }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load worktree thread metadata.");
+            }
+            if (!payload?.data || typeof payload.data !== "object") {
+                return {};
+            }
+            return payload.data as Record<
+                string,
+                { threadId: string; lastMessage?: string; lastEvent?: string }
+            >;
+        },
+    });
+    const clonesWithCodexMetadata = useMemo<ProjectDetailsClone[]>(() => {
+        return (project.clones ?? []).map((clone) => {
+            if (!clone.isWorktree) {
+                return clone;
+            }
+            const thread = worktreeThreadMetadataByPath[clone.path];
+            return {
+                ...clone,
+                codexThreadId: thread?.threadId ?? null,
+                codexLastMessage: thread?.lastMessage ?? null,
+                codexLastEvent: thread?.lastEvent ?? null,
+            };
+        });
+    }, [project.clones, worktreeThreadMetadataByPath]);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
-        return buildPreviewTargets(project);
-    }, [project]);
+        return buildPreviewTargets({ ...project, clones: clonesWithCodexMetadata });
+    }, [clonesWithCodexMetadata, project]);
 
     useEffect(() => {
         if (previewTargets.length === 0) {
@@ -49,8 +92,8 @@ export function WorktreePanel({
     }, [previewTargets]);
 
     const worktrees = useMemo(() => {
-        return (project.clones ?? []).filter((clone) => clone.isWorktree);
-    }, [project.clones]);
+        return clonesWithCodexMetadata.filter((clone) => clone.isWorktree);
+    }, [clonesWithCodexMetadata]);
 
     useEffect(() => {
         if (!selectedWorktreePath) return;
@@ -258,7 +301,7 @@ export function WorktreePanel({
                         ) : (
                             <>
                                 <ClonesSection
-                                    clones={project.clones}
+                                    clones={clonesWithCodexMetadata}
                                     actionError={actionError}
                                     onDismissActionError={() => setActionError(null)}
                                     startingDevKey={startingDevKey}

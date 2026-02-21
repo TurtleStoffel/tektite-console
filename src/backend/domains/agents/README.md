@@ -83,10 +83,18 @@ sequenceDiagram
     Service-->>Route: Result.ok({ markdown })
 ```
 
+### `createAgentsService({ clonesDir }).getWorktreeThreadMetadata(input)`
+```mermaid
+sequenceDiagram
+    participant Route
+    participant Service as agents service
+    participant State as executionState
+    Route->>Service: getWorktreeThreadMetadata(worktreePaths)
+    Service->>State: readThreadMap(clonesDir)
+    Service-->>Route: metadata keyed by worktree path
+```
+
 ### `streamAgentRun(input)`
 Chooses the runtime provider based on `NODE_ENV`:
 - `development`: OpenCode (`opencode.ts`)
 - otherwise: Codex (`codex.ts`)
-
-### `readAgentThreadMap(clonesDir)`
-Reads persisted worktree thread metadata so other domains can consume agent thread state via `agents/service` instead of importing agents internals.

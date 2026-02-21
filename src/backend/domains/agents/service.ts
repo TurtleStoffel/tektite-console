@@ -24,6 +24,12 @@ type CodexThreadAnalysis = {
     markdown: string;
 };
 
+type WorktreeThreadMetadata = {
+    threadId: string;
+    lastMessage?: string;
+    lastEvent?: string;
+};
+
 class ExecutePrepareError extends Error {
     readonly type = "execute-prepare-error";
 
@@ -180,10 +186,6 @@ function streamAgentRun(input: {
     return streamRun(input);
 }
 
-export function readAgentThreadMap(clonesDir: string) {
-    return readThreadMap(clonesDir);
-}
-
 export function createAgentsService(options: { clonesDir: string }) {
     const { clonesDir } = options;
     console.info("[execute] configured runner", {
@@ -269,6 +271,29 @@ export function createAgentsService(options: { clonesDir: string }) {
 
         async execute(input: { prompt: string; repositoryUrl: string }) {
             return execute(input);
+        },
+
+        getWorktreeThreadMetadata(input: { worktreePaths: string[] }) {
+            const threadMap = readThreadMap(clonesDir);
+            const metadataByWorktreePath: Record<string, WorktreeThreadMetadata> = {};
+            for (const worktreePath of input.worktreePaths) {
+                const thread = threadMap[worktreePath];
+                if (!thread) {
+                    continue;
+                }
+                metadataByWorktreePath[worktreePath] = {
+                    threadId: thread.threadId,
+                    lastMessage: thread.lastMessage,
+                    lastEvent: thread.lastEvent,
+                };
+            }
+
+            console.info("[agents] resolved worktree thread metadata", {
+                requestedWorktrees: input.worktreePaths.length,
+                foundWorktrees: Object.keys(metadataByWorktreePath).length,
+            });
+
+            return metadataByWorktreePath;
         },
 
         executeThreadComment(input: {

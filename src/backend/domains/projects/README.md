@@ -3,9 +3,6 @@
 ## Purpose
 Manage projects and enrich project details with clone/worktree runtime metadata.
 
-## Dependencies with other domains
-- `agents/service` (reads per-worktree thread metadata for clone enrichment).
-
 ## Exposed service functions
 
 ### `createProjectsService({ clonesDir }).listProjects()`
@@ -40,13 +37,11 @@ sequenceDiagram
     participant Service as projects service
     participant Repo as projects repository
     participant Clone as clone discovery
-    participant Agents as agents service
     Route->>Service: getProject(projectId)
     Service->>Repo: findProjectById(projectId)
     Service->>Clone: findRepositoryClones(repositoryUrl)
     Service->>Repo: listWorktreePromptSummariesByPaths(paths)
-    Service->>Agents: readAgentThreadMap(clonesDir)
-    Service-->>Route: project + enriched clones
+    Service-->>Route: project + clones
 ```
 
 ### `createProjectsService({ clonesDir }).updateProjectRepository(input)`
