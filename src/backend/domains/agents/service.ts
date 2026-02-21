@@ -3,8 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { Codex, type ThreadEvent } from "@openai/codex-sdk";
 import { Result } from "typescript-result";
+import { prepareWorktree } from "@/backend/domains/git/service";
+import { tasksService } from "@/backend/domains/tasks/service";
+import { ensureDirectoryExists } from "@/backend/filesystem";
+import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamCodexRun } from "./codex";
 import { streamOpenCodeRun } from "./opencode";
+import * as repository from "./repository";
 
 type CodexThreadSummary = {
     id: string;
@@ -17,6 +22,24 @@ type CodexThreadSummary = {
 type CodexThreadAnalysis = {
     markdown: string;
 };
+
+class ExecutePrepareError extends Error {
+    readonly type = "execute-prepare-error";
+
+    constructor(message: string, options?: { cause?: unknown }) {
+        super(message, options);
+        this.name = "ExecutePrepareError";
+    }
+}
+
+class ExecuteStreamError extends Error {
+    readonly type = "execute-stream-error";
+
+    constructor(message: string, options?: { cause?: unknown }) {
+        super(message, options);
+        this.name = "ExecuteStreamError";
+    }
+}
 
 type CodexThreadServiceError =
     | {
@@ -146,7 +169,7 @@ async function runAnalysisPrompt(input: { threadContent: string }): Promise<stri
     return extractAgentMarkdown(collectedEvents);
 }
 
-export function streamAgentRun(input: {
+function streamAgentRun(input: {
     prompt: string;
     workingDirectory: string;
     threadId?: string | null;
@@ -156,8 +179,124 @@ export function streamAgentRun(input: {
     return streamRun(input);
 }
 
-export function createAgentsService() {
+export function createAgentsService(options: { clonesDir: string }) {
+    const { clonesDir } = options;
+    console.info("[execute] configured runner", {
+        nodeEnv: process.env.NODE_ENV ?? null,
+        runner: process.env.NODE_ENV === "development" ? "opencode" : "codex",
+    });
+
+    const execute = async (input: { prompt: string; repositoryUrl: string }) => {
+        const preparedResult = await Result.try(
+            async () => {
+                await ensureDirectoryExists(clonesDir);
+                return prepareWorktree(input.repositoryUrl, clonesDir);
+            },
+            (error) => {
+                console.warn("[execute] failed to prepare worktree", {
+                    repositoryUrl: input.repositoryUrl,
+                    error,
+                });
+                return new ExecutePrepareError("Failed to prepare repository for execution.", {
+                    cause: error,
+                });
+            },
+        );
+        if (!preparedResult.ok) {
+            return Result.error(preparedResult.error);
+        }
+
+        try {
+            const promptSummary = await summarizeWorktreePromptWithLmStudio(input.prompt);
+            await repository.upsertWorktreePromptSummary({
+                worktreePath: preparedResult.value.worktreePath,
+                promptSummary,
+            });
+            console.info("[execute] saved worktree prompt summary", {
+                workingDirectory: preparedResult.value.worktreePath,
+            });
+        } catch (error) {
+            console.warn("[execute] failed to generate worktree prompt summary", {
+                workingDirectory: preparedResult.value.worktreePath,
+                error,
+            });
+        }
+
+        const streamResult = Result.try(
+            () =>
+                streamAgentRun({
+                    prompt: input.prompt,
+                    workingDirectory: preparedResult.value.worktreePath,
+                    clonesDir,
+                }),
+            (error) => {
+                console.warn("[execute] failed to initialize execution stream", {
+                    workingDirectory: preparedResult.value.worktreePath,
+                    error,
+                });
+                return new ExecuteStreamError("Failed to start execution stream.", {
+                    cause: error,
+                });
+            },
+        );
+        if (!streamResult.ok) {
+            return Result.error(streamResult.error);
+        }
+
+        return Result.ok(streamResult.value);
+    };
+
     return {
+        async executeWithTaskHistory(input: {
+            prompt: string;
+            projectId?: string | null;
+            repositoryUrl: string;
+        }) {
+            const createTaskResult = await tasksService.createTaskHistory({
+                prompt: input.prompt,
+                projectId: input.projectId,
+            });
+            if ("error" in createTaskResult) {
+                return { error: createTaskResult.error, status: createTaskResult.status };
+            }
+            return execute({ prompt: input.prompt, repositoryUrl: input.repositoryUrl });
+        },
+
+        async execute(input: { prompt: string; repositoryUrl: string }) {
+            return execute(input);
+        },
+
+        executeThreadComment(input: {
+            comment: string;
+            workingDirectory: string;
+            threadId: string;
+        }) {
+            const streamResult = Result.try(
+                () =>
+                    streamAgentRun({
+                        prompt: input.comment,
+                        workingDirectory: input.workingDirectory,
+                        threadId: input.threadId,
+                        clonesDir,
+                    }),
+                (error) => {
+                    console.warn("[execute] failed to initialize thread comment stream", {
+                        workingDirectory: input.workingDirectory,
+                        threadId: input.threadId,
+                        error,
+                    });
+                    return new ExecuteStreamError("Failed to start execution stream.", {
+                        cause: error,
+                    });
+                },
+            );
+            if (!streamResult.ok) {
+                return Result.error(streamResult.error);
+            }
+
+            return Result.ok(streamResult.value);
+        },
+
         async listThreads() {
             const codexHomeResult = resolveCodexHome();
             if (!codexHomeResult.ok) {

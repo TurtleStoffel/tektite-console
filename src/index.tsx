@@ -7,7 +7,6 @@ import { createDependencyRoutes } from "./backend/domains/dependencies/routes";
 import { createDocumentRoutes } from "./backend/domains/documents/routes";
 import { createEditorRoutes } from "./backend/domains/editor/routes";
 import { envRoutes } from "./backend/domains/env/routes";
-import { createExecuteRoutes } from "./backend/domains/execute/routes";
 import { createFeatureFlagRoutes } from "./backend/domains/featureFlags/routes";
 import { createDevServerRoutes } from "./backend/domains/git/routes";
 import {
@@ -171,11 +170,10 @@ const server = serve<TerminalSocketData>({
         ...createDocumentRoutes(),
         ...createNotesRoutes(),
         ...createDependencyRoutes(),
-        ...createAgentsRoutes(),
+        ...createAgentsRoutes({ clonesDir }),
         ...createProjectRoutes({ clonesDir }),
         ...createRepositoryRoutes(),
         ...createTaskRoutes(),
-        ...createExecuteRoutes({ clonesDir }),
         ...createFeatureFlagRoutes(),
         ...createDevServerRoutes({ clonesDir }),
         ...createEditorRoutes({ clonesDir }),

@@ -4,13 +4,58 @@
 Owns coding agent integrations:
 - Analyze local Codex thread logs from `~/.codex/sessions`.
 - Stream execution runs through Codex or OpenCode.
+- Execute prompt-driven tasks in prepared worktrees and stream results.
 
 ## Dependencies with other domains
-- `git/service` (activity tracking).
+- `git/service` (worktree preparation).
+- `tasks/service` (task-history creation for `/api/execute`).
 
 ## Exposed service functions
 
-### `createAgentsService().listThreads()`
+### `createAgentsService({ clonesDir }).executeWithTaskHistory(input)`
+```mermaid
+sequenceDiagram
+    participant Route
+    participant Service as agents service
+    participant Tasks as tasks service
+    participant Git as git helpers
+    participant Repo as agents repository
+    participant Runner as codex/opencode stream
+    Route->>Service: executeWithTaskHistory(prompt, projectId, repositoryUrl)
+    Service->>Tasks: createTaskHistory(...)
+    Service->>Git: prepareWorktree
+    Service->>Repo: upsertWorktreePromptSummary(...)
+    Service->>Runner: streamRun(prompt, workingDirectory)
+    Service-->>Route: Result.ok(stream)
+```
+
+### `createAgentsService({ clonesDir }).execute(input)`
+```mermaid
+sequenceDiagram
+    participant Route
+    participant Service as agents service
+    participant Git as git helpers
+    participant Repo as agents repository
+    participant Runner as codex/opencode stream
+    Route->>Service: execute(prompt, repositoryUrl)
+    Service->>Git: prepareWorktree
+    Service->>Repo: upsertWorktreePromptSummary(...)
+    Service->>Runner: streamRun(prompt, workingDirectory)
+    Service-->>Route: Result.ok(stream)
+```
+
+### `createAgentsService({ clonesDir }).executeThreadComment(input)`
+```mermaid
+sequenceDiagram
+    participant Route
+    participant Service as agents service
+    participant Runner as codex/opencode stream
+    Route->>Service: executeThreadComment(comment, workingDirectory, threadId)
+    Service->>Runner: streamRun(comment, workingDirectory, threadId)
+    Service-->>Route: Result.ok(stream)
+```
+
+### `createAgentsService({ clonesDir }).listThreads()`
 ```mermaid
 sequenceDiagram
     participant Route
@@ -22,7 +67,7 @@ sequenceDiagram
     Service-->>Route: Result.ok(thread summaries)
 ```
 
-### `createAgentsService().analyzeThread(input)`
+### `createAgentsService({ clonesDir }).analyzeThread(input)`
 ```mermaid
 sequenceDiagram
     participant Route
