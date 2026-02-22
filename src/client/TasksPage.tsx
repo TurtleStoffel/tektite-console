@@ -11,7 +11,6 @@ type TaskItem = {
     id: string;
     projectId: string | null;
     description: string;
-    createdAt: string;
     isDone: boolean;
     doneAt: string | null;
 };
@@ -20,12 +19,6 @@ type ProjectOption = {
     id: string;
     name: string | null;
 };
-
-function formatTimestamp(value: string) {
-    const timestamp = new Date(value);
-    if (Number.isNaN(timestamp.getTime())) return value;
-    return timestamp.toLocaleString();
-}
 
 export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const queryClient = useQueryClient();
@@ -215,7 +208,6 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     <table className="table table-zebra">
                         <thead>
                             <tr>
-                                <th>Created</th>
                                 <th>State</th>
                                 <th>Project</th>
                                 <th>Description</th>
@@ -225,9 +217,6 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         <tbody>
                             {tasks.map((task) => (
                                 <tr key={task.id}>
-                                    <td className="whitespace-nowrap text-sm text-base-content/80">
-                                        {formatTimestamp(task.createdAt)}
-                                    </td>
                                     <td className="whitespace-nowrap">
                                         <span
                                             className={`badge ${
