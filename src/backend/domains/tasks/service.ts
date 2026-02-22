@@ -95,4 +95,25 @@ export const tasksService = {
         console.info("[tasks] deleted task", { taskId });
         return task;
     },
+
+    async updateTaskProject(input: { taskId: string; projectId?: string | null }) {
+        const task = await repository.findTaskById(input.taskId);
+        if (!task) return { error: "Task not found.", status: 404 as const };
+
+        const projectId = normalizeProjectId(input.projectId);
+        if (projectId) {
+            const project = await repository.findProject(projectId);
+            if (!project) return { error: "Project not found.", status: 404 as const };
+        }
+
+        await repository.updateTaskProject({
+            taskId: input.taskId,
+            projectId,
+        });
+        console.info("[tasks] updated task project", { taskId: input.taskId, projectId });
+        return {
+            ...task,
+            projectId,
+        };
+    },
 };

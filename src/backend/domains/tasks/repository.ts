@@ -149,3 +149,20 @@ export async function deleteTask(taskId: string) {
     const db = getDb();
     await db.delete(tasks).where(eq(tasks.id, taskId)).execute();
 }
+
+export async function updateTaskProject(input: { taskId: string; projectId: string | null }) {
+    const db = getDb();
+    await db.transaction(async (tx) => {
+        await tx.delete(projectTasks).where(eq(projectTasks.taskId, input.taskId)).execute();
+
+        if (input.projectId) {
+            await tx
+                .insert(projectTasks)
+                .values({
+                    taskId: input.taskId,
+                    projectId: input.projectId,
+                })
+                .execute();
+        }
+    });
+}

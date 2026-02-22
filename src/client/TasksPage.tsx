@@ -16,6 +16,11 @@ type TaskItem = {
     doneAt: string | null;
 };
 
+type ProjectOption = {
+    id: string;
+    name: string | null;
+};
+
 function formatTimestamp(value: string) {
     const timestamp = new Date(value);
     if (Number.isNaN(timestamp.getTime())) return value;
@@ -60,6 +65,21 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
     });
 
+    const { data: projects = [] } = useQuery<ProjectOption[]>({
+        queryKey: ["projects"],
+        queryFn: async () => {
+            console.info("[tasks] loading projects for assignment...");
+            const res = await fetch("/api/projects");
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load projects.");
+            }
+            const list = Array.isArray(payload?.data) ? (payload.data as ProjectOption[]) : [];
+            console.info(`[tasks] loaded ${list.length} projects for assignment.`);
+            return list;
+        },
+    });
+
     const { mutate: markDone, isPending: isMarkingDone } = useMutation({
         mutationFn: async (taskId: string) => {
             const res = await fetch(`/api/tasks/${taskId}/done`, { method: "POST" });
@@ -85,6 +105,26 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["tasks"] });
             console.info("[tasks] task deleted");
+        },
+    });
+
+    const { mutate: updateTaskProject, isPending: isUpdatingProject } = useMutation({
+        mutationFn: async (input: { taskId: string; projectId: string | null }) => {
+            const res = await fetch(`/api/tasks/${input.taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    projectId: input.projectId,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update task project.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            console.info("[tasks] task project updated");
         },
     });
 
@@ -198,7 +238,30 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                         </span>
                                     </td>
                                     <td className="whitespace-nowrap text-sm text-base-content/80">
-                                        {task.projectId ?? "Unassigned"}
+                                        <label className="form-control w-52">
+                                            <select
+                                                className="select select-bordered select-xs"
+                                                value={task.projectId ?? ""}
+                                                disabled={
+                                                    isMarkingDone || isDeleting || isUpdatingProject
+                                                }
+                                                onChange={(event) => {
+                                                    const nextProjectId =
+                                                        event.target.value.trim() || null;
+                                                    updateTaskProject({
+                                                        taskId: task.id,
+                                                        projectId: nextProjectId,
+                                                    });
+                                                }}
+                                            >
+                                                <option value="">Unassigned</option>
+                                                {projects.map((project) => (
+                                                    <option key={project.id} value={project.id}>
+                                                        {project.name?.trim() || project.id}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
                                     </td>
                                     <td className="text-sm">{task.description}</td>
                                     <td className="whitespace-nowrap">
