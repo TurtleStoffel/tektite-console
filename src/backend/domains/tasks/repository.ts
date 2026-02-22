@@ -100,6 +100,24 @@ export async function findTaskById(taskId: string) {
     return rows[0] ?? null;
 }
 
+export function listTasksByWorktreePath(worktreePath: string) {
+    const db = getDb();
+    return db
+        .select({
+            id: tasks.id,
+            projectId: projectTasks.projectId,
+            description: tasks.description,
+            createdAt: tasks.createdAt,
+            isDone: tasks.isDone,
+            doneAt: tasks.doneAt,
+        })
+        .from(tasks)
+        .innerJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .where(eq(projectTasks.worktreePath, worktreePath))
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .execute();
+}
+
 export async function createTask(values: {
     id: string;
     projectId: string | null;

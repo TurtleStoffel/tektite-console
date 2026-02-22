@@ -8,6 +8,7 @@ import {
     isWorktreeDir,
     removeWorktree,
 } from "@/backend/domains/git/service";
+import { tasksService } from "@/backend/domains/tasks/service";
 import { isWorktreeInUse } from "./workspaceActivity";
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";
@@ -66,6 +67,22 @@ async function removeWorktreeIfEligible(worktreePath: string) {
     } catch (error) {
         console.warn(`[${PR_CLEANUP_JOB_NAME}] Failed to remove worktree ${worktreeName}`, error);
         return;
+    }
+
+    try {
+        const doneResult = await tasksService.markTasksDoneByWorktreePath(worktreePath);
+        if (doneResult.totalMarkedDone > 0) {
+            console.info(`[${PR_CLEANUP_JOB_NAME}] Marked linked tasks done`, {
+                worktreePath,
+                totalMatched: doneResult.totalMatched,
+                totalMarkedDone: doneResult.totalMarkedDone,
+            });
+        }
+    } catch (error) {
+        console.warn(
+            `[${PR_CLEANUP_JOB_NAME}] Failed to mark linked tasks done for ${worktreeName}`,
+            error,
+        );
     }
 
     try {

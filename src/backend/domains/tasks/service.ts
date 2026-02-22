@@ -87,6 +87,31 @@ export const tasksService = {
         return { ...task, isDone: true, doneAt };
     },
 
+    async markTasksDoneByWorktreePath(worktreePath: string) {
+        const tasks = await repository.listTasksByWorktreePath(worktreePath);
+        if (tasks.length === 0) {
+            console.info("[tasks] no tasks linked to worktree", { worktreePath });
+            return { totalMatched: 0, totalMarkedDone: 0 };
+        }
+
+        const doneAt = new Date().toISOString();
+        let totalMarkedDone = 0;
+        for (const task of tasks) {
+            if (task.isDone) {
+                continue;
+            }
+            await repository.markTaskDone(task.id, doneAt);
+            totalMarkedDone += 1;
+            console.info("[tasks] marked task done from worktree cleanup", {
+                taskId: task.id,
+                worktreePath,
+                doneAt,
+            });
+        }
+
+        return { totalMatched: tasks.length, totalMarkedDone };
+    },
+
     async setTaskWorktreePath(taskId: string, worktreePath: string) {
         const task = await repository.findTaskById(taskId);
         if (!task) {

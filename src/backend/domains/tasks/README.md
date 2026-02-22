@@ -63,6 +63,18 @@ sequenceDiagram
     TasksService-->>Caller: updated task/404
 ```
 
+### `tasksService.markTasksDoneByWorktreePath(worktreePath)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: markTasksDoneByWorktreePath(worktreePath)
+    TasksService->>Repo: listTasksByWorktreePath(worktreePath)
+    TasksService->>Repo: markTaskDone(taskId, doneAt) for each undone task
+    TasksService-->>Caller: matched/marked counts
+```
+
 ### `tasksService.setTaskWorktreePath(taskId, worktreePath)`
 ```mermaid
 sequenceDiagram
