@@ -8,6 +8,7 @@ import { FeatureFlagsPage } from "./FeatureFlagsPage";
 import { NotesPage } from "./NotesPage";
 import { ProjectDetails } from "./ProjectDetails";
 import { ProjectsPage } from "./ProjectsPage";
+import { QuickTaskMenu } from "./QuickTaskMenu";
 import { RepositoriesPage } from "./RepositoriesPage";
 import { TasksPage } from "./TasksPage";
 import "./index.css";
@@ -52,6 +53,7 @@ export function App() {
                             ))}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
+                            <QuickTaskMenu />
                             <EnvIndicator />
                         </div>
                     </div>
