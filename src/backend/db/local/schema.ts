@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const repositories = sqliteTable("repositories", {
     id: text("id").primaryKey(),
@@ -24,14 +24,31 @@ export const documents = sqliteTable("documents", {
 
 export const tasks = sqliteTable("tasks", {
     id: text("id").primaryKey(),
-    projectId: text("project_id").references(() => projects.id, {
-        onDelete: "set null",
-    }),
     description: text("description").notNull(),
     createdAt: text("created_at").notNull(),
     isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
     doneAt: text("done_at"),
 });
+
+export const projectTasks = sqliteTable(
+    "project_tasks",
+    {
+        projectId: text("project_id")
+            .notNull()
+            .references(() => projects.id, {
+                onDelete: "cascade",
+            }),
+        taskId: text("task_id")
+            .notNull()
+            .references(() => tasks.id, {
+                onDelete: "cascade",
+            }),
+    },
+    (table) => [
+        primaryKey({ columns: [table.projectId, table.taskId] }),
+        uniqueIndex("project_tasks_task_id_unique").on(table.taskId),
+    ],
+);
 
 export const worktreePromptSummaries = sqliteTable("worktree_prompt_summaries", {
     worktreePath: text("worktree_path").primaryKey(),

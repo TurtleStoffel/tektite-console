@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `project_tasks_task_id_unique` ON `project_tasks` (`task_id`);

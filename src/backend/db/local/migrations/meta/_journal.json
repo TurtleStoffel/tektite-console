@@ -15,6 +15,20 @@
             "when": 1771783955623,
             "tag": "0001_rename_task_history_to_tasks_and_prompt_to_description",
             "breakpoints": true
+        },
+        {
+            "idx": 2,
+            "version": "6",
+            "when": 1771785588465,
+            "tag": "0002_create_project_tasks_join_table",
+            "breakpoints": true
+        },
+        {
+            "idx": 3,
+            "version": "6",
+            "when": 1771785702944,
+            "tag": "0003_enforce_single_project_per_task",
+            "breakpoints": true
         }
     ]
 }
