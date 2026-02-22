@@ -8,8 +8,10 @@ function normalizeProjectId(projectId: string | null | undefined) {
 }
 
 export const tasksService = {
-    async listTasks() {
-        const rows = await repository.listTasks();
+    async listTasks(filter?: { isDone?: boolean; hasProject?: boolean }) {
+        const rows = filter
+            ? await repository.listTasksWithFilter(filter)
+            : await repository.listTasks();
         return rows.map((row) => ({
             id: row.id,
             projectId: row.projectId,
@@ -83,5 +85,14 @@ export const tasksService = {
         await repository.markTaskDone(taskId, doneAt);
         console.info("[tasks] marked task done", { taskId, doneAt });
         return { ...task, isDone: true, doneAt };
+    },
+
+    async deleteTask(taskId: string) {
+        const task = await repository.findTaskById(taskId);
+        if (!task) return { error: "Task not found.", status: 404 as const };
+
+        await repository.deleteTask(taskId);
+        console.info("[tasks] deleted task", { taskId });
+        return task;
     },
 };

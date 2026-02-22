@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
 import { projects, tasks } from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
@@ -24,6 +24,35 @@ export function listTasks() {
             doneAt: tasks.doneAt,
         })
         .from(tasks)
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .execute();
+}
+
+export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boolean } = {}) {
+    const db = getDb();
+    const whereParts: SQL[] = [];
+
+    if (filter.isDone !== undefined) {
+        whereParts.push(eq(tasks.isDone, filter.isDone));
+    }
+    if (filter.hasProject === true) {
+        whereParts.push(isNotNull(tasks.projectId));
+    }
+    if (filter.hasProject === false) {
+        whereParts.push(isNull(tasks.projectId));
+    }
+
+    return db
+        .select({
+            id: tasks.id,
+            projectId: tasks.projectId,
+            prompt: tasks.prompt,
+            createdAt: tasks.createdAt,
+            isDone: tasks.isDone,
+            doneAt: tasks.doneAt,
+        })
+        .from(tasks)
+        .where(whereParts.length === 0 ? undefined : and(...whereParts))
         .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
 }
@@ -89,4 +118,9 @@ export async function markTaskDone(taskId: string, doneAt: string) {
         })
         .where(eq(tasks.id, taskId))
         .execute();
+}
+
+export async function deleteTask(taskId: string) {
+    const db = getDb();
+    await db.delete(tasks).where(eq(tasks.id, taskId)).execute();
 }

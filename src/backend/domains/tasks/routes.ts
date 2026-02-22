@@ -9,6 +9,10 @@ const createTaskSchema = z.object({
     projectId: z.string().optional().nullable(),
 });
 const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const tasksQuerySchema = z.object({
+    isDone: z.enum(["true", "false"]).optional(),
+    project: z.enum(["assigned", "unassigned"]).optional(),
+});
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const projectTasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
@@ -17,8 +21,27 @@ const projectTasksQuerySchema = z.object({
 export function createTaskRoutes() {
     return {
         "/api/tasks": {
-            async GET() {
-                const data = await tasksService.listTasks();
+            async GET(req: Request) {
+                const queryInput = Object.fromEntries(new URL(req.url).searchParams.entries());
+                const parsedQuery = parseInput({
+                    input: queryInput,
+                    schema: tasksQuerySchema,
+                    domain: "tasks",
+                    context: "tasks:get",
+                    errorMessage: "Invalid tasks query.",
+                });
+                if ("response" in parsedQuery) return parsedQuery.response;
+
+                const data = await tasksService.listTasks({
+                    isDone:
+                        parsedQuery.data.isDone === undefined
+                            ? undefined
+                            : parsedQuery.data.isDone === "true",
+                    hasProject:
+                        parsedQuery.data.project === undefined
+                            ? undefined
+                            : parsedQuery.data.project === "assigned",
+                });
                 return Response.json({ data });
             },
             async POST(req: Request) {
@@ -88,6 +111,27 @@ export function createTaskRoutes() {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const result = await tasksService.markTaskDone(parsedParams.data.id);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+        },
+        "/api/tasks/:id": {
+            async DELETE(req: RouteRequest) {
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: taskIdParamSchema,
+                    domain: "tasks",
+                    context: "tasks:delete",
+                    errorMessage: "Task id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const result = await tasksService.deleteTask(parsedParams.data.id);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

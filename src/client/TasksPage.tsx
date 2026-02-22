@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getErrorMessage } from "./utils/errors";
 
@@ -22,6 +23,10 @@ function formatTimestamp(value: string) {
 }
 
 export function TasksPage({ drawerToggleId }: TasksPageProps) {
+    const queryClient = useQueryClient();
+    const [statusFilter, setStatusFilter] = useState<"all" | "open" | "done">("all");
+    const [projectFilter, setProjectFilter] = useState<"all" | "assigned" | "unassigned">("all");
+
     const {
         data: tasks = [],
         isLoading,
@@ -29,10 +34,22 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         error: tasksErrorRaw,
         refetch,
     } = useQuery<TaskItem[]>({
-        queryKey: ["tasks"],
+        queryKey: ["tasks", { statusFilter, projectFilter }],
         queryFn: async () => {
             console.info("[tasks] loading all tasks...");
-            const res = await fetch("/api/tasks");
+            const searchParams = new URLSearchParams();
+            if (statusFilter === "open") {
+                searchParams.set("isDone", "false");
+            }
+            if (statusFilter === "done") {
+                searchParams.set("isDone", "true");
+            }
+            if (projectFilter !== "all") {
+                searchParams.set("project", projectFilter);
+            }
+
+            const query = searchParams.toString();
+            const res = await fetch(query.length > 0 ? `/api/tasks?${query}` : "/api/tasks");
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
                 throw new Error(payload?.error || "Failed to load tasks.");
@@ -40,6 +57,34 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             const list = Array.isArray(payload?.data) ? (payload.data as TaskItem[]) : [];
             console.info(`[tasks] loaded ${list.length} tasks.`);
             return list;
+        },
+    });
+
+    const { mutate: markDone, isPending: isMarkingDone } = useMutation({
+        mutationFn: async (taskId: string) => {
+            const res = await fetch(`/api/tasks/${taskId}/done`, { method: "POST" });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to mark task as done.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            console.info("[tasks] task marked done");
+        },
+    });
+
+    const { mutate: deleteTask, isPending: isDeleting } = useMutation({
+        mutationFn: async (taskId: string) => {
+            const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to delete task.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            console.info("[tasks] task deleted");
         },
     });
 
@@ -78,6 +123,40 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                 </div>
             )}
 
+            <div className="card bg-base-200 border border-base-300 shadow-md">
+                <div className="card-body p-4 flex flex-col md:flex-row md:items-end gap-3">
+                    <label className="form-control w-full md:max-w-xs">
+                        <span className="label-text text-sm font-medium">Status</span>
+                        <select
+                            className="select select-bordered"
+                            value={statusFilter}
+                            onChange={(event) =>
+                                setStatusFilter(event.target.value as typeof statusFilter)
+                            }
+                        >
+                            <option value="all">All</option>
+                            <option value="open">In progress only</option>
+                            <option value="done">Done only</option>
+                        </select>
+                    </label>
+
+                    <label className="form-control w-full md:max-w-xs">
+                        <span className="label-text text-sm font-medium">Project</span>
+                        <select
+                            className="select select-bordered"
+                            value={projectFilter}
+                            onChange={(event) =>
+                                setProjectFilter(event.target.value as typeof projectFilter)
+                            }
+                        >
+                            <option value="all">All</option>
+                            <option value="assigned">Assigned to a project</option>
+                            <option value="unassigned">No project assigned</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
             {isLoading ? (
                 <div className="flex items-center justify-center py-16">
                     <span className="loading loading-spinner loading-lg" />
@@ -100,6 +179,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                 <th>State</th>
                                 <th>Project</th>
                                 <th>Prompt</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,6 +201,32 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                         {task.projectId ?? "Unassigned"}
                                     </td>
                                     <td className="text-sm">{task.prompt}</td>
+                                    <td className="whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-success"
+                                                disabled={
+                                                    task.isDone || isMarkingDone || isDeleting
+                                                }
+                                                onClick={() => markDone(task.id)}
+                                            >
+                                                Mark done
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-error btn-outline"
+                                                disabled={isMarkingDone || isDeleting}
+                                                onClick={() => {
+                                                    if (!window.confirm("Delete this task?"))
+                                                        return;
+                                                    deleteTask(task.id);
+                                                }}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
