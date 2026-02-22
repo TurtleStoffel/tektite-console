@@ -13,9 +13,33 @@ import { isWorktreeInUse } from "./workspaceActivity";
 
 const PR_CLEANUP_JOB_NAME = "worktree-pr-cleanup";
 const PR_CLEANUP_INTERVAL_MS = 30_000;
+const PR_CLEANUP_MIN_WORKTREE_AGE_MS = 5 * 60_000;
 
-async function removeWorktreeIfEligible(worktreePath: string) {
+function isWorktreeOlderThan(worktreePath: string, minAgeMs: number) {
+    if (minAgeMs <= 0) {
+        return true;
+    }
+
+    try {
+        const stats = fs.statSync(worktreePath);
+        const createdAtMs = stats.birthtimeMs > 0 ? stats.birthtimeMs : stats.ctimeMs;
+        const ageMs = Date.now() - createdAtMs;
+        return ageMs >= minAgeMs;
+    } catch (error) {
+        console.warn(
+            `[${PR_CLEANUP_JOB_NAME}] Failed reading worktree age for ${worktreePath}`,
+            error,
+        );
+        return false;
+    }
+}
+
+async function removeWorktreeIfEligible(worktreePath: string, minWorktreeAgeMs: number) {
     const worktreeName = path.basename(worktreePath);
+
+    if (!isWorktreeOlderThan(worktreePath, minWorktreeAgeMs)) {
+        return;
+    }
 
     if (isWorktreeInUse(worktreePath)) {
         return;
@@ -97,7 +121,7 @@ async function removeWorktreeIfEligible(worktreePath: string) {
     }
 }
 
-async function runPullRequestCleanup(clonesDir: string) {
+async function runPullRequestCleanup(clonesDir: string, minWorktreeAgeMs: number) {
     let entries: fs.Dirent[];
     try {
         entries = fs.readdirSync(clonesDir, { withFileTypes: true });
@@ -111,13 +135,14 @@ async function runPullRequestCleanup(clonesDir: string) {
 
         const fullPath = path.join(clonesDir, entry.name);
         if (!isWorktreeDir(fullPath)) continue;
-        await removeWorktreeIfEligible(fullPath);
+        await removeWorktreeIfEligible(fullPath, minWorktreeAgeMs);
     }
 }
 
 export function startPullRequestCleanup(options: { clonesDir: string; intervalMs?: number }) {
     const { clonesDir } = options;
     const intervalMs = options.intervalMs ?? PR_CLEANUP_INTERVAL_MS;
+    const minWorktreeAgeMs = PR_CLEANUP_MIN_WORKTREE_AGE_MS;
     let running = false;
 
     const runner = async () => {
@@ -125,7 +150,7 @@ export function startPullRequestCleanup(options: { clonesDir: string; intervalMs
         running = true;
 
         try {
-            await runPullRequestCleanup(clonesDir);
+            await runPullRequestCleanup(clonesDir, minWorktreeAgeMs);
         } catch (error) {
             console.warn(`[${PR_CLEANUP_JOB_NAME}] Job failed`, error);
         } finally {

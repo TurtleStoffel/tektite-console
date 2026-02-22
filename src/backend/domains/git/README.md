@@ -3,7 +3,7 @@
 ## Purpose
 Provides git and GitHub CLI operations for worktree lifecycle and dev terminal flows.
 
-The pull-request cleanup worker also coordinates with the tasks domain: when a worktree is removed, any task linked through `project_tasks.worktree_path` is marked done.
+The pull-request cleanup worker also coordinates with the tasks domain: when a worktree is removed, any task linked through `project_tasks.worktree_path` is marked done. Cleanup skips worktrees younger than the configured minimum age to avoid deleting newly created worktrees before agent startup marks them active.
 
 ## Exported service functions
 
