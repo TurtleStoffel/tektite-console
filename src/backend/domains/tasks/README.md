@@ -112,6 +112,18 @@ sequenceDiagram
     TasksService-->>Caller: updated task/404
 ```
 
+### `tasksService.updateTaskCanvasPosition(input)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: updateTaskCanvasPosition(...)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: upsertTaskCanvasPosition(...)
+    TasksService-->>Caller: updated position/404
+```
+
 ## HTTP APIs (routes)
 
 ### `GET /api/tasks`
@@ -182,6 +194,18 @@ sequenceDiagram
     participant TasksService
     Client->>Route: PUT /api/tasks/:id
     Route->>TasksService: updateTaskProject(...)
+    TasksService-->>Route: updated/404
+    Route-->>Client: JSON
+```
+
+### `PUT /api/tasks/:id/canvas-position`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: PUT /api/tasks/:id/canvas-position
+    Route->>TasksService: updateTaskCanvasPosition(...)
     TasksService-->>Route: updated/404
     Route-->>Client: JSON
 ```

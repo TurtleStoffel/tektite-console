@@ -4,6 +4,7 @@ Tektite Console is a tool for Coding Agent development workflows.
 
 It provides:
 - task management for agent-driven work
+- task list and infinite canvas task views with persisted per-task canvas positions
 - automatic worktree setup and lifecycle support
 - visibility into repository structure and project entities
 - live preview/dev server support for worktree changes
