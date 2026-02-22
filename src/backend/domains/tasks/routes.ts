@@ -12,6 +12,10 @@ const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const updateTaskBodySchema = z.object({
     projectId: z.string().trim().min(1).nullable().optional(),
 });
+const updateTaskCanvasPositionBodySchema = z.object({
+    x: z.number().int(),
+    y: z.number().int(),
+});
 const tasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
     project: z.enum(["assigned", "unassigned"]).optional(),
@@ -165,6 +169,39 @@ export function createTaskRoutes() {
                 if ("response" in parsedParams) return parsedParams.response;
 
                 const result = await tasksService.deleteTask(parsedParams.data.id);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+        },
+        "/api/tasks/:id/canvas-position": {
+            async PUT(req: RouteRequest) {
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: taskIdParamSchema,
+                    domain: "tasks",
+                    context: "tasks:update-canvas-position",
+                    errorMessage: "Task id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: updateTaskCanvasPositionBodySchema,
+                    domain: "tasks",
+                    context: "tasks:update-canvas-position",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await tasksService.updateTaskCanvasPosition({
+                    taskId: parsedParams.data.id,
+                    x: parsedBody.data.x,
+                    y: parsedBody.data.y,
+                });
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

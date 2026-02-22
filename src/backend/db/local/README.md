@@ -10,6 +10,7 @@ erDiagram
     projects ||--o{ documents : "project_id -> id (SET NULL)"
     projects ||--o{ project_tasks : "project_id -> id (CASCADE)"
     tasks ||--o{ project_tasks : "task_id -> id (CASCADE)"
+    tasks ||--o| task_canvas_positions : "task_id -> id (CASCADE)"
 
     repositories {
         text id PK
@@ -35,6 +36,13 @@ erDiagram
         text created_at
         boolean is_done
         text done_at
+    }
+
+    task_canvas_positions {
+        text task_id PK, FK
+        integer x
+        integer y
+        text updated_at
     }
 
     project_tasks {
@@ -66,3 +74,5 @@ erDiagram
 - `project_tasks` is the join table between `projects` and `tasks`, and both foreign keys use `ON DELETE CASCADE`.
 - `project_tasks.task_id` is unique, so a task can be assigned to at most one project.
 - `project_tasks.worktree_path` stores the task execution worktree path when an assigned task is executed.
+- `task_canvas_positions` stores persisted x/y coordinates for each task's infinite canvas card.
+- `task_canvas_positions.task_id` is both PK and FK, so each task has at most one persisted position row.

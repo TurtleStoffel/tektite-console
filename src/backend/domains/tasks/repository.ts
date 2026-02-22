@@ -1,5 +1,5 @@
 import { and, desc, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
-import { projects, projectTasks, tasks } from "../../db/local/schema";
+import { projects, projectTasks, taskCanvasPositions, tasks } from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
 export async function findProject(projectId: string) {
@@ -22,9 +22,12 @@ export function listTasks() {
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
+            canvasPositionX: taskCanvasPositions.x,
+            canvasPositionY: taskCanvasPositions.y,
         })
         .from(tasks)
         .leftJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
 }
@@ -51,9 +54,12 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
+            canvasPositionX: taskCanvasPositions.x,
+            canvasPositionY: taskCanvasPositions.y,
         })
         .from(tasks)
         .leftJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(whereParts.length === 0 ? undefined : and(...whereParts))
         .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
@@ -74,9 +80,12 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
+            canvasPositionX: taskCanvasPositions.x,
+            canvasPositionY: taskCanvasPositions.y,
         })
         .from(tasks)
         .innerJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(whereClause)
         .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
@@ -92,9 +101,12 @@ export async function findTaskById(taskId: string) {
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
+            canvasPositionX: taskCanvasPositions.x,
+            canvasPositionY: taskCanvasPositions.y,
         })
         .from(tasks)
         .leftJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(eq(tasks.id, taskId))
         .execute();
     return rows[0] ?? null;
@@ -110,9 +122,12 @@ export function listTasksByWorktreePath(worktreePath: string) {
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
+            canvasPositionX: taskCanvasPositions.x,
+            canvasPositionY: taskCanvasPositions.y,
         })
         .from(tasks)
         .innerJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
+        .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(eq(projectTasks.worktreePath, worktreePath))
         .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .execute();
@@ -194,4 +209,25 @@ export async function updateTaskProject(input: { taskId: string; projectId: stri
                 .execute();
         }
     });
+}
+
+export async function upsertTaskCanvasPosition(input: { taskId: string; x: number; y: number }) {
+    const db = getDb();
+    await db
+        .insert(taskCanvasPositions)
+        .values({
+            taskId: input.taskId,
+            x: input.x,
+            y: input.y,
+            updatedAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+            target: taskCanvasPositions.taskId,
+            set: {
+                x: input.x,
+                y: input.y,
+                updatedAt: new Date().toISOString(),
+            },
+        })
+        .execute();
 }

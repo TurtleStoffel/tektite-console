@@ -19,6 +19,10 @@ export const tasksService = {
             createdAt: row.createdAt,
             isDone: row.isDone,
             doneAt: row.doneAt,
+            canvasPosition:
+                row.canvasPositionX !== null && row.canvasPositionY !== null
+                    ? { x: row.canvasPositionX, y: row.canvasPositionY }
+                    : null,
         }));
     },
 
@@ -34,6 +38,10 @@ export const tasksService = {
             createdAt: row.createdAt,
             isDone: row.isDone,
             doneAt: row.doneAt,
+            canvasPosition:
+                row.canvasPositionX !== null && row.canvasPositionY !== null
+                    ? { x: row.canvasPositionX, y: row.canvasPositionY }
+                    : null,
         }));
     },
 
@@ -163,6 +171,24 @@ export const tasksService = {
         return {
             ...task,
             projectId,
+        };
+    },
+
+    async updateTaskCanvasPosition(input: { taskId: string; x: number; y: number }) {
+        const task = await repository.findTaskById(input.taskId);
+        if (!task) return { error: "Task not found.", status: 404 as const };
+
+        await repository.upsertTaskCanvasPosition(input);
+        console.info("[tasks] updated task canvas position", {
+            taskId: input.taskId,
+            x: input.x,
+            y: input.y,
+        });
+
+        return {
+            taskId: input.taskId,
+            x: input.x,
+            y: input.y,
         };
     },
 };

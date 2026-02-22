@@ -30,6 +30,17 @@ export const tasks = sqliteTable("tasks", {
     doneAt: text("done_at"),
 });
 
+export const taskCanvasPositions = sqliteTable("task_canvas_positions", {
+    taskId: text("task_id")
+        .primaryKey()
+        .references(() => tasks.id, {
+            onDelete: "cascade",
+        }),
+    x: integer("x").notNull(),
+    y: integer("y").notNull(),
+    updatedAt: text("updated_at").notNull(),
+});
+
 export const projectTasks = sqliteTable(
     "project_tasks",
     {
