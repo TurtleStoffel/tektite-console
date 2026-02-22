@@ -224,7 +224,9 @@ export default function TaskExecutionPanel({
         }
     };
 
-    const canExecute = Boolean(taskPrompt.trim()) && !creatingTask && !running;
+    // Keep task submission enabled even while runs are active so users can queue/create
+    // another task or start another execution without waiting for the current run to finish.
+    const canSubmitTask = Boolean(taskPrompt.trim()) && !creatingTask;
 
     return (
         <>
@@ -246,7 +248,7 @@ export default function TaskExecutionPanel({
                         className="btn btn-outline"
                         type="button"
                         onClick={() => void handleCreateTask()}
-                        disabled={!canExecute}
+                        disabled={!canSubmitTask}
                     >
                         {creatingTask ? "Creating..." : "Create task"}
                     </button>
@@ -254,7 +256,7 @@ export default function TaskExecutionPanel({
                         className="btn btn-primary"
                         type="button"
                         onClick={() => void handleExecuteTask()}
-                        disabled={!canExecute}
+                        disabled={!canSubmitTask}
                     >
                         Execute task
                     </button>
