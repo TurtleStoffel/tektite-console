@@ -40,6 +40,24 @@ Optional (SQLite location):
 
 If neither `SQLITE_PATH` nor `DATA_DIR` is set, local SQLite defaults to `./.tektite.sqlite`.
 
+## Local DB migrations (Drizzle Kit)
+
+Local SQLite migrations are managed with `drizzle-kit`.
+
+Generate a migration after changing `src/backend/db/local/schema.ts`:
+
+```bash
+bun run db:generate:local -- --name=<descriptive_name>
+```
+
+Apply pending local migrations to the configured SQLite database:
+
+```bash
+bun run db:migrate:local
+```
+
+Migration files are written to `src/backend/db/local/migrations`.
+
 ## Run
 
 1. Install dependencies:

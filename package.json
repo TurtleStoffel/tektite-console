@@ -11,6 +11,8 @@
         "dev": "NODE_ENV=development bun --hot src/index.tsx",
         "start": "NODE_ENV=production bun src/index.tsx",
         "build": "bun run build.ts",
+        "db:generate:local": "drizzle-kit generate --config=drizzle.local.config.ts",
+        "db:migrate:local": "drizzle-kit migrate --config=drizzle.local.config.ts",
         "format": "biome format --write src/",
         "lint": "biome check src/",
         "typecheck": "tsc --noEmit"
@@ -41,6 +43,7 @@
         "@types/d3-force": "^3.0.10",
         "@types/react": "^19.2.13",
         "@types/react-dom": "^19.2.3",
+        "drizzle-kit": "^0.31.4",
         "knip": "^5.83.1",
         "supabase": "^2.76.6",
         "typescript": "^5.9.3"
