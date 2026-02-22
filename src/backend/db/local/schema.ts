@@ -43,6 +43,7 @@ export const projectTasks = sqliteTable(
             .references(() => tasks.id, {
                 onDelete: "cascade",
             }),
+        worktreePath: text("worktree_path"),
     },
     (table) => [
         primaryKey({ columns: [table.projectId, table.taskId] }),

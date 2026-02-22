@@ -145,6 +145,17 @@ export async function markTaskDone(taskId: string, doneAt: string) {
         .execute();
 }
 
+export async function setTaskWorktreePath(taskId: string, worktreePath: string) {
+    const db = getDb();
+    await db
+        .update(projectTasks)
+        .set({
+            worktreePath,
+        })
+        .where(eq(projectTasks.taskId, taskId))
+        .execute();
+}
+
 export async function deleteTask(taskId: string) {
     const db = getDb();
     await db.delete(tasks).where(eq(tasks.id, taskId)).execute();

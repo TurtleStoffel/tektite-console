@@ -87,6 +87,30 @@ export const tasksService = {
         return { ...task, isDone: true, doneAt };
     },
 
+    async setTaskWorktreePath(taskId: string, worktreePath: string) {
+        const task = await repository.findTaskById(taskId);
+        if (!task) {
+            return Result.error({
+                type: "task-not-found" as const,
+                message: "Task not found.",
+            });
+        }
+        if (!task.projectId) {
+            return Result.error({
+                type: "task-project-missing" as const,
+                message: "Task is not linked to a project.",
+            });
+        }
+
+        await repository.setTaskWorktreePath(taskId, worktreePath);
+        console.info("[tasks] set task worktree path", { taskId, worktreePath });
+
+        return Result.ok({
+            ...task,
+            worktreePath,
+        });
+    },
+
     async deleteTask(taskId: string) {
         const task = await repository.findTaskById(taskId);
         if (!task) return { error: "Task not found.", status: 404 as const };

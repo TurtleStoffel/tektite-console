@@ -63,6 +63,18 @@ sequenceDiagram
     TasksService-->>Caller: updated task/404
 ```
 
+### `tasksService.setTaskWorktreePath(taskId, worktreePath)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: setTaskWorktreePath(...)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: setTaskWorktreePath(...)
+    TasksService-->>Caller: updated task/404
+```
+
 ### `tasksService.deleteTask(taskId)`
 ```mermaid
 sequenceDiagram

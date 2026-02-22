@@ -95,6 +95,15 @@ class ExecuteStreamError extends Error {
     }
 }
 
+class ExecutePersistError extends Error {
+    readonly type = "execute-persist-error";
+
+    constructor(message: string, options?: { cause?: unknown }) {
+        super(message, options);
+        this.name = "ExecutePersistError";
+    }
+}
+
 type CodexThreadServiceError =
     | {
           type: "codex-home-missing";
@@ -240,7 +249,7 @@ export function createAgentsService(options: { clonesDir: string }) {
         runner: process.env.NODE_ENV === "development" ? "opencode" : "codex",
     });
 
-    const execute = async (input: { prompt: string; repositoryUrl: string }) => {
+    const execute = async (input: { prompt: string; repositoryUrl: string; taskId?: string }) => {
         const preparedResult = await Result.try(
             async () => {
                 await ensureDirectoryExists(clonesDir);
@@ -258,6 +267,24 @@ export function createAgentsService(options: { clonesDir: string }) {
         );
         if (!preparedResult.ok) {
             return Result.error(preparedResult.error);
+        }
+
+        if (input.taskId) {
+            const persistResult = await Result.fromAsync(
+                tasksService.setTaskWorktreePath(input.taskId, preparedResult.value.worktreePath),
+            ).mapError((error) => {
+                console.warn("[execute] failed to save worktree path for task", {
+                    taskId: input.taskId,
+                    worktreePath: preparedResult.value.worktreePath,
+                    error,
+                });
+                return new ExecutePersistError("Failed to save task worktree path.", {
+                    cause: error,
+                });
+            });
+            if (!persistResult.ok) {
+                return Result.error(persistResult.error);
+            }
         }
 
         try {
@@ -311,7 +338,10 @@ export function createAgentsService(options: { clonesDir: string }) {
                 return Result.error(executionInputResult.error);
             }
 
-            return execute(executionInputResult.value);
+            return execute({
+                ...executionInputResult.value,
+                taskId: input.taskId,
+            });
         },
 
         async execute(input: { prompt: string; repositoryUrl: string }) {

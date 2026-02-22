@@ -22,6 +22,7 @@ sequenceDiagram
     DomainApi->>Tasks: getTaskById(taskId)
     DomainApi->>Projects: getProjectById(task.projectId)
     DomainApi->>Git: prepareWorktree(...)
+    DomainApi->>Tasks: setTaskWorktreePath(taskId, worktreePath)
     DomainApi-->>Route: stream response
     Route-->>Client: execution stream
 ```

@@ -40,6 +40,7 @@ erDiagram
     project_tasks {
         text project_id PK, FK
         text task_id PK, FK
+        text worktree_path
     }
 
     worktree_prompt_summaries {
@@ -64,3 +65,4 @@ erDiagram
 - Foreign keys from `projects` and `documents` use `ON DELETE SET NULL`.
 - `project_tasks` is the join table between `projects` and `tasks`, and both foreign keys use `ON DELETE CASCADE`.
 - `project_tasks.task_id` is unique, so a task can be assigned to at most one project.
+- `project_tasks.worktree_path` stores the task execution worktree path when an assigned task is executed.
