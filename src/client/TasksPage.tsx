@@ -1,42 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { TasksInfiniteCanvas } from "./tasks/TasksInfiniteCanvas";
+import { TasksListView } from "./tasks/TasksListView";
+import type { CanvasPoint, ProjectOption, TaskItem, Viewport } from "./tasks/types";
 import { getErrorMessage } from "./utils/errors";
 
 type TasksPageProps = {
     drawerToggleId: string;
 };
 
-type TaskItem = {
-    id: string;
-    projectId: string | null;
-    description: string;
-    isDone: boolean;
-    doneAt: string | null;
-    canvasPosition: {
-        x: number;
-        y: number;
-    } | null;
-};
-
-type ProjectOption = {
-    id: string;
-    name: string | null;
-};
-
-type CanvasPoint = {
-    x: number;
-    y: number;
-};
-
-type Viewport = {
-    x: number;
-    y: number;
-    scale: number;
-};
-
-const NODE_WIDTH = 320;
-const NODE_HEIGHT = 170;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const ZOOM_SENSITIVITY = 0.0015;
@@ -50,8 +23,8 @@ function getDefaultNodePosition(index: number): CanvasPoint {
     const column = index % columns;
     const row = Math.floor(index / columns);
     return {
-        x: 120 + column * (NODE_WIDTH + 24),
-        y: 120 + row * (NODE_HEIGHT + 24),
+        x: 120 + column * (320 + 24),
+        y: 120 + row * (170 + 24),
     };
 }
 
@@ -343,8 +316,38 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         [positionOverrides, saveTaskCanvasPosition, tasksById],
     );
 
+    const handleTaskPointerDown = useCallback(
+        (
+            task: TaskItem & { canvasPosition: CanvasPoint },
+            event: React.PointerEvent<HTMLElement>,
+        ) => {
+            event.stopPropagation();
+            const world = screenToWorld(event.clientX, event.clientY);
+            dragRef.current = {
+                taskId: task.id,
+                offsetX: world.x - task.canvasPosition.x,
+                offsetY: world.y - task.canvasPosition.y,
+                moved: false,
+            };
+            const surface = canvasRef.current;
+            if (!surface) {
+                throw new Error("Canvas surface not mounted.");
+            }
+            surface.setPointerCapture(event.pointerId);
+        },
+        [screenToWorld],
+    );
+
+    const isCanvasView = viewMode === "canvas";
+
     return (
-        <div className="max-w-6xl w-full mx-auto p-8 space-y-6 relative z-10">
+        <div
+            className={`relative z-10 w-full p-6 ${
+                isCanvasView
+                    ? "flex min-h-[calc(100vh-73px)] flex-col gap-4"
+                    : "mx-auto max-w-6xl space-y-6"
+            }`}
+        >
             <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold">Tasks</h1>
@@ -413,7 +416,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         <input
                             type="checkbox"
                             className="toggle toggle-primary"
-                            checked={viewMode === "canvas"}
+                            checked={isCanvasView}
                             onChange={(event) =>
                                 setViewMode(event.target.checked ? "canvas" : "list")
                             }
@@ -435,224 +438,38 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         </p>
                     </div>
                 </div>
-            ) : viewMode === "list" ? (
-                <div className="overflow-x-auto card bg-base-200 border border-base-300 shadow-md">
-                    <table className="table table-zebra">
-                        <thead>
-                            <tr>
-                                <th>State</th>
-                                <th>Project</th>
-                                <th>Description</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {tasks.map((task) => (
-                                <tr key={task.id}>
-                                    <td className="whitespace-nowrap">
-                                        <span
-                                            className={`badge ${
-                                                task.isDone ? "badge-success" : "badge-warning"
-                                            }`}
-                                        >
-                                            {task.isDone ? "Done" : "In progress"}
-                                        </span>
-                                    </td>
-                                    <td className="whitespace-nowrap text-sm text-base-content/80">
-                                        <label className="form-control w-52">
-                                            <select
-                                                className="select select-bordered select-xs"
-                                                value={task.projectId ?? ""}
-                                                disabled={
-                                                    isMarkingDone || isDeleting || isUpdatingProject
-                                                }
-                                                onChange={(event) => {
-                                                    const nextProjectId =
-                                                        event.target.value.trim() || null;
-                                                    updateTaskProject({
-                                                        taskId: task.id,
-                                                        projectId: nextProjectId,
-                                                    });
-                                                }}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {projects.map((project) => (
-                                                    <option key={project.id} value={project.id}>
-                                                        {project.name?.trim() || project.id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </label>
-                                    </td>
-                                    <td className="text-sm">{task.description}</td>
-                                    <td className="whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                className="btn btn-xs btn-success"
-                                                disabled={
-                                                    task.isDone || isMarkingDone || isDeleting
-                                                }
-                                                onClick={() => markDone(task.id)}
-                                            >
-                                                Mark done
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-xs btn-error btn-outline"
-                                                disabled={isMarkingDone || isDeleting}
-                                                onClick={() => {
-                                                    if (!window.confirm("Delete this task?"))
-                                                        return;
-                                                    deleteTask(task.id);
-                                                }}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            ) : isCanvasView ? (
+                <div className="min-h-0 flex-1">
+                    <TasksInfiniteCanvas
+                        canvasRef={canvasRef}
+                        canvasTasks={canvasTasks}
+                        projects={projects}
+                        viewport={viewport}
+                        isMarkingDone={isMarkingDone}
+                        isDeleting={isDeleting}
+                        isUpdatingProject={isUpdatingProject}
+                        onResetView={() => setViewport({ x: 120, y: 120, scale: 1 })}
+                        onWheel={handleCanvasWheel}
+                        onPointerDown={handleCanvasPointerDown}
+                        onPointerMove={handleCanvasPointerMove}
+                        onPointerUp={handleCanvasPointerUp}
+                        onTaskPointerDown={handleTaskPointerDown}
+                        onMarkDone={markDone}
+                        onDeleteTask={deleteTask}
+                        onUpdateTaskProject={updateTaskProject}
+                    />
                 </div>
             ) : (
-                <div className="card bg-base-200 border border-base-300 shadow-md">
-                    <div className="card-body p-3">
-                        <div className="flex items-center justify-between px-1 pb-2">
-                            <p className="text-xs text-base-content/70">
-                                Drag tasks to arrange, drag empty space to pan, and use the wheel to
-                                zoom.
-                            </p>
-                            <button
-                                type="button"
-                                className="btn btn-xs btn-outline"
-                                onClick={() => setViewport({ x: 120, y: 120, scale: 1 })}
-                            >
-                                Reset view
-                            </button>
-                        </div>
-                        <div
-                            ref={canvasRef}
-                            className="relative h-[70vh] overflow-hidden rounded-xl border border-base-300 bg-base-100"
-                            onWheel={handleCanvasWheel}
-                            onPointerDown={handleCanvasPointerDown}
-                            onPointerMove={handleCanvasPointerMove}
-                            onPointerUp={handleCanvasPointerUp}
-                            onPointerCancel={handleCanvasPointerUp}
-                        >
-                            <div
-                                className="absolute inset-0 pointer-events-none"
-                                style={{
-                                    backgroundImage:
-                                        "linear-gradient(to right, color-mix(in oklab, var(--color-base-content) 12%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--color-base-content) 12%, transparent) 1px, transparent 1px)",
-                                    backgroundSize: "40px 40px",
-                                    backgroundPosition: `${viewport.x}px ${viewport.y}px`,
-                                }}
-                            />
-                            <div
-                                className="absolute top-0 left-0"
-                                style={{
-                                    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
-                                    transformOrigin: "0 0",
-                                    width: 1,
-                                    height: 1,
-                                }}
-                            >
-                                {canvasTasks.map((task) => (
-                                    <article
-                                        key={task.id}
-                                        className="absolute bg-base-200 border border-base-300 rounded-lg shadow-md p-3 select-none"
-                                        style={{
-                                            width: NODE_WIDTH,
-                                            minHeight: NODE_HEIGHT,
-                                            left: task.canvasPosition.x,
-                                            top: task.canvasPosition.y,
-                                        }}
-                                        onPointerDown={(event) => {
-                                            event.stopPropagation();
-                                            const world = screenToWorld(
-                                                event.clientX,
-                                                event.clientY,
-                                            );
-                                            dragRef.current = {
-                                                taskId: task.id,
-                                                offsetX: world.x - task.canvasPosition.x,
-                                                offsetY: world.y - task.canvasPosition.y,
-                                                moved: false,
-                                            };
-                                            const surface = canvasRef.current;
-                                            if (!surface) {
-                                                throw new Error("Canvas surface not mounted.");
-                                            }
-                                            surface.setPointerCapture(event.pointerId);
-                                        }}
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span
-                                                className={`badge badge-sm ${task.isDone ? "badge-success" : "badge-warning"}`}
-                                            >
-                                                {task.isDone ? "Done" : "In progress"}
-                                            </span>
-                                            <span className="text-[11px] text-base-content/50">
-                                                {task.id.slice(0, 8)}
-                                            </span>
-                                        </div>
-                                        <p className="mt-2 text-sm leading-5">{task.description}</p>
-                                        <div className="mt-3">
-                                            <select
-                                                className="select select-bordered select-xs w-full"
-                                                value={task.projectId ?? ""}
-                                                disabled={
-                                                    isMarkingDone || isDeleting || isUpdatingProject
-                                                }
-                                                onChange={(event) => {
-                                                    const nextProjectId =
-                                                        event.target.value.trim() || null;
-                                                    updateTaskProject({
-                                                        taskId: task.id,
-                                                        projectId: nextProjectId,
-                                                    });
-                                                }}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {projects.map((project) => (
-                                                    <option key={project.id} value={project.id}>
-                                                        {project.name?.trim() || project.id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                className="btn btn-xs btn-success"
-                                                disabled={
-                                                    task.isDone || isMarkingDone || isDeleting
-                                                }
-                                                onClick={() => markDone(task.id)}
-                                            >
-                                                Done
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-xs btn-error btn-outline"
-                                                disabled={isMarkingDone || isDeleting}
-                                                onClick={() => {
-                                                    if (!window.confirm("Delete this task?"))
-                                                        return;
-                                                    deleteTask(task.id);
-                                                }}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </article>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <TasksListView
+                    tasks={tasks}
+                    projects={projects}
+                    isMarkingDone={isMarkingDone}
+                    isDeleting={isDeleting}
+                    isUpdatingProject={isUpdatingProject}
+                    onMarkDone={markDone}
+                    onDeleteTask={deleteTask}
+                    onUpdateTaskProject={updateTaskProject}
+                />
             )}
         </div>
     );
