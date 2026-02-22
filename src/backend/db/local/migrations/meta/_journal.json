@@ -8,6 +8,13 @@
             "when": 1771783955622,
             "tag": "0000_initial_local_schema",
             "breakpoints": true
+        },
+        {
+            "idx": 1,
+            "version": "6",
+            "when": 1771783955623,
+            "tag": "0001_rename_task_history_to_tasks_and_prompt_to_description",
+            "breakpoints": true
         }
     ]
 }

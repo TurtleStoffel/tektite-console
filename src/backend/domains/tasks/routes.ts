@@ -5,7 +5,7 @@ import { tasksService } from "./service";
 type RouteRequest = Request & { params: Record<string, string> };
 
 const createTaskSchema = z.object({
-    prompt: z.string().trim().min(1),
+    description: z.string().trim().min(1),
     projectId: z.string().optional().nullable(),
 });
 const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });

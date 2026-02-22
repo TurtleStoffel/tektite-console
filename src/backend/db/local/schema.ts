@@ -22,12 +22,12 @@ export const documents = sqliteTable("documents", {
     markdown: text("markdown").notNull(),
 });
 
-export const tasks = sqliteTable("task_history", {
+export const tasks = sqliteTable("tasks", {
     id: text("id").primaryKey(),
     projectId: text("project_id").references(() => projects.id, {
         onDelete: "set null",
     }),
-    prompt: text("prompt").notNull(),
+    description: text("description").notNull(),
     createdAt: text("created_at").notNull(),
     isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
     doneAt: text("done_at"),

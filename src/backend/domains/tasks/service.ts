@@ -15,7 +15,7 @@ export const tasksService = {
         return rows.map((row) => ({
             id: row.id,
             projectId: row.projectId,
-            prompt: row.prompt,
+            description: row.description,
             createdAt: row.createdAt,
             isDone: row.isDone,
             doneAt: row.doneAt,
@@ -30,14 +30,14 @@ export const tasksService = {
         return rows.map((row) => ({
             id: row.id,
             projectId: row.projectId,
-            prompt: row.prompt,
+            description: row.description,
             createdAt: row.createdAt,
             isDone: row.isDone,
             doneAt: row.doneAt,
         }));
     },
 
-    async createTask(input: { projectId?: string | null; prompt: string }) {
+    async createTask(input: { projectId?: string | null; description: string }) {
         const projectId = normalizeProjectId(input.projectId);
         if (projectId) {
             const project = await repository.findProject(projectId);
@@ -49,7 +49,7 @@ export const tasksService = {
         await repository.createTask({
             id,
             projectId,
-            prompt: input.prompt,
+            description: input.description,
             createdAt,
             isDone: false,
             doneAt: null,
@@ -58,7 +58,7 @@ export const tasksService = {
         return {
             id,
             projectId,
-            prompt: input.prompt,
+            description: input.description,
             createdAt,
             isDone: false,
             doneAt: null,

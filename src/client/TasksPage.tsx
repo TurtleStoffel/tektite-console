@@ -10,7 +10,7 @@ type TasksPageProps = {
 type TaskItem = {
     id: string;
     projectId: string | null;
-    prompt: string;
+    description: string;
     createdAt: string;
     isDone: boolean;
     doneAt: string | null;
@@ -178,7 +178,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                 <th>Created</th>
                                 <th>State</th>
                                 <th>Project</th>
-                                <th>Prompt</th>
+                                <th>Description</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -200,7 +200,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                                     <td className="whitespace-nowrap text-sm text-base-content/80">
                                         {task.projectId ?? "Unassigned"}
                                     </td>
-                                    <td className="text-sm">{task.prompt}</td>
+                                    <td className="text-sm">{task.description}</td>
                                     <td className="whitespace-nowrap">
                                         <div className="flex items-center gap-2">
                                             <button

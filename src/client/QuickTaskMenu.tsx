@@ -4,7 +4,7 @@ import { useState } from "react";
 type CreateTaskResponse = {
     id: string;
     projectId: string | null;
-    prompt: string;
+    description: string;
     createdAt: string;
     isDone: boolean;
     doneAt: string | null;
@@ -18,11 +18,11 @@ export function QuickTaskMenu() {
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
     const createTaskMutation = useMutation({
-        mutationFn: async (prompt: string) => {
+        mutationFn: async (description: string) => {
             const response = await fetch("/api/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt, projectId: null }),
+                body: JSON.stringify({ description, projectId: null }),
             });
             const payload = (await response.json().catch(() => ({}))) as {
                 error?: string;

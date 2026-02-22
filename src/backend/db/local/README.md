@@ -8,7 +8,7 @@ This document describes the data models defined in `schema.ts` and how they rela
 erDiagram
     repositories ||--o{ projects : "repository_id -> id (SET NULL)"
     projects ||--o{ documents : "project_id -> id (SET NULL)"
-    projects ||--o{ task_history : "project_id -> id (SET NULL)"
+    projects ||--o{ tasks : "project_id -> id (SET NULL)"
 
     repositories {
         text id PK
@@ -28,10 +28,10 @@ erDiagram
         text markdown
     }
 
-    task_history {
+    tasks {
         text id PK
         text project_id FK
-        text prompt
+        text description
         text created_at
         boolean is_done
         text done_at
@@ -56,4 +56,4 @@ erDiagram
 ## Notes
 
 - `worktree_prompt_summaries` and `feature_flags` are standalone tables with no foreign-key connections in the current schema.
-- Foreign keys from `projects`, `documents`, and `task_history` use `ON DELETE SET NULL`.
+- Foreign keys from `projects`, `documents`, and `tasks` use `ON DELETE SET NULL`.

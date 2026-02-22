@@ -18,7 +18,7 @@ export function listTasks() {
         .select({
             id: tasks.id,
             projectId: tasks.projectId,
-            prompt: tasks.prompt,
+            description: tasks.description,
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
@@ -46,7 +46,7 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
         .select({
             id: tasks.id,
             projectId: tasks.projectId,
-            prompt: tasks.prompt,
+            description: tasks.description,
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
@@ -68,7 +68,7 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
         .select({
             id: tasks.id,
             projectId: tasks.projectId,
-            prompt: tasks.prompt,
+            description: tasks.description,
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
@@ -85,7 +85,7 @@ export async function findTaskById(taskId: string) {
         .select({
             id: tasks.id,
             projectId: tasks.projectId,
-            prompt: tasks.prompt,
+            description: tasks.description,
             createdAt: tasks.createdAt,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
@@ -99,7 +99,7 @@ export async function findTaskById(taskId: string) {
 export async function createTask(values: {
     id: string;
     projectId: string | null;
-    prompt: string;
+    description: string;
     createdAt: string;
     isDone: boolean;
     doneAt: string | null;

@@ -36,7 +36,7 @@ export default function TaskExecutionPanel({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                prompt: trimmedPrompt,
+                description: trimmedPrompt,
                 projectId,
             }),
             signal,

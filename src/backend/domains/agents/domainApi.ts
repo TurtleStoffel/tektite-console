@@ -49,9 +49,9 @@ type ExecuteByTaskIdError =
           message: string;
       };
 
-function requireTaskProject(task: { prompt: string; projectId: string | null }) {
+function requireTaskProject(task: { description: string; projectId: string | null }) {
     return task.projectId
-        ? Result.ok({ prompt: task.prompt, projectId: task.projectId })
+        ? Result.ok({ prompt: task.description, projectId: task.projectId })
         : Result.error<ExecuteByTaskIdError>({
               type: "task-project-missing",
               message: "Task is not linked to a project.",

@@ -20,7 +20,7 @@ type DocumentSummary = {
 type TaskItem = {
     id: string;
     projectId: string | null;
-    prompt: string;
+    description: string;
     createdAt: string;
     isDone: boolean;
     doneAt: string | null;
@@ -503,7 +503,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                         </button>
                                                     </div>
                                                     <p className="text-sm whitespace-pre-wrap break-words">
-                                                        {task.prompt}
+                                                        {task.description}
                                                     </p>
                                                 </div>
                                             ))}
