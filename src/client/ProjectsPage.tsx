@@ -145,10 +145,7 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                                 className="card bg-base-200 border border-base-300 shadow-md hover:shadow-lg transition-shadow"
                             >
                                 <div className="card-body">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <h2 className="card-title truncate">{name}</h2>
-                                        <div className="btn btn-outline btn-sm">View</div>
-                                    </div>
+                                    <h2 className="card-title truncate">{name}</h2>
                                 </div>
                             </Link>
                         );
