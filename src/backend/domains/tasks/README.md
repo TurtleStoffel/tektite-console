@@ -5,14 +5,14 @@ Stores and updates tasks that are pending or completed.
 
 ## Exported service functions
 
-### `tasksService.listTasks()`
+### `tasksService.listTasks(filter?)`
 ```mermaid
 sequenceDiagram
     participant Caller
     participant TasksService
     participant Repo
-    Caller->>TasksService: listTasks()
-    TasksService->>Repo: listTasks()
+    Caller->>TasksService: listTasks(filter?)
+    TasksService->>Repo: listTasks/listTasksWithFilter
     TasksService-->>Caller: tasks
 ```
 
@@ -63,6 +63,18 @@ sequenceDiagram
     TasksService-->>Caller: updated task/404
 ```
 
+### `tasksService.deleteTask(taskId)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: deleteTask(taskId)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: deleteTask(taskId)
+    TasksService-->>Caller: deleted task/404
+```
+
 ## HTTP APIs (routes)
 
 ### `GET /api/tasks`
@@ -71,8 +83,8 @@ sequenceDiagram
     participant Client
     participant Route
     participant TasksService
-    Client->>Route: GET /api/tasks
-    Route->>TasksService: listTasks()
+    Client->>Route: GET /api/tasks?isDone=&project=
+    Route->>TasksService: listTasks(filter?)
     TasksService-->>Route: tasks
     Route-->>Client: JSON
 ```
@@ -110,5 +122,17 @@ sequenceDiagram
     Client->>Route: POST /api/tasks/:id/done
     Route->>TasksService: markTaskDone(id)
     TasksService-->>Route: updated/404
+    Route-->>Client: JSON
+```
+
+### `DELETE /api/tasks/:id`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: DELETE /api/tasks/:id
+    Route->>TasksService: deleteTask(id)
+    TasksService-->>Route: deleted/404
     Route-->>Client: JSON
 ```
