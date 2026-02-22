@@ -87,6 +87,19 @@ sequenceDiagram
     TasksService-->>Caller: deleted task/404
 ```
 
+### `tasksService.updateTaskProject(input)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: updateTaskProject(...)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: findProject(projectId optional)
+    TasksService->>Repo: updateTaskProject(...)
+    TasksService-->>Caller: updated task/404
+```
+
 ## HTTP APIs (routes)
 
 ### `GET /api/tasks`
@@ -146,5 +159,17 @@ sequenceDiagram
     Client->>Route: DELETE /api/tasks/:id
     Route->>TasksService: deleteTask(id)
     TasksService-->>Route: deleted/404
+    Route-->>Client: JSON
+```
+
+### `PUT /api/tasks/:id`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: PUT /api/tasks/:id
+    Route->>TasksService: updateTaskProject(...)
+    TasksService-->>Route: updated/404
     Route-->>Client: JSON
 ```

@@ -9,6 +9,9 @@ const createTaskSchema = z.object({
     projectId: z.string().optional().nullable(),
 });
 const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const updateTaskBodySchema = z.object({
+    projectId: z.string().trim().min(1).nullable().optional(),
+});
 const tasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
     project: z.enum(["assigned", "unassigned"]).optional(),
@@ -121,6 +124,36 @@ export function createTaskRoutes() {
             },
         },
         "/api/tasks/:id": {
+            async PUT(req: RouteRequest) {
+                const parsedParams = parseInput({
+                    input: req.params,
+                    schema: taskIdParamSchema,
+                    domain: "tasks",
+                    context: "tasks:update",
+                    errorMessage: "Task id is required.",
+                });
+                if ("response" in parsedParams) return parsedParams.response;
+
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: updateTaskBodySchema,
+                    domain: "tasks",
+                    context: "tasks:update",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await tasksService.updateTaskProject({
+                    taskId: parsedParams.data.id,
+                    projectId: parsedBody.data.projectId ?? null,
+                });
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
             async DELETE(req: RouteRequest) {
                 const parsedParams = parseInput({
                     input: req.params,
