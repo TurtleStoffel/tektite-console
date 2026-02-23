@@ -11,7 +11,34 @@ type ProjectSummary = {
     id: string;
     name: string | null;
     url: string | null;
+    sortOrder: number;
 };
+
+const SORT_ORDER_GAP = 1024;
+
+function getSortOrderForMove(options: {
+    list: { sortOrder: number }[];
+    currentIndex: number;
+    targetIndex: number;
+}) {
+    const listWithoutCurrent = options.list.filter((_, index) => index !== options.currentIndex);
+    const insertIndex =
+        options.targetIndex > options.currentIndex ? options.targetIndex - 1 : options.targetIndex;
+    const before = listWithoutCurrent[insertIndex - 1] ?? null;
+    const after = listWithoutCurrent[insertIndex] ?? null;
+
+    if (before && after) {
+        return Math.floor((before.sortOrder + after.sortOrder) / 2);
+    }
+    if (!before && after) {
+        return after.sortOrder - SORT_ORDER_GAP;
+    }
+    if (before && !after) {
+        return before.sortOrder + SORT_ORDER_GAP;
+    }
+
+    return options.list[options.currentIndex]?.sortOrder ?? 0;
+}
 
 export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     const [newProjectName, setNewProjectName] = useState("");
@@ -57,15 +84,56 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         },
     });
 
+    const reorderProjectsMutation = useMutation({
+        mutationFn: async (input: { projectId: string; sortOrder: number }) => {
+            const response = await fetch("/api/projects/order", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(input),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.error || "Failed to reorder projects.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["projects"] });
+        },
+    });
+
     const handleCreateProject = useCallback(() => {
         const name = newProjectName.trim();
         if (!name) return;
         createProjectMutation.mutate({ name });
     }, [createProjectMutation, newProjectName]);
 
+    const handleMoveProject = useCallback(
+        (projectId: string, direction: "up" | "down") => {
+            const currentIndex = projects.findIndex((project) => project.id === projectId);
+            if (currentIndex < 0) {
+                throw new Error("Project to reorder was not found in list.");
+            }
+
+            const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= projects.length) {
+                return;
+            }
+
+            const sortOrder = getSortOrderForMove({
+                list: projects,
+                currentIndex,
+                targetIndex,
+            });
+            reorderProjectsMutation.mutate({ projectId, sortOrder });
+        },
+        [projects, reorderProjectsMutation],
+    );
+
     const projectsError = getErrorMessage(projectsErrorRaw);
     const createError = getErrorMessage(createProjectMutation.error);
+    const reorderError = getErrorMessage(reorderProjectsMutation.error);
     const isCreating = createProjectMutation.isPending;
+    const isReordering = reorderProjectsMutation.isPending;
 
     return (
         <div className="max-w-6xl w-full mx-auto p-8 text-center space-y-8 relative z-10">
@@ -84,6 +152,11 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
             {projectsError && (
                 <div className="alert alert-error text-left">
                     <span>{projectsError}</span>
+                </div>
+            )}
+            {reorderError && (
+                <div className="alert alert-error text-left">
+                    <span>{reorderError}</span>
                 </div>
             )}
 
@@ -136,18 +209,46 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                 </div>
             ) : (
                 <div className="space-y-3 text-left">
-                    {projects.map((project: ProjectSummary) => {
+                    {projects.map((project: ProjectSummary, index) => {
                         const name = project.name?.trim() || "Untitled";
                         return (
-                            <Link
+                            <div
                                 key={project.id}
-                                to={`/projects/${project.id}`}
-                                className="card bg-base-200 border border-base-300 shadow-md hover:shadow-lg transition-shadow"
+                                className="card bg-base-200 border border-base-300 shadow-md"
                             >
                                 <div className="card-body">
-                                    <h2 className="card-title truncate">{name}</h2>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <Link
+                                            to={`/projects/${project.id}`}
+                                            className="card-title truncate hover:underline"
+                                        >
+                                            {name}
+                                        </Link>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-ghost"
+                                                disabled={isReordering || index === 0}
+                                                onClick={() => handleMoveProject(project.id, "up")}
+                                            >
+                                                Up
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-ghost"
+                                                disabled={
+                                                    isReordering || index === projects.length - 1
+                                                }
+                                                onClick={() =>
+                                                    handleMoveProject(project.id, "down")
+                                                }
+                                            >
+                                                Down
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </Link>
+                            </div>
                         );
                     })}
                 </div>

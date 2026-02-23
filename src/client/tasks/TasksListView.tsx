@@ -6,9 +6,12 @@ type TasksListViewProps = {
     isMarkingDone: boolean;
     isDeleting: boolean;
     isUpdatingProject: boolean;
+    isReordering: boolean;
+    canReorder: boolean;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
+    onMoveTask: (taskId: string, direction: "up" | "down") => void;
 };
 
 export function TasksListView({
@@ -17,9 +20,12 @@ export function TasksListView({
     isMarkingDone,
     isDeleting,
     isUpdatingProject,
+    isReordering,
+    canReorder,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
+    onMoveTask,
 }: TasksListViewProps) {
     return (
         <div className="overflow-x-auto card bg-base-200 border border-base-300 shadow-md">
@@ -29,11 +35,12 @@ export function TasksListView({
                         <th>State</th>
                         <th>Project</th>
                         <th>Description</th>
+                        <th>Order</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {tasks.map((task) => (
+                    {tasks.map((task, index) => (
                         <tr key={task.id}>
                             <td className="whitespace-nowrap">
                                 <span
@@ -66,6 +73,38 @@ export function TasksListView({
                                 </label>
                             </td>
                             <td className="text-sm">{task.description}</td>
+                            <td className="whitespace-nowrap">
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-ghost"
+                                        disabled={
+                                            isReordering ||
+                                            !canReorder ||
+                                            index === 0 ||
+                                            isMarkingDone ||
+                                            isDeleting
+                                        }
+                                        onClick={() => onMoveTask(task.id, "up")}
+                                    >
+                                        Up
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-ghost"
+                                        disabled={
+                                            isReordering ||
+                                            !canReorder ||
+                                            index === tasks.length - 1 ||
+                                            isMarkingDone ||
+                                            isDeleting
+                                        }
+                                        onClick={() => onMoveTask(task.id, "down")}
+                                    >
+                                        Down
+                                    </button>
+                                </div>
+                            </td>
                             <td className="whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                     <button

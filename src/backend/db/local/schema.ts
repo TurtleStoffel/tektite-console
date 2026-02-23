@@ -9,6 +9,7 @@ export const repositories = sqliteTable("repositories", {
 export const projects = sqliteTable("projects", {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
     repositoryId: text("repository_id").references(() => repositories.id, {
         onDelete: "set null",
     }),
@@ -26,6 +27,7 @@ export const tasks = sqliteTable("tasks", {
     id: text("id").primaryKey(),
     description: text("description").notNull(),
     createdAt: text("created_at").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
     isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
     doneAt: text("done_at"),
 });

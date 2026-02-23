@@ -11,6 +11,7 @@ export function createProjectsService(options: { clonesDir: string }) {
             return rows.map((project) => ({
                 id: project.id,
                 name: project.name,
+                sortOrder: project.sortOrder,
                 repositoryId: project.repositoryId ?? null,
                 url: project.url ?? null,
             }));
@@ -33,12 +34,24 @@ export function createProjectsService(options: { clonesDir: string }) {
             }
 
             const projectId = randomUUID();
+            const sortOrder = await repository.getNextProjectSortOrder();
             await repository.createProject({
                 id: projectId,
                 name: input.name,
+                sortOrder,
                 repositoryId: input.repositoryId || null,
             });
             return { id: projectId, name: input.name, url: linkedRepositoryUrl };
+        },
+
+        async reorderProjects(input: { projectId: string; sortOrder: number }) {
+            const updated = await repository.updateProjectSortOrder(input);
+            if (updated.length === 0) {
+                return { error: "Project not found.", status: 404 as const };
+            }
+
+            console.info("[projects] reordered", input);
+            return { reordered: 1 };
         },
 
         async getProject(projectId: string) {

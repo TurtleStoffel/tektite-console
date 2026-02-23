@@ -14,6 +14,7 @@ export const tasksService = {
             : await repository.listTasks();
         return rows.map((row) => ({
             id: row.id,
+            sortOrder: row.sortOrder,
             projectId: row.projectId,
             description: row.description,
             createdAt: row.createdAt,
@@ -33,6 +34,7 @@ export const tasksService = {
         const rows = await repository.listProjectTasks(projectId, filter);
         return rows.map((row) => ({
             id: row.id,
+            sortOrder: row.sortOrder,
             projectId: row.projectId,
             description: row.description,
             createdAt: row.createdAt,
@@ -54,23 +56,36 @@ export const tasksService = {
 
         const id = randomUUID();
         const createdAt = new Date().toISOString();
+        const sortOrder = await repository.getNextTaskSortOrder();
         await repository.createTask({
             id,
             projectId,
             description: input.description,
             createdAt,
+            sortOrder,
             isDone: false,
             doneAt: null,
         });
         console.info("[tasks] created task", { id, projectId });
         return {
             id,
+            sortOrder,
             projectId,
             description: input.description,
             createdAt,
             isDone: false,
             doneAt: null,
         };
+    },
+
+    async reorderTasks(input: { taskId: string; sortOrder: number }) {
+        const updated = await repository.updateTaskSortOrder(input);
+        if (updated.length === 0) {
+            return { error: "Task not found.", status: 404 as const };
+        }
+
+        console.info("[tasks] reordered", input);
+        return { reordered: 1 };
     },
 
     async getTaskById(taskId: string) {

@@ -10,6 +10,10 @@ const updateProjectRepositoryBodySchema = z.object({
     repositoryId: z.string().trim().min(1).nullable().optional(),
 });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const reorderProjectsBodySchema = z.object({
+    projectId: z.string().trim().min(1),
+    sortOrder: z.number().int(),
+});
 type RouteRequest = Request & { params?: Record<string, string | undefined> };
 
 export function createProjectRoutes(options: { clonesDir: string }) {
@@ -35,6 +39,27 @@ export function createProjectRoutes(options: { clonesDir: string }) {
                 const name = parsed.data.name;
                 const repositoryId = parsed.data.repositoryId?.trim() ?? "";
                 const result = await service.createProject({ name, repositoryId });
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+
+                return Response.json(result);
+            },
+        },
+        "/api/projects/order": {
+            async PUT(req: Request) {
+                const parsed = await parseJsonBody({
+                    req,
+                    schema: reorderProjectsBodySchema,
+                    domain: "projects",
+                    context: "projects:reorder",
+                });
+                if ("response" in parsed) return parsed.response;
+
+                const result = await service.reorderProjects(parsed.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

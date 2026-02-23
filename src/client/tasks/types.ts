@@ -1,5 +1,6 @@
 export type TaskItem = {
     id: string;
+    sortOrder: number;
     projectId: string | null;
     description: string;
     isDone: boolean;
