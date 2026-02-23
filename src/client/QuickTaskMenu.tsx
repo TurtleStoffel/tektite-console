@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 type CreateTaskResponse = {
@@ -10,19 +10,40 @@ type CreateTaskResponse = {
     doneAt: string | null;
 };
 
+type ProjectOption = {
+    id: string;
+    name: string | null;
+};
+
 export function QuickTaskMenu() {
     const queryClient = useQueryClient();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [taskPrompt, setTaskPrompt] = useState("");
+    const [selectedProjectId, setSelectedProjectId] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+    const { data: projects = [], isLoading: isProjectsLoading } = useQuery<ProjectOption[]>({
+        queryKey: ["projects"],
+        queryFn: async () => {
+            console.info("[quick-task] loading projects for assignment...");
+            const res = await fetch("/api/projects");
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to load projects.");
+            }
+            const list = Array.isArray(payload?.data) ? (payload.data as ProjectOption[]) : [];
+            console.info(`[quick-task] loaded ${list.length} projects for assignment.`);
+            return list;
+        },
+    });
+
     const createTaskMutation = useMutation({
-        mutationFn: async (description: string) => {
+        mutationFn: async (input: { description: string; projectId: string | null }) => {
             const response = await fetch("/api/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ description, projectId: null }),
+                body: JSON.stringify(input),
             });
             const payload = (await response.json().catch(() => ({}))) as {
                 error?: string;
@@ -39,9 +60,14 @@ export function QuickTaskMenu() {
             return payload as CreateTaskResponse;
         },
         onSuccess: async (createdTask) => {
-            console.info("[quick-task] created unassigned task", { id: createdTask.id });
+            console.info("[quick-task] created quick task", {
+                id: createdTask.id,
+                projectId: createdTask.projectId,
+            });
             await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
             setTaskPrompt("");
+            setSelectedProjectId("");
             setValidationMessage(null);
             setStatusMessage("Quick task created.");
             setIsModalOpen(false);
@@ -57,6 +83,7 @@ export function QuickTaskMenu() {
     const handleOpenModal = () => {
         setStatusMessage(null);
         setValidationMessage(null);
+        setSelectedProjectId("");
         setIsModalOpen(true);
     };
 
@@ -69,7 +96,10 @@ export function QuickTaskMenu() {
 
         setValidationMessage(null);
         setStatusMessage(null);
-        createTaskMutation.mutate(trimmedPrompt);
+        createTaskMutation.mutate({
+            description: trimmedPrompt,
+            projectId: selectedProjectId || null,
+        });
     };
 
     const handleCloseModal = () => {
@@ -101,8 +131,26 @@ export function QuickTaskMenu() {
                 <div className="modal-box max-w-xl space-y-4">
                     <h3 className="text-lg font-semibold">Create Quick Task</h3>
                     <p className="text-sm text-base-content/70">
-                        This creates a task that is not tied to the current project.
+                        Create a task now and optionally attach it to a project.
                     </p>
+                    <label className="form-control w-full">
+                        <div className="label pb-1">
+                            <span className="label-text">Project</span>
+                        </div>
+                        <select
+                            className="select select-bordered w-full"
+                            value={selectedProjectId}
+                            onChange={(event) => setSelectedProjectId(event.target.value)}
+                            disabled={createTaskMutation.isPending || isProjectsLoading}
+                        >
+                            <option value="">Unassigned</option>
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                    {project.name?.trim() || project.id}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                     <textarea
                         className="textarea textarea-bordered min-h-28 w-full"
                         placeholder="Enter task"
