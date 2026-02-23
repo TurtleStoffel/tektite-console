@@ -47,3 +47,7 @@ If a split introduces many props/callbacks, the boundary is likely too low-level
 Prefer a feature/container component that owns closely-related UI state and actions, and pass a smaller, stable API to presentational children.
 
 When in doubt, reduce prop drilling before adding more wrapper components.
+
+4. Keep React components reasonably small
+- When a component grows beyond a reasonable review size (roughly 200-250 lines), split it into focused child components by responsibility.
+- Keep container/page components responsible for orchestration and state ownership, and move dense UI blocks (tables, panels, canvases, forms) into dedicated components.
