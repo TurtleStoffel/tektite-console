@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { projects, repositories, worktreePromptSummaries } from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
@@ -13,8 +13,25 @@ export function listProjects() {
         })
         .from(projects)
         .leftJoin(repositories, eq(projects.repositoryId, repositories.id))
-        .orderBy(asc(projects.name))
+        .orderBy(asc(projects.sortOrder), asc(projects.name), asc(projects.id))
         .execute();
+}
+
+export async function listProjectIds() {
+    const db = getDb();
+    const rows = await db.select({ id: projects.id }).from(projects).execute();
+    return rows.map((row) => row.id);
+}
+
+export async function getNextProjectSortOrder() {
+    const db = getDb();
+    const rows = await db
+        .select({
+            nextSortOrder: sql<number>`coalesce(max(${projects.sortOrder}), -1) + 1`,
+        })
+        .from(projects)
+        .execute();
+    return rows[0]?.nextSortOrder ?? 0;
 }
 
 export async function findRepositoryById(repositoryId: string) {
@@ -58,10 +75,24 @@ export async function hasOtherProjectForRepository(options: {
 export async function createProject(values: {
     id: string;
     name: string;
+    sortOrder: number;
     repositoryId: string | null;
 }) {
     const db = getDb();
     await db.insert(projects).values(values).execute();
+}
+
+export async function reorderProjects(orderedProjectIds: string[]) {
+    const db = getDb();
+    await db.transaction(async (tx) => {
+        for (const [sortOrder, projectId] of orderedProjectIds.entries()) {
+            await tx
+                .update(projects)
+                .set({ sortOrder })
+                .where(eq(projects.id, projectId))
+                .execute();
+        }
+    });
 }
 
 export async function findProjectById(projectId: string) {

@@ -54,11 +54,13 @@ export const tasksService = {
 
         const id = randomUUID();
         const createdAt = new Date().toISOString();
+        const sortOrder = await repository.getNextTaskSortOrder();
         await repository.createTask({
             id,
             projectId,
             description: input.description,
             createdAt,
+            sortOrder,
             isDone: false,
             doneAt: null,
         });
@@ -71,6 +73,34 @@ export const tasksService = {
             isDone: false,
             doneAt: null,
         };
+    },
+
+    async reorderTasks(input: { orderedTaskIds: string[] }) {
+        const allTaskIds = await repository.listTaskIds();
+        if (allTaskIds.length !== input.orderedTaskIds.length) {
+            return {
+                error: "Task reorder payload must include all tasks.",
+                status: 400 as const,
+            };
+        }
+
+        const allTaskIdSet = new Set(allTaskIds);
+        const orderedTaskIdSet = new Set(input.orderedTaskIds);
+        if (allTaskIdSet.size !== orderedTaskIdSet.size) {
+            return {
+                error: "Task reorder payload includes duplicate ids.",
+                status: 400 as const,
+            };
+        }
+        for (const taskId of input.orderedTaskIds) {
+            if (!allTaskIdSet.has(taskId)) {
+                return { error: "Task not found.", status: 404 as const };
+            }
+        }
+
+        await repository.reorderTasks(input.orderedTaskIds);
+        console.info("[tasks] reordered", { total: input.orderedTaskIds.length });
+        return { reordered: input.orderedTaskIds.length };
     },
 
     async getTaskById(taskId: string) {

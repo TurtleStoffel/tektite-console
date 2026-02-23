@@ -171,6 +171,25 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
     });
 
+    const reorderTasksMutation = useMutation({
+        mutationFn: async (orderedTaskIds: string[]) => {
+            const res = await fetch("/api/tasks/order", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderedTaskIds }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to reorder tasks.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
+            console.info("[tasks] reordered");
+        },
+    });
+
     useEffect(() => {
         viewportRef.current = viewport;
     }, [viewport]);
@@ -339,6 +358,35 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     );
 
     const isCanvasView = viewMode === "canvas";
+    const canReorderTasks = statusFilter === "all" && projectFilter === "all";
+    const reorderTasksError = getErrorMessage(reorderTasksMutation.error);
+
+    const handleMoveTask = useCallback(
+        (taskId: string, direction: "up" | "down") => {
+            if (!canReorderTasks) {
+                throw new Error("Task reordering is only supported in the unfiltered list view.");
+            }
+
+            const currentIndex = tasks.findIndex((task) => task.id === taskId);
+            if (currentIndex < 0) {
+                throw new Error("Task to reorder was not found in list.");
+            }
+
+            const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= tasks.length) {
+                return;
+            }
+
+            const reorderedTasks = [...tasks];
+            const [movedTask] = reorderedTasks.splice(currentIndex, 1);
+            if (!movedTask) {
+                throw new Error("Expected task to move.");
+            }
+            reorderedTasks.splice(targetIndex, 0, movedTask);
+            reorderTasksMutation.mutate(reorderedTasks.map((task) => task.id));
+        },
+        [canReorderTasks, reorderTasksMutation, tasks],
+    );
 
     return (
         <div
@@ -376,6 +424,11 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             {tasksError && (
                 <div className="alert alert-error text-sm">
                     <span>{tasksError}</span>
+                </div>
+            )}
+            {reorderTasksError && (
+                <div className="alert alert-error text-sm">
+                    <span>{reorderTasksError}</span>
                 </div>
             )}
 
@@ -422,6 +475,11 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                             }
                         />
                     </label>
+                    {!canReorderTasks && (
+                        <div className="text-xs text-base-content/60">
+                            Switch filters to <strong>All</strong> to reorder tasks.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -466,9 +524,12 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     isMarkingDone={isMarkingDone}
                     isDeleting={isDeleting}
                     isUpdatingProject={isUpdatingProject}
+                    isReordering={reorderTasksMutation.isPending}
+                    canReorder={canReorderTasks}
                     onMarkDone={markDone}
                     onDeleteTask={deleteTask}
                     onUpdateTaskProject={updateTaskProject}
+                    onMoveTask={handleMoveTask}
                 />
             )}
         </div>

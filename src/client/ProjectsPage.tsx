@@ -57,15 +57,57 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
         },
     });
 
+    const reorderProjectsMutation = useMutation({
+        mutationFn: async (orderedProjectIds: string[]) => {
+            const response = await fetch("/api/projects/order", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderedProjectIds }),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload?.error || "Failed to reorder projects.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["projects"] });
+        },
+    });
+
     const handleCreateProject = useCallback(() => {
         const name = newProjectName.trim();
         if (!name) return;
         createProjectMutation.mutate({ name });
     }, [createProjectMutation, newProjectName]);
 
+    const handleMoveProject = useCallback(
+        (projectId: string, direction: "up" | "down") => {
+            const currentIndex = projects.findIndex((project) => project.id === projectId);
+            if (currentIndex < 0) {
+                throw new Error("Project to reorder was not found in list.");
+            }
+
+            const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+            if (targetIndex < 0 || targetIndex >= projects.length) {
+                return;
+            }
+
+            const reorderedProjects = [...projects];
+            const [movedProject] = reorderedProjects.splice(currentIndex, 1);
+            if (!movedProject) {
+                throw new Error("Expected project to move.");
+            }
+            reorderedProjects.splice(targetIndex, 0, movedProject);
+            reorderProjectsMutation.mutate(reorderedProjects.map((project) => project.id));
+        },
+        [projects, reorderProjectsMutation],
+    );
+
     const projectsError = getErrorMessage(projectsErrorRaw);
     const createError = getErrorMessage(createProjectMutation.error);
+    const reorderError = getErrorMessage(reorderProjectsMutation.error);
     const isCreating = createProjectMutation.isPending;
+    const isReordering = reorderProjectsMutation.isPending;
 
     return (
         <div className="max-w-6xl w-full mx-auto p-8 text-center space-y-8 relative z-10">
@@ -84,6 +126,11 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
             {projectsError && (
                 <div className="alert alert-error text-left">
                     <span>{projectsError}</span>
+                </div>
+            )}
+            {reorderError && (
+                <div className="alert alert-error text-left">
+                    <span>{reorderError}</span>
                 </div>
             )}
 
@@ -136,18 +183,46 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                 </div>
             ) : (
                 <div className="space-y-3 text-left">
-                    {projects.map((project: ProjectSummary) => {
+                    {projects.map((project: ProjectSummary, index) => {
                         const name = project.name?.trim() || "Untitled";
                         return (
-                            <Link
+                            <div
                                 key={project.id}
-                                to={`/projects/${project.id}`}
-                                className="card bg-base-200 border border-base-300 shadow-md hover:shadow-lg transition-shadow"
+                                className="card bg-base-200 border border-base-300 shadow-md"
                             >
                                 <div className="card-body">
-                                    <h2 className="card-title truncate">{name}</h2>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <Link
+                                            to={`/projects/${project.id}`}
+                                            className="card-title truncate hover:underline"
+                                        >
+                                            {name}
+                                        </Link>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-ghost"
+                                                disabled={isReordering || index === 0}
+                                                onClick={() => handleMoveProject(project.id, "up")}
+                                            >
+                                                Up
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-xs btn-ghost"
+                                                disabled={
+                                                    isReordering || index === projects.length - 1
+                                                }
+                                                onClick={() =>
+                                                    handleMoveProject(project.id, "down")
+                                                }
+                                            >
+                                                Down
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </Link>
+                            </div>
                         );
                     })}
                 </div>

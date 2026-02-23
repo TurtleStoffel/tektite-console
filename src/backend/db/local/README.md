@@ -21,6 +21,7 @@ erDiagram
     projects {
         text id PK
         text name
+        integer sort_order
         text repository_id FK
     }
 
@@ -34,6 +35,7 @@ erDiagram
         text id PK
         text description
         text created_at
+        integer sort_order
         boolean is_done
         text done_at
     }
@@ -76,3 +78,5 @@ erDiagram
 - `project_tasks.worktree_path` stores the task execution worktree path when an assigned task is executed.
 - `task_canvas_positions` stores persisted x/y coordinates for each task's infinite canvas card.
 - `task_canvas_positions.task_id` is both PK and FK, so each task has at most one persisted position row.
+- `projects.sort_order` stores the manual ordering shown in the Projects list.
+- `tasks.sort_order` stores the manual ordering shown in task list views and project task lists.

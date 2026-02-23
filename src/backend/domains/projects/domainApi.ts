@@ -33,12 +33,42 @@ export function createProjectsService(options: { clonesDir: string }) {
             }
 
             const projectId = randomUUID();
+            const sortOrder = await repository.getNextProjectSortOrder();
             await repository.createProject({
                 id: projectId,
                 name: input.name,
+                sortOrder,
                 repositoryId: input.repositoryId || null,
             });
             return { id: projectId, name: input.name, url: linkedRepositoryUrl };
+        },
+
+        async reorderProjects(input: { orderedProjectIds: string[] }) {
+            const allProjectIds = await repository.listProjectIds();
+            if (allProjectIds.length !== input.orderedProjectIds.length) {
+                return {
+                    error: "Project reorder payload must include all projects.",
+                    status: 400 as const,
+                };
+            }
+
+            const allProjectIdSet = new Set(allProjectIds);
+            const orderedProjectIdSet = new Set(input.orderedProjectIds);
+            if (allProjectIdSet.size !== orderedProjectIdSet.size) {
+                return {
+                    error: "Project reorder payload includes duplicate ids.",
+                    status: 400 as const,
+                };
+            }
+            for (const projectId of input.orderedProjectIds) {
+                if (!allProjectIdSet.has(projectId)) {
+                    return { error: "Project not found.", status: 404 as const };
+                }
+            }
+
+            await repository.reorderProjects(input.orderedProjectIds);
+            console.info("[projects] reordered", { total: input.orderedProjectIds.length });
+            return { reordered: input.orderedProjectIds.length };
         },
 
         async getProject(projectId: string) {

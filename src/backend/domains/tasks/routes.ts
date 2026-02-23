@@ -24,6 +24,9 @@ const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const projectTasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
 });
+const reorderTasksBodySchema = z.object({
+    orderedTaskIds: z.array(z.string().trim().min(1)).min(1),
+});
 
 export function createTaskRoutes() {
     return {
@@ -97,6 +100,26 @@ export function createTaskRoutes() {
                             ? undefined
                             : parsedQuery.data.isDone === "true",
                 });
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+        },
+        "/api/tasks/order": {
+            async PUT(req: Request) {
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: reorderTasksBodySchema,
+                    domain: "tasks",
+                    context: "tasks:reorder",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await tasksService.reorderTasks(parsedBody.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

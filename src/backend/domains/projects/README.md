@@ -45,6 +45,21 @@ sequenceDiagram
     Route-->>Client: JSON
 ```
 
+### `PUT /api/projects/order`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant DomainApi
+    participant Repo
+    Client->>Route: PUT /api/projects/order
+    Route->>DomainApi: reorderProjects(...)
+    DomainApi->>Repo: listProjectIds()
+    DomainApi->>Repo: reorderProjects(...)
+    DomainApi-->>Route: reordered/error
+    Route-->>Client: JSON
+```
+
 ### `GET /api/projects/:id`
 ```mermaid
 sequenceDiagram

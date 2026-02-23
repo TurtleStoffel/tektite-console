@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, type SQL } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, type SQL, sql } from "drizzle-orm";
 import { projects, projectTasks, taskCanvasPositions, tasks } from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
@@ -28,8 +28,25 @@ export function listTasks() {
         .from(tasks)
         .leftJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
         .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
-        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .orderBy(asc(tasks.sortOrder), asc(tasks.createdAt), asc(tasks.id))
         .execute();
+}
+
+export async function listTaskIds() {
+    const db = getDb();
+    const rows = await db.select({ id: tasks.id }).from(tasks).execute();
+    return rows.map((row) => row.id);
+}
+
+export async function getNextTaskSortOrder() {
+    const db = getDb();
+    const rows = await db
+        .select({
+            nextSortOrder: sql<number>`coalesce(max(${tasks.sortOrder}), -1) + 1`,
+        })
+        .from(tasks)
+        .execute();
+    return rows[0]?.nextSortOrder ?? 0;
 }
 
 export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boolean } = {}) {
@@ -61,7 +78,7 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
         .leftJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
         .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(whereParts.length === 0 ? undefined : and(...whereParts))
-        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .orderBy(asc(tasks.sortOrder), asc(tasks.createdAt), asc(tasks.id))
         .execute();
 }
 
@@ -87,7 +104,7 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
         .innerJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
         .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(whereClause)
-        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .orderBy(asc(tasks.sortOrder), asc(tasks.createdAt), asc(tasks.id))
         .execute();
 }
 
@@ -129,7 +146,7 @@ export function listTasksByWorktreePath(worktreePath: string) {
         .innerJoin(projectTasks, eq(projectTasks.taskId, tasks.id))
         .leftJoin(taskCanvasPositions, eq(taskCanvasPositions.taskId, tasks.id))
         .where(eq(projectTasks.worktreePath, worktreePath))
-        .orderBy(desc(tasks.createdAt), desc(tasks.id))
+        .orderBy(asc(tasks.sortOrder), asc(tasks.createdAt), asc(tasks.id))
         .execute();
 }
 
@@ -138,6 +155,7 @@ export async function createTask(values: {
     projectId: string | null;
     description: string;
     createdAt: string;
+    sortOrder: number;
     isDone: boolean;
     doneAt: string | null;
 }) {
@@ -149,6 +167,7 @@ export async function createTask(values: {
                 id: values.id,
                 description: values.description,
                 createdAt: values.createdAt,
+                sortOrder: values.sortOrder,
                 isDone: values.isDone,
                 doneAt: values.doneAt,
             })
@@ -162,6 +181,15 @@ export async function createTask(values: {
                     taskId: values.id,
                 })
                 .execute();
+        }
+    });
+}
+
+export async function reorderTasks(orderedTaskIds: string[]) {
+    const db = getDb();
+    await db.transaction(async (tx) => {
+        for (const [sortOrder, taskId] of orderedTaskIds.entries()) {
+            await tx.update(tasks).set({ sortOrder }).where(eq(tasks.id, taskId)).execute();
         }
     });
 }

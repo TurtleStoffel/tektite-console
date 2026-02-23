@@ -40,6 +40,18 @@ sequenceDiagram
     TasksService-->>Caller: created task/404
 ```
 
+### `tasksService.reorderTasks(input)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: reorderTasks(...)
+    TasksService->>Repo: listTaskIds()
+    TasksService->>Repo: reorderTasks(...)
+    TasksService-->>Caller: reordered/404/400
+```
+
 ### `tasksService.getTaskById(taskId)`
 ```mermaid
 sequenceDiagram
@@ -147,6 +159,18 @@ sequenceDiagram
     Client->>Route: POST /api/tasks
     Route->>TasksService: createTask(...)
     TasksService-->>Route: created/error
+    Route-->>Client: JSON
+```
+
+### `PUT /api/tasks/order`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: PUT /api/tasks/order
+    Route->>TasksService: reorderTasks(...)
+    TasksService-->>Route: reordered/error
     Route-->>Client: JSON
 ```
 
