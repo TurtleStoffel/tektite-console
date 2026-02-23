@@ -1,7 +1,7 @@
 # git domain
 
 ## Purpose
-Provides git and GitHub CLI operations for worktree lifecycle and dev terminal flows.
+Provides git and GitHub API operations for worktree lifecycle and dev terminal flows.
 
 The pull-request cleanup worker also coordinates with the tasks domain: when a worktree is removed, any task linked through `project_tasks.worktree_path` is marked done. Cleanup skips worktrees younger than the configured minimum age to avoid deleting newly created worktrees before agent startup marks them active.
 
@@ -66,10 +66,10 @@ sequenceDiagram
     participant Caller
     participant GitService
     participant GitCLI
-    participant GhCLI
+    participant GitHubAPI
     Caller->>GitService: getPullRequestStatus(dir)
     GitService->>GitCLI: resolve branch
-    GitService->>GhCLI: gh pr list --head branch
+    GitService->>GitHubAPI: GET /repos/{owner}/{repo}/pulls?head=owner:branch
     GitService-->>Caller: pr status
 ```
 
@@ -124,10 +124,10 @@ sequenceDiagram
     participant Caller
     participant GitService
     participant GitCLI
-    participant GhCLI
+    participant GitHubAPI
     Caller->>GitService: finalizeGitState(dir)
     GitService->>GitCLI: push branch if ahead
-    GitService->>GhCLI: create PR if missing
+    GitService->>GitHubAPI: POST /repos/{owner}/{repo}/pulls if missing
     GitService-->>Caller: void
 ```
 

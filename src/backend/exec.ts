@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 export const execAsync = promisify(exec);
 export const execFileAsync = promisify(execFile);
 
-export type ExecError = NodeJS.ErrnoException & {
+type ExecError = NodeJS.ErrnoException & {
     killed?: boolean;
     signal?: string | null;
     cmd?: string;

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { type ExecError, execAsync, execFileAsync, isExecTimeoutError } from "../../exec";
+import { execAsync, isExecTimeoutError } from "../../exec";
 import {
     isWorktreeInUse,
     markCodexWorkspaceActive,
@@ -20,6 +20,20 @@ type PullRequestStatus = {
     number?: number;
     title?: string;
     url?: string;
+};
+
+type GithubRepoRef = {
+    owner: string;
+    repo: string;
+};
+
+type GithubPullRequest = {
+    number?: number;
+    title?: string;
+    html_url?: string;
+    state?: string;
+    draft?: boolean;
+    merged_at?: string | null;
 };
 
 export function sanitizeRepoName(name: string) {
@@ -51,39 +65,12 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
     }
 
     try {
-        const { stdout } = await execFileAsync(
-            "gh",
-            [
-                "pr",
-                "list",
-                "--state",
-                "all",
-                "--head",
-                branch,
-                "--json",
-                "number,state,title,url,mergedAt,isDraft",
-                "--limit",
-                "1",
-            ],
-            {
-                cwd: dir,
-                timeout: 15_000,
-                maxBuffer: 1024 * 1024,
-            },
-        );
-        const parsed = JSON.parse(stdout);
-        if (!Array.isArray(parsed) || parsed.length === 0) {
+        const repoRef = await getGithubRepoRef(dir);
+        if (!repoRef) {
             return { state: "none" };
         }
-
-        const [pr] = parsed as Array<{
-            number?: number;
-            state?: string;
-            title?: string;
-            url?: string;
-            mergedAt?: string | null;
-            isDraft?: boolean;
-        }>;
+        const pullRequests = await fetchPullRequestsByHead(repoRef, branch, "all");
+        const [pr] = pullRequests;
         if (!pr) {
             return { state: "none" };
         }
@@ -92,9 +79,9 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
         let mappedState: PullRequestState = "unknown";
 
         if (state === "open") {
-            mappedState = pr.isDraft ? "draft" : "open";
+            mappedState = pr.draft ? "draft" : "open";
         } else if (state === "closed") {
-            mappedState = pr.mergedAt ? "merged" : "closed";
+            mappedState = pr.merged_at ? "merged" : "closed";
         } else if (state === "merged") {
             mappedState = "merged";
         }
@@ -103,18 +90,10 @@ export async function getPullRequestStatus(dir: string): Promise<PullRequestStat
             state: mappedState,
             number: typeof pr.number === "number" ? pr.number : undefined,
             title: typeof pr.title === "string" ? pr.title : undefined,
-            url: typeof pr.url === "string" ? pr.url : undefined,
+            url: typeof pr.html_url === "string" ? pr.html_url : undefined,
         };
     } catch (error) {
         if (isExecTimeoutError(error)) {
-            return { state: "unknown" };
-        }
-
-        const execError = error as ExecError;
-        if (execError.code === "ENOENT") {
-            console.warn(
-                `Failed to read PR status for branch ${branch}; GitHub CLI (gh) not found.`,
-            );
             return { state: "unknown" };
         }
 
@@ -293,13 +272,12 @@ async function ensurePushed(dir: string, branch: string, upstream: string | null
 
 async function prExists(dir: string, branch: string) {
     try {
-        const { stdout } = await execFileAsync(
-            "gh",
-            ["pr", "list", "--state", "all", "--head", branch, "--json", "number", "--limit", "1"],
-            { cwd: dir, timeout: 15_000, maxBuffer: 1024 * 1024 },
-        );
-        const parsed = JSON.parse(stdout);
-        return Array.isArray(parsed) && parsed.length > 0;
+        const repoRef = await getGithubRepoRef(dir);
+        if (!repoRef) {
+            return true;
+        }
+        const pullRequests = await fetchPullRequestsByHead(repoRef, branch, "all");
+        return pullRequests.length > 0;
     } catch (error) {
         if (isExecTimeoutError(error)) {
             return true;
@@ -315,11 +293,24 @@ async function ensurePullRequest(dir: string, branch: string) {
         return;
     }
 
+    const repoRef = await getGithubRepoRef(dir);
+    if (!repoRef) {
+        console.warn(
+            `[codex] skipping PR creation for ${branch}; unable to resolve GitHub repository`,
+        );
+        return;
+    }
+
+    const defaultBranch = await resolveDefaultBranch(dir);
+    const title = await getPullRequestTitle(dir, branch);
+    const body = await getPullRequestBody(dir);
+
     console.log(`[codex] creating pull request for branch ${branch}`);
-    await execFileAsync("gh", ["pr", "create", "--fill", "--head", branch], {
-        cwd: dir,
-        timeout: 30_000,
-        maxBuffer: 1024 * 1024,
+    await createPullRequest(repoRef, {
+        head: branch,
+        base: defaultBranch,
+        title,
+        body,
     });
 }
 
@@ -387,5 +378,122 @@ export function extractWorktreeRepoRoot(worktreePath: string) {
         return { repoRoot, worktreeGitDir: absoluteGitDir };
     } catch {
         return null;
+    }
+}
+
+function getGithubToken() {
+    return process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? null;
+}
+
+async function getGithubRepoRef(dir: string): Promise<GithubRepoRef | null> {
+    const { stdout } = await execAsync("git config --get remote.origin.url", {
+        cwd: dir,
+        timeout: 5_000,
+    });
+    const remoteUrl = stdout.trim();
+    if (!remoteUrl) {
+        return null;
+    }
+
+    // Supports both SSH and HTTPS remotes, like git@github.com:owner/repo.git and https://github.com/owner/repo.git.
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/i);
+    if (!match) {
+        return null;
+    }
+    const owner = match[1];
+    const repo = match[2];
+    if (!owner || !repo) {
+        return null;
+    }
+
+    return { owner, repo };
+}
+
+async function fetchGithubApi<T>(url: string, init: RequestInit = {}): Promise<T> {
+    const token = getGithubToken();
+    if (!token) {
+        throw new Error("Missing GitHub token. Set GITHUB_TOKEN or GH_TOKEN.");
+    }
+
+    const headers = new Headers(init.headers);
+    headers.set("Accept", "application/vnd.github+json");
+    headers.set("Authorization", `Bearer ${token}`);
+    headers.set("X-GitHub-Api-Version", "2022-11-28");
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
+    try {
+        const response = await fetch(url, {
+            ...init,
+            headers,
+            signal: controller.signal,
+        });
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`GitHub API request failed (${response.status}): ${errorBody}`);
+        }
+        return (await response.json()) as T;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function fetchPullRequestsByHead(
+    repoRef: GithubRepoRef,
+    branch: string,
+    state: "open" | "closed" | "all",
+) {
+    const head = `${repoRef.owner}:${branch}`;
+    const params = new URLSearchParams({
+        state,
+        head,
+        per_page: "1",
+    });
+    const url = `https://api.github.com/repos/${repoRef.owner}/${repoRef.repo}/pulls?${params.toString()}`;
+    return fetchGithubApi<Array<GithubPullRequest>>(url);
+}
+
+async function createPullRequest(
+    repoRef: GithubRepoRef,
+    payload: { head: string; base: string; title: string; body: string },
+) {
+    const url = `https://api.github.com/repos/${repoRef.owner}/${repoRef.repo}/pulls`;
+    await fetchGithubApi(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            head: payload.head,
+            base: payload.base,
+            title: payload.title,
+            body: payload.body,
+            maintainer_can_modify: true,
+        }),
+    });
+}
+
+async function getPullRequestTitle(dir: string, branch: string) {
+    try {
+        const { stdout } = await execAsync("git log -1 --pretty=%s", {
+            cwd: dir,
+            timeout: 5_000,
+        });
+        const subject = stdout.trim();
+        return subject || `Update ${branch}`;
+    } catch {
+        return `Update ${branch}`;
+    }
+}
+
+async function getPullRequestBody(dir: string) {
+    try {
+        const { stdout } = await execAsync("git log -1 --pretty=%b", {
+            cwd: dir,
+            timeout: 5_000,
+            maxBuffer: 1024 * 1024,
+        });
+        return stdout.trim();
+    } catch {
+        return "";
     }
 }

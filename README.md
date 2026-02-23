@@ -23,11 +23,7 @@ It provides:
 ## Prerequisites
 
 - Bun installed
-- GitHub CLI (`gh`) installed and authenticated for GitHub-related features
-
-```bash
-gh auth status
-```
+- GitHub personal access token exported as `GITHUB_TOKEN` or `GH_TOKEN` for GitHub-related features
 
 ## Environment variables
 
