@@ -42,6 +42,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documents, setDocuments] = useState<DocumentSummary[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
     const [documentsError, setDocumentsError] = useState<string | null>(null);
+    const [documentActionError, setDocumentActionError] = useState<string | null>(null);
     const [projectActionError, setProjectActionError] = useState<string | null>(null);
     const [isWorktreeDetailsOpen, setIsWorktreeDetailsOpen] = useState(false);
     const queryClient = useQueryClient();
@@ -184,6 +185,36 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     });
     const markTaskDoneErrorMessage =
         markTaskDoneError instanceof Error ? markTaskDoneError.message : null;
+    const {
+        mutate: createProjectDocument,
+        isPending: creatingProjectDocument,
+        error: createProjectDocumentError,
+    } = useMutation({
+        mutationFn: async () => {
+            if (!id) throw new Error("Project id is missing.");
+            const res = await fetch(`/api/projects/${id}/documents`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ markdown: "# New document\n" }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to create document.");
+            }
+            console.info("[project-details] created project document", { projectId: id });
+            return payload as DocumentSummary;
+        },
+        onSuccess: async () => {
+            setDocumentActionError(null);
+            await loadDocuments();
+        },
+        onError: (err) => {
+            const message = err instanceof Error ? err.message : "Failed to create document.";
+            setDocumentActionError(message);
+        },
+    });
+    const createProjectDocumentErrorMessage =
+        createProjectDocumentError instanceof Error ? createProjectDocumentError.message : null;
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
@@ -521,23 +552,35 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
-                                                className="btn btn-outline btn-xs"
-                                                onClick={() => void loadDocuments()}
-                                                disabled={documentsLoading}
+                                                className="btn btn-primary btn-xs"
+                                                onClick={() => {
+                                                    setDocumentActionError(null);
+                                                    createProjectDocument();
+                                                }}
+                                                disabled={creatingProjectDocument}
                                             >
-                                                {documentsLoading ? "Refreshing..." : "Refresh"}
+                                                {creatingProjectDocument
+                                                    ? "Creating..."
+                                                    : "New document"}
                                             </button>
-                                            <Link
-                                                to="/documents"
-                                                className="btn btn-outline btn-xs"
-                                            >
-                                                Open documents
-                                            </Link>
                                         </div>
+                                    </div>
+                                    <div className="flex items-center justify-end">
+                                        <Link to="/documents" className="btn btn-outline btn-xs">
+                                            Open documents
+                                        </Link>
                                     </div>
                                     {documentsError && (
                                         <div className="alert alert-error py-2">
                                             <span className="text-sm">{documentsError}</span>
+                                        </div>
+                                    )}
+                                    {(documentActionError || createProjectDocumentErrorMessage) && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">
+                                                {documentActionError ??
+                                                    createProjectDocumentErrorMessage}
+                                            </span>
                                         </div>
                                     )}
                                     {documentsLoading ? (
