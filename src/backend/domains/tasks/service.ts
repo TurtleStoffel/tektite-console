@@ -14,6 +14,7 @@ export const tasksService = {
             : await repository.listTasks();
         return rows.map((row) => ({
             id: row.id,
+            sortOrder: row.sortOrder,
             projectId: row.projectId,
             description: row.description,
             createdAt: row.createdAt,
@@ -33,6 +34,7 @@ export const tasksService = {
         const rows = await repository.listProjectTasks(projectId, filter);
         return rows.map((row) => ({
             id: row.id,
+            sortOrder: row.sortOrder,
             projectId: row.projectId,
             description: row.description,
             createdAt: row.createdAt,
@@ -67,6 +69,7 @@ export const tasksService = {
         console.info("[tasks] created task", { id, projectId });
         return {
             id,
+            sortOrder,
             projectId,
             description: input.description,
             createdAt,
@@ -75,32 +78,14 @@ export const tasksService = {
         };
     },
 
-    async reorderTasks(input: { orderedTaskIds: string[] }) {
-        const allTaskIds = await repository.listTaskIds();
-        if (allTaskIds.length !== input.orderedTaskIds.length) {
-            return {
-                error: "Task reorder payload must include all tasks.",
-                status: 400 as const,
-            };
+    async reorderTasks(input: { taskId: string; sortOrder: number }) {
+        const updated = await repository.updateTaskSortOrder(input);
+        if (updated.length === 0) {
+            return { error: "Task not found.", status: 404 as const };
         }
 
-        const allTaskIdSet = new Set(allTaskIds);
-        const orderedTaskIdSet = new Set(input.orderedTaskIds);
-        if (allTaskIdSet.size !== orderedTaskIdSet.size) {
-            return {
-                error: "Task reorder payload includes duplicate ids.",
-                status: 400 as const,
-            };
-        }
-        for (const taskId of input.orderedTaskIds) {
-            if (!allTaskIdSet.has(taskId)) {
-                return { error: "Task not found.", status: 404 as const };
-            }
-        }
-
-        await repository.reorderTasks(input.orderedTaskIds);
-        console.info("[tasks] reordered", { total: input.orderedTaskIds.length });
-        return { reordered: input.orderedTaskIds.length };
+        console.info("[tasks] reordered", input);
+        return { reordered: 1 };
     },
 
     async getTaskById(taskId: string) {

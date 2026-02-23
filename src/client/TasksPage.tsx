@@ -13,6 +13,7 @@ type TasksPageProps = {
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const ZOOM_SENSITIVITY = 0.0015;
+const SORT_ORDER_GAP = 1024;
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
@@ -26,6 +27,30 @@ function getDefaultNodePosition(index: number): CanvasPoint {
         x: 120 + column * (320 + 24),
         y: 120 + row * (170 + 24),
     };
+}
+
+function getSortOrderForMove(options: {
+    list: { sortOrder: number }[];
+    currentIndex: number;
+    targetIndex: number;
+}) {
+    const listWithoutCurrent = options.list.filter((_, index) => index !== options.currentIndex);
+    const insertIndex =
+        options.targetIndex > options.currentIndex ? options.targetIndex - 1 : options.targetIndex;
+    const before = listWithoutCurrent[insertIndex - 1] ?? null;
+    const after = listWithoutCurrent[insertIndex] ?? null;
+
+    if (before && after) {
+        return Math.floor((before.sortOrder + after.sortOrder) / 2);
+    }
+    if (!before && after) {
+        return after.sortOrder - SORT_ORDER_GAP;
+    }
+    if (before && !after) {
+        return before.sortOrder + SORT_ORDER_GAP;
+    }
+
+    return options.list[options.currentIndex]?.sortOrder ?? 0;
 }
 
 export function TasksPage({ drawerToggleId }: TasksPageProps) {
@@ -172,11 +197,11 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     });
 
     const reorderTasksMutation = useMutation({
-        mutationFn: async (orderedTaskIds: string[]) => {
+        mutationFn: async (input: { taskId: string; sortOrder: number }) => {
             const res = await fetch("/api/tasks/order", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderedTaskIds }),
+                body: JSON.stringify(input),
             });
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -377,13 +402,12 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                 return;
             }
 
-            const reorderedTasks = [...tasks];
-            const [movedTask] = reorderedTasks.splice(currentIndex, 1);
-            if (!movedTask) {
-                throw new Error("Expected task to move.");
-            }
-            reorderedTasks.splice(targetIndex, 0, movedTask);
-            reorderTasksMutation.mutate(reorderedTasks.map((task) => task.id));
+            const sortOrder = getSortOrderForMove({
+                list: tasks,
+                currentIndex,
+                targetIndex,
+            });
+            reorderTasksMutation.mutate({ taskId, sortOrder });
         },
         [canReorderTasks, reorderTasksMutation, tasks],
     );

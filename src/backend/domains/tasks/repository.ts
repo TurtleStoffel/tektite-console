@@ -17,6 +17,7 @@ export function listTasks() {
     return db
         .select({
             id: tasks.id,
+            sortOrder: tasks.sortOrder,
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
@@ -32,17 +33,11 @@ export function listTasks() {
         .execute();
 }
 
-export async function listTaskIds() {
-    const db = getDb();
-    const rows = await db.select({ id: tasks.id }).from(tasks).execute();
-    return rows.map((row) => row.id);
-}
-
 export async function getNextTaskSortOrder() {
     const db = getDb();
     const rows = await db
         .select({
-            nextSortOrder: sql<number>`coalesce(max(${tasks.sortOrder}), -1) + 1`,
+            nextSortOrder: sql<number>`coalesce(max(${tasks.sortOrder}), -1024) + 1024`,
         })
         .from(tasks)
         .execute();
@@ -66,6 +61,7 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
     return db
         .select({
             id: tasks.id,
+            sortOrder: tasks.sortOrder,
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
@@ -92,6 +88,7 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
     return db
         .select({
             id: tasks.id,
+            sortOrder: tasks.sortOrder,
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
@@ -113,6 +110,7 @@ export async function findTaskById(taskId: string) {
     const rows = await db
         .select({
             id: tasks.id,
+            sortOrder: tasks.sortOrder,
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
@@ -134,6 +132,7 @@ export function listTasksByWorktreePath(worktreePath: string) {
     return db
         .select({
             id: tasks.id,
+            sortOrder: tasks.sortOrder,
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
@@ -185,13 +184,14 @@ export async function createTask(values: {
     });
 }
 
-export async function reorderTasks(orderedTaskIds: string[]) {
+export async function updateTaskSortOrder(input: { taskId: string; sortOrder: number }) {
     const db = getDb();
-    await db.transaction(async (tx) => {
-        for (const [sortOrder, taskId] of orderedTaskIds.entries()) {
-            await tx.update(tasks).set({ sortOrder }).where(eq(tasks.id, taskId)).execute();
-        }
-    });
+    return db
+        .update(tasks)
+        .set({ sortOrder: input.sortOrder })
+        .where(eq(tasks.id, input.taskId))
+        .returning({ id: tasks.id })
+        .execute();
 }
 
 export async function markTaskDone(taskId: string, doneAt: string) {

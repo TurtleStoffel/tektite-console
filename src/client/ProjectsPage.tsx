@@ -11,7 +11,34 @@ type ProjectSummary = {
     id: string;
     name: string | null;
     url: string | null;
+    sortOrder: number;
 };
+
+const SORT_ORDER_GAP = 1024;
+
+function getSortOrderForMove(options: {
+    list: { sortOrder: number }[];
+    currentIndex: number;
+    targetIndex: number;
+}) {
+    const listWithoutCurrent = options.list.filter((_, index) => index !== options.currentIndex);
+    const insertIndex =
+        options.targetIndex > options.currentIndex ? options.targetIndex - 1 : options.targetIndex;
+    const before = listWithoutCurrent[insertIndex - 1] ?? null;
+    const after = listWithoutCurrent[insertIndex] ?? null;
+
+    if (before && after) {
+        return Math.floor((before.sortOrder + after.sortOrder) / 2);
+    }
+    if (!before && after) {
+        return after.sortOrder - SORT_ORDER_GAP;
+    }
+    if (before && !after) {
+        return before.sortOrder + SORT_ORDER_GAP;
+    }
+
+    return options.list[options.currentIndex]?.sortOrder ?? 0;
+}
 
 export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     const [newProjectName, setNewProjectName] = useState("");
@@ -58,11 +85,11 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
     });
 
     const reorderProjectsMutation = useMutation({
-        mutationFn: async (orderedProjectIds: string[]) => {
+        mutationFn: async (input: { projectId: string; sortOrder: number }) => {
             const response = await fetch("/api/projects/order", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderedProjectIds }),
+                body: JSON.stringify(input),
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -92,13 +119,12 @@ export function ProjectsPage({ drawerToggleId }: ProjectsPageProps) {
                 return;
             }
 
-            const reorderedProjects = [...projects];
-            const [movedProject] = reorderedProjects.splice(currentIndex, 1);
-            if (!movedProject) {
-                throw new Error("Expected project to move.");
-            }
-            reorderedProjects.splice(targetIndex, 0, movedProject);
-            reorderProjectsMutation.mutate(reorderedProjects.map((project) => project.id));
+            const sortOrder = getSortOrderForMove({
+                list: projects,
+                currentIndex,
+                targetIndex,
+            });
+            reorderProjectsMutation.mutate({ projectId, sortOrder });
         },
         [projects, reorderProjectsMutation],
     );

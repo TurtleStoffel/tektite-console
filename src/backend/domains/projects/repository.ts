@@ -8,6 +8,7 @@ export function listProjects() {
         .select({
             id: projects.id,
             name: projects.name,
+            sortOrder: projects.sortOrder,
             repositoryId: projects.repositoryId,
             url: repositories.url,
         })
@@ -17,17 +18,11 @@ export function listProjects() {
         .execute();
 }
 
-export async function listProjectIds() {
-    const db = getDb();
-    const rows = await db.select({ id: projects.id }).from(projects).execute();
-    return rows.map((row) => row.id);
-}
-
 export async function getNextProjectSortOrder() {
     const db = getDb();
     const rows = await db
         .select({
-            nextSortOrder: sql<number>`coalesce(max(${projects.sortOrder}), -1) + 1`,
+            nextSortOrder: sql<number>`coalesce(max(${projects.sortOrder}), -1024) + 1024`,
         })
         .from(projects)
         .execute();
@@ -82,17 +77,14 @@ export async function createProject(values: {
     await db.insert(projects).values(values).execute();
 }
 
-export async function reorderProjects(orderedProjectIds: string[]) {
+export async function updateProjectSortOrder(input: { projectId: string; sortOrder: number }) {
     const db = getDb();
-    await db.transaction(async (tx) => {
-        for (const [sortOrder, projectId] of orderedProjectIds.entries()) {
-            await tx
-                .update(projects)
-                .set({ sortOrder })
-                .where(eq(projects.id, projectId))
-                .execute();
-        }
-    });
+    return db
+        .update(projects)
+        .set({ sortOrder: input.sortOrder })
+        .where(eq(projects.id, input.projectId))
+        .returning({ id: projects.id })
+        .execute();
 }
 
 export async function findProjectById(projectId: string) {

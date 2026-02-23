@@ -25,7 +25,8 @@ const projectTasksQuerySchema = z.object({
     isDone: z.enum(["true", "false"]).optional(),
 });
 const reorderTasksBodySchema = z.object({
-    orderedTaskIds: z.array(z.string().trim().min(1)).min(1),
+    taskId: z.string().trim().min(1),
+    sortOrder: z.number().int(),
 });
 
 export function createTaskRoutes() {

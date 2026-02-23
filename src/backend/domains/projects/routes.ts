@@ -11,7 +11,8 @@ const updateProjectRepositoryBodySchema = z.object({
 });
 const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const reorderProjectsBodySchema = z.object({
-    orderedProjectIds: z.array(z.string().trim().min(1)).min(1),
+    projectId: z.string().trim().min(1),
+    sortOrder: z.number().int(),
 });
 type RouteRequest = Request & { params?: Record<string, string | undefined> };
 
