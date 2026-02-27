@@ -13,7 +13,6 @@ type TasksListViewProps = {
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
-    onCreateConnection: (input: { taskId: string; connectedTaskId: string }) => void;
     onDeleteConnection: (input: { taskId: string; connectedTaskId: string }) => void;
     onMoveTask: (taskId: string, direction: "up" | "down") => void;
 };
@@ -31,7 +30,6 @@ export function TasksListView({
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
-    onCreateConnection,
     onDeleteConnection,
     onMoveTask,
 }: TasksListViewProps) {
@@ -101,41 +99,6 @@ export function TasksListView({
                                             {connectedTaskId.slice(0, 8)} x
                                         </button>
                                     ))}
-                                </div>
-                                <div className="mt-2">
-                                    <label className="form-control">
-                                        <select
-                                            className="select select-bordered select-xs"
-                                            defaultValue=""
-                                            disabled={isCreatingConnection || isDeletingConnection}
-                                            onChange={(event) => {
-                                                const connectedTaskId = event.target.value.trim();
-                                                if (connectedTaskId.length === 0) {
-                                                    return;
-                                                }
-                                                onCreateConnection({
-                                                    taskId: task.id,
-                                                    connectedTaskId,
-                                                });
-                                                event.target.value = "";
-                                            }}
-                                        >
-                                            <option value="">Connect to task...</option>
-                                            {tasks
-                                                .filter(
-                                                    (candidate) =>
-                                                        candidate.id !== task.id &&
-                                                        !task.connectionTaskIds.includes(
-                                                            candidate.id,
-                                                        ),
-                                                )
-                                                .map((candidate) => (
-                                                    <option key={candidate.id} value={candidate.id}>
-                                                        {candidate.description}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </label>
                                 </div>
                             </td>
                             <td className="whitespace-nowrap">

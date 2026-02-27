@@ -656,7 +656,6 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     onMarkDone={markDone}
                     onDeleteTask={deleteTask}
                     onUpdateTaskProject={updateTaskProject}
-                    onCreateConnection={createTaskConnection}
                     onDeleteConnection={deleteTaskConnection}
                     onMoveTask={handleMoveTask}
                 />
