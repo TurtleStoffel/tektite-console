@@ -6,6 +6,7 @@ import { TasksInfiniteCanvas } from "./tasks/TasksInfiniteCanvas";
 import { TasksListView } from "./tasks/TasksListView";
 import type { ProjectOption, TaskItem } from "./tasks/types";
 import { getErrorMessage } from "./utils/errors";
+import { executeTaskById } from "./utils/executeTaskById";
 
 type TasksPageProps = {
     drawerToggleId: string;
@@ -45,6 +46,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const [viewMode, setViewMode] = useState<"list" | "canvas">("list");
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editingDescription, setEditingDescription] = useState("");
+    const [executeStatusMessage, setExecuteStatusMessage] = useState<string | null>(null);
 
     const {
         data: tasks = [],
@@ -260,6 +262,18 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             console.info("[tasks] task connection deleted");
         },
     });
+    const {
+        mutate: executeTask,
+        isPending: isExecutingTask,
+        variables: executingTaskId,
+        error: executeTaskErrorRaw,
+    } = useMutation({
+        mutationFn: async (taskId: string) => {
+            const result = await executeTaskById({ taskId });
+            console.info("[tasks] queued task execution", { taskId, runId: result.runId });
+            setExecuteStatusMessage(`Run queued (${result.runId.slice(0, 8)}...).`);
+        },
+    });
 
     const reorderTasksMutation = useMutation({
         mutationFn: async (input: { taskId: string; sortOrder: number }) => {
@@ -285,6 +299,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const isCanvasView = viewMode === "canvas";
     const canReorderTasks = statusFilter === "all" && projectFilter === "all";
     const reorderTasksError = getErrorMessage(reorderTasksMutation.error);
+    const executeTaskError = getErrorMessage(executeTaskErrorRaw);
 
     const handleMoveTask = useCallback(
         (taskId: string, direction: "up" | "down") => {
@@ -361,6 +376,16 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             {reorderTasksError && (
                 <div className="alert alert-error text-sm">
                     <span>{reorderTasksError}</span>
+                </div>
+            )}
+            {executeTaskError && (
+                <div className="alert alert-error text-sm">
+                    <span>{executeTaskError}</span>
+                </div>
+            )}
+            {executeStatusMessage && (
+                <div className="alert alert-info text-sm">
+                    <span>{executeStatusMessage}</span>
                 </div>
             )}
 
@@ -446,6 +471,9 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         onCreateTaskAtPosition={(input) => createTaskAtCanvasPosition(input)}
                         onConnectionCreate={(input) => createTaskConnection(input)}
                         onConnectionDelete={(input) => deleteTaskConnection(input)}
+                        onExecuteTask={(taskId) => executeTask(taskId)}
+                        isExecutingTask={isExecutingTask}
+                        executingTaskId={executingTaskId ?? null}
                         onTaskClick={(taskId) => {
                             const task = tasks.find((item) => item.id === taskId);
                             if (!task) {
