@@ -48,4 +48,3 @@
 - Prefer explicit failures over silent fallbacks.
 - Catch exceptions only when recovery is meaningful.
 - Add runtime logs that make backend flow and failures easy to trace.
-- Enforce domain invariants explicitly (for example, one active run per worktree path) and fail fast when violated instead of merging conflicting state.
