@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TaskCreateAtPositionModal } from "./TaskCreateAtPositionModal";
 import type { CanvasPoint, ProjectOption, TaskItem, Viewport } from "./types";
 
 type CanvasTask = TaskItem & { canvasPosition: CanvasPoint };
@@ -124,6 +125,8 @@ export function TasksInfiniteCanvas({
         fromTaskId: string;
         toPoint: CanvasPoint;
     } | null>(null);
+    const [createModalTargetPoint, setCreateModalTargetPoint] = useState<CanvasPoint | null>(null);
+    const [createModalDescription, setCreateModalDescription] = useState("");
 
     useEffect(() => {
         viewportRef.current = viewport;
@@ -229,24 +232,46 @@ export function TasksInfiniteCanvas({
             }
 
             event.preventDefault();
-            const description = window.prompt("Task description");
-            if (!description) {
-                return;
-            }
-
-            const trimmedDescription = description.trim();
-            if (trimmedDescription.length === 0) {
-                return;
-            }
-
             const world = screenToWorld(event.clientX, event.clientY);
             const x = Math.round(world.x);
             const y = Math.round(world.y);
-            console.info("[tasks-canvas] creating task from context menu", { x, y });
-            onCreateTaskAtPosition({ description: trimmedDescription, x, y });
+            setCreateModalDescription("");
+            setCreateModalTargetPoint({ x, y });
+            console.info("[tasks-canvas] opened create task modal from context menu", { x, y });
         },
-        [isCreatingTask, onCreateTaskAtPosition, screenToWorld],
+        [isCreatingTask, screenToWorld],
     );
+
+    const handleCreateModalClose = useCallback(() => {
+        if (isCreatingTask) {
+            return;
+        }
+        setCreateModalTargetPoint(null);
+        setCreateModalDescription("");
+    }, [isCreatingTask]);
+
+    const handleCreateModalSubmit = useCallback(() => {
+        if (!createModalTargetPoint) {
+            throw new Error("Create task modal is missing target point.");
+        }
+
+        const description = createModalDescription.trim();
+        if (description.length === 0) {
+            return;
+        }
+
+        console.info("[tasks-canvas] creating task from modal", {
+            x: createModalTargetPoint.x,
+            y: createModalTargetPoint.y,
+        });
+        onCreateTaskAtPosition({
+            description,
+            x: createModalTargetPoint.x,
+            y: createModalTargetPoint.y,
+        });
+        setCreateModalTargetPoint(null);
+        setCreateModalDescription("");
+    }, [createModalDescription, createModalTargetPoint, onCreateTaskAtPosition]);
 
     const handleCanvasPointerMove = useCallback(
         (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -643,6 +668,16 @@ export function TasksInfiniteCanvas({
                     </div>
                 </div>
             </div>
+            <TaskCreateAtPositionModal
+                isOpen={createModalTargetPoint !== null}
+                description={createModalDescription}
+                isCreating={isCreatingTask}
+                x={createModalTargetPoint?.x ?? null}
+                y={createModalTargetPoint?.y ?? null}
+                onDescriptionChange={setCreateModalDescription}
+                onClose={handleCreateModalClose}
+                onSubmit={handleCreateModalSubmit}
+            />
         </div>
     );
 }
