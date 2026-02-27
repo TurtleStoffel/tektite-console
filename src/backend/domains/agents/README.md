@@ -37,6 +37,7 @@ sequenceDiagram
     DomainApi->>Projects: getProjectById(task.projectId)
     DomainApi->>Git: prepareWorktree(...)
     DomainApi->>Tasks: setTaskWorktreePath(taskId, worktreePath)
+    DomainApi->>Tasks: markTaskInProgress(taskId)
     DomainApi->>DomainApi: enqueue detached run
     DomainApi-->>Route: { runId }
     Route-->>Client: 202 Accepted JSON

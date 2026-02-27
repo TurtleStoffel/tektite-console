@@ -110,6 +110,15 @@ export function TasksInfiniteCanvas({
     executingTaskId,
     onTaskClick,
 }: TasksInfiniteCanvasProps) {
+    const getTaskStateBadge = (task: TaskItem): { className: string; label: string } => {
+        if (task.state === "done") {
+            return { className: "badge-success", label: "Done" };
+        }
+        if (task.state === "in_progress") {
+            return { className: "badge-warning", label: "In progress" };
+        }
+        return { className: "badge-neutral", label: "To-do" };
+    };
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<{
         taskId: string;
@@ -588,99 +597,103 @@ export function TasksInfiniteCanvas({
                                     />
                                 )}
                         </svg>
-                        {canvasTasks.map((task) => (
-                            <article
-                                key={task.id}
-                                data-task-id={task.id}
-                                className="absolute bg-base-200 border border-base-300 rounded-lg shadow-md p-3 select-none"
-                                style={{
-                                    width: NODE_WIDTH,
-                                    minHeight: NODE_HEIGHT,
-                                    left: task.canvasPosition.x,
-                                    top: task.canvasPosition.y,
-                                }}
-                                onPointerDown={(event) => handleTaskPointerDown(task, event)}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span
-                                        className={`badge badge-sm ${task.isDone ? "badge-success" : "badge-warning"}`}
-                                    >
-                                        {task.isDone ? "Done" : "In progress"}
-                                    </span>
-                                    <span className="text-[11px] text-base-content/50">
-                                        {task.id.slice(0, 8)}
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-sm leading-5">{task.description}</p>
-                                <div className="mt-3">
-                                    <select
-                                        className="select select-bordered select-xs w-full"
-                                        value={task.projectId ?? ""}
-                                        disabled={isMarkingDone || isDeleting || isUpdatingProject}
-                                        onChange={(event) => {
-                                            const nextProjectId = event.target.value.trim() || null;
-                                            onUpdateTaskProject({
-                                                taskId: task.id,
-                                                projectId: nextProjectId,
-                                            });
-                                        }}
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {projects.map((project) => (
-                                            <option key={project.id} value={project.id}>
-                                                {project.name?.trim() || project.id}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="mt-3 flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        className="btn btn-xs btn-outline"
-                                        disabled={
-                                            isMarkingDone ||
-                                            isDeleting ||
-                                            isUpdatingProject ||
-                                            isCreatingConnection
-                                        }
-                                        onPointerDown={(event) =>
-                                            handleConnectionPointerDown(task, event)
-                                        }
-                                    >
-                                        Connect
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-xs btn-outline"
-                                        disabled={isExecutingTask || isMarkingDone || isDeleting}
-                                        onClick={() => onExecuteTask(task.id)}
-                                    >
-                                        {isExecutingTask && executingTaskId === task.id
-                                            ? "Executing..."
-                                            : "Execute"}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-xs btn-success"
-                                        disabled={task.isDone || isMarkingDone || isDeleting}
-                                        onClick={() => onMarkDone(task.id)}
-                                    >
-                                        Done
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-xs btn-error btn-outline"
-                                        disabled={isMarkingDone || isDeleting}
-                                        onClick={() => {
-                                            if (!window.confirm("Delete this task?")) return;
-                                            onDeleteTask(task.id);
-                                        }}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
+                        {canvasTasks.map((task) => {
+                            const stateBadge = getTaskStateBadge(task);
+                            return (
+                                <article
+                                    key={task.id}
+                                    data-task-id={task.id}
+                                    className="absolute bg-base-200 border border-base-300 rounded-lg shadow-md p-3 select-none"
+                                    style={{
+                                        width: NODE_WIDTH,
+                                        minHeight: NODE_HEIGHT,
+                                        left: task.canvasPosition.x,
+                                        top: task.canvasPosition.y,
+                                    }}
+                                    onPointerDown={(event) => handleTaskPointerDown(task, event)}
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className={`badge badge-sm ${stateBadge.className}`}>
+                                            {stateBadge.label}
+                                        </span>
+                                        <span className="text-[11px] text-base-content/50">
+                                            {task.id.slice(0, 8)}
+                                        </span>
+                                    </div>
+                                    <p className="mt-2 text-sm leading-5">{task.description}</p>
+                                    <div className="mt-3">
+                                        <select
+                                            className="select select-bordered select-xs w-full"
+                                            value={task.projectId ?? ""}
+                                            disabled={
+                                                isMarkingDone || isDeleting || isUpdatingProject
+                                            }
+                                            onChange={(event) => {
+                                                const nextProjectId =
+                                                    event.target.value.trim() || null;
+                                                onUpdateTaskProject({
+                                                    taskId: task.id,
+                                                    projectId: nextProjectId,
+                                                });
+                                            }}
+                                        >
+                                            <option value="">Unassigned</option>
+                                            {projects.map((project) => (
+                                                <option key={project.id} value={project.id}>
+                                                    {project.name?.trim() || project.id}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-xs btn-outline"
+                                            disabled={
+                                                isMarkingDone ||
+                                                isDeleting ||
+                                                isUpdatingProject ||
+                                                isCreatingConnection
+                                            }
+                                            onPointerDown={(event) =>
+                                                handleConnectionPointerDown(task, event)
+                                            }
+                                        >
+                                            Connect
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-xs btn-outline"
+                                            disabled={isExecutingTask || isMarkingDone || isDeleting}
+                                            onClick={() => onExecuteTask(task.id)}
+                                        >
+                                            {isExecutingTask && executingTaskId === task.id
+                                                ? "Executing..."
+                                                : "Execute"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-xs btn-success"
+                                            disabled={task.isDone || isMarkingDone || isDeleting}
+                                            onClick={() => onMarkDone(task.id)}
+                                        >
+                                            Done
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-xs btn-error btn-outline"
+                                            disabled={isMarkingDone || isDeleting}
+                                            onClick={() => {
+                                                if (!window.confirm("Delete this task?")) return;
+                                                onDeleteTask(task.id);
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </article>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@ export type TaskItem = {
     sortOrder: number;
     projectId: string | null;
     description: string;
+    state: "todo" | "in_progress" | "done";
     isDone: boolean;
     doneAt: string | null;
     connectionTaskIds: string[];

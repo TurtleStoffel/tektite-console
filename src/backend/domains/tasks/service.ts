@@ -37,6 +37,7 @@ function mapTaskRows(
         projectId: string | null;
         description: string;
         createdAt: string;
+        state: "todo" | "in_progress" | "done";
         isDone: boolean;
         doneAt: string | null;
         canvasPositionX: number | null;
@@ -50,7 +51,8 @@ function mapTaskRows(
         projectId: row.projectId,
         description: row.description,
         createdAt: row.createdAt,
-        isDone: row.isDone,
+        state: row.state,
+        isDone: row.state === "done",
         doneAt: row.doneAt,
         connectionTaskIds: taskConnectionMap.get(row.id) ?? [],
         canvasPosition:
@@ -102,6 +104,7 @@ export const tasksService = {
             description: input.description,
             createdAt,
             sortOrder,
+            state: "todo",
             isDone: false,
             doneAt: null,
         });
@@ -112,6 +115,7 @@ export const tasksService = {
             projectId,
             description: input.description,
             createdAt,
+            state: "todo",
             isDone: false,
             doneAt: null,
             connectionTaskIds: [],
@@ -151,9 +155,29 @@ export const tasksService = {
         const taskConnectionMap = buildTaskConnectionMap([task.id], taskConnections);
         return {
             ...task,
+            state: "done" as const,
             isDone: true,
             doneAt,
             connectionTaskIds: taskConnectionMap.get(task.id) ?? [],
+        };
+    },
+
+    async markTaskInProgress(taskId: string) {
+        const task = await repository.findTaskById(taskId);
+        if (!task) return { error: "Task not found.", status: 404 as const };
+        if (task.state === "done") {
+            return { error: "Done tasks cannot move back to in progress.", status: 400 as const };
+        }
+        if (task.state === "in_progress") {
+            return task;
+        }
+
+        await repository.markTaskInProgress(taskId);
+        console.info("[tasks] marked task in progress", { taskId });
+        return {
+            ...task,
+            state: "in_progress" as const,
+            isDone: false,
         };
     },
 
