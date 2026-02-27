@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { executeTaskById } from "./utils/executeTaskById";
 
 type TaskExecutionPanelProps = {
@@ -12,24 +12,10 @@ export default function TaskExecutionPanel({
 }: TaskExecutionPanelProps) {
     const [taskPrompt, setTaskPrompt] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
-    const [activeRuns, setActiveRuns] = useState(0);
+    const [isQueueing, setIsQueueing] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
-    const abortControllersRef = useRef<Set<AbortController>>(new Set());
 
-    useEffect(() => {
-        return () => {
-            for (const controller of abortControllersRef.current) {
-                controller.abort();
-            }
-            abortControllersRef.current.clear();
-        };
-    }, []);
-    const running = activeRuns > 0;
-
-    const createTask = async (
-        trimmedPrompt: string,
-        signal: AbortSignal,
-    ): Promise<{ id: string }> => {
+    const createTask = async (trimmedPrompt: string): Promise<{ id: string }> => {
         const createTaskRes = await fetch("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -37,7 +23,6 @@ export default function TaskExecutionPanel({
                 description: trimmedPrompt,
                 projectId,
             }),
-            signal,
         });
         const createTaskPayload = await createTaskRes.json().catch(() => ({}));
         if (!createTaskRes.ok) {
@@ -62,41 +47,26 @@ export default function TaskExecutionPanel({
 
         setValidationMessage(null);
         setTaskPrompt("");
-        setActiveRuns((count) => count + 1);
-        setStatusMessage("Creating task and starting Codex...");
-
-        const abortController = new AbortController();
-        abortControllersRef.current.add(abortController);
+        setIsQueueing(true);
+        setStatusMessage("Creating task and queueing Codex run...");
         console.log("[task-execution-panel] creating and executing task");
 
         try {
-            const createdTask = await createTask(trimmedPrompt, abortController.signal);
+            const createdTask = await createTask(trimmedPrompt);
 
-            setStatusMessage("Codex is running. Logs appear under the created worktree.");
             const result = await executeTaskById({
                 taskId: createdTask.id,
-                signal: abortController.signal,
-                onStarted: onTaskStarted,
+                onQueued: () => onTaskStarted(),
             });
-            if (!result.completed) {
-                setStatusMessage("Connection closed before Codex finished.");
-                return;
-            }
-
-            setStatusMessage(null);
-            console.log("[task-execution-panel] finished run");
+            setStatusMessage(`Run queued (${result.runId.slice(0, 8)}...).`);
+            console.info("[task-execution-panel] queued run", { runId: result.runId });
         } catch (error) {
-            if (abortController.signal.aborted) {
-                setStatusMessage("Execution cancelled.");
-                return;
-            }
             const message =
                 error instanceof Error ? error.message : "Unexpected error while executing.";
             setStatusMessage(`Error: ${message}`);
             console.warn("[task-execution-panel] run failed", error);
         } finally {
-            abortControllersRef.current.delete(abortController);
-            setActiveRuns((count) => Math.max(0, count - 1));
+            setIsQueueing(false);
         }
     };
 
@@ -124,24 +94,10 @@ export default function TaskExecutionPanel({
                         className="btn btn-primary"
                         type="button"
                         onClick={() => void handleExecuteTask()}
-                        disabled={!canSubmitTask}
+                        disabled={!canSubmitTask || isQueueing}
                     >
-                        Execute task
+                        {isQueueing ? "Queueing..." : "Execute task"}
                     </button>
-                    {running && (
-                        <button
-                            className="btn btn-ghost"
-                            type="button"
-                            onClick={() => {
-                                for (const controller of abortControllersRef.current) {
-                                    controller.abort();
-                                }
-                                abortControllersRef.current.clear();
-                            }}
-                        >
-                            Cancel
-                        </button>
-                    )}
                 </div>
                 {validationMessage && (
                     <p className="text-sm text-base-content/70">{validationMessage}</p>

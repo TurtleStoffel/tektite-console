@@ -12,6 +12,7 @@ import { streamCodexRun } from "./codex";
 import { readThreadMap } from "./executionState";
 import { streamOpenCodeRun } from "./opencode";
 import * as repository from "./repository";
+import { createAgentRunManager } from "./runManager";
 
 type CodexThreadSummary = {
     id: string;
@@ -58,10 +59,14 @@ function requireTaskProject(task: { description: string; projectId: string | nul
           });
 }
 
-function requireProjectRepository(input: { prompt: string; repositoryUrl: string | null }) {
+function requireProjectRepository(input: {
+    prompt: string;
+    projectId: string;
+    repositoryUrl: string | null;
+}) {
     const repositoryUrl = input.repositoryUrl?.trim() ?? "";
     return repositoryUrl
-        ? Result.ok({ prompt: input.prompt, repositoryUrl })
+        ? Result.ok({ prompt: input.prompt, projectId: input.projectId, repositoryUrl })
         : Result.error<ExecuteByTaskIdError>({
               type: "project-repository-missing",
               message: "Project does not have a linked repository.",
@@ -72,6 +77,7 @@ async function resolveExecuteInput(task: { prompt: string; projectId: string }) 
     return (await projectsService.getProjectById(task.projectId)).map((project) =>
         requireProjectRepository({
             prompt: task.prompt,
+            projectId: task.projectId,
             repositoryUrl: project.url,
         }),
     );
@@ -244,12 +250,18 @@ function streamAgentRun(input: {
 
 export function createAgentsService(options: { clonesDir: string }) {
     const { clonesDir } = options;
+    const runManager = createAgentRunManager();
     console.info("[execute] configured runner", {
         nodeEnv: process.env.NODE_ENV ?? null,
         runner: process.env.NODE_ENV === "development" ? "opencode" : "codex",
     });
 
-    const execute = async (input: { prompt: string; repositoryUrl: string; taskId?: string }) => {
+    const execute = async (input: {
+        prompt: string;
+        repositoryUrl: string;
+        taskId?: string;
+        projectId?: string | null;
+    }) => {
         const preparedResult = await Result.try(
             async () => {
                 await ensureDirectoryExists(clonesDir);
@@ -324,7 +336,12 @@ export function createAgentsService(options: { clonesDir: string }) {
             return Result.error(streamResult.error);
         }
 
-        return Result.ok(streamResult.value);
+        return Result.ok({
+            response: streamResult.value,
+            workingDirectory: preparedResult.value.worktreePath,
+            projectId: input.projectId ?? null,
+            taskId: input.taskId ?? null,
+        });
     };
 
     return {
@@ -338,14 +355,39 @@ export function createAgentsService(options: { clonesDir: string }) {
                 return Result.error(executionInputResult.error);
             }
 
-            return execute({
+            const executeResult = await execute({
                 ...executionInputResult.value,
                 taskId: input.taskId,
+                projectId: executionInputResult.value.projectId,
             });
+            if (!executeResult.ok) {
+                return Result.error(executeResult.error);
+            }
+
+            const runId = runManager.enqueue({
+                kind: "execute",
+                response: executeResult.value.response,
+                taskId: executeResult.value.taskId,
+                projectId: executeResult.value.projectId,
+                worktreePath: executeResult.value.workingDirectory,
+            });
+
+            return Result.ok({ runId });
         },
 
         async execute(input: { prompt: string; repositoryUrl: string }) {
-            return execute(input);
+            const executeResult = await execute(input);
+            if (!executeResult.ok) {
+                return Result.error(executeResult.error);
+            }
+            const runId = runManager.enqueue({
+                kind: "execute",
+                response: executeResult.value.response,
+                taskId: executeResult.value.taskId,
+                projectId: executeResult.value.projectId,
+                worktreePath: executeResult.value.workingDirectory,
+            });
+            return Result.ok({ runId });
         },
 
         getWorktreeThreadMetadata(input: { worktreePaths: string[] }) {
@@ -375,6 +417,7 @@ export function createAgentsService(options: { clonesDir: string }) {
             comment: string;
             workingDirectory: string;
             threadId: string;
+            projectId?: string | null;
         }) {
             const streamResult = Result.try(
                 () =>
@@ -399,7 +442,19 @@ export function createAgentsService(options: { clonesDir: string }) {
                 return Result.error(streamResult.error);
             }
 
-            return Result.ok(streamResult.value);
+            const runId = runManager.enqueue({
+                kind: "resume",
+                response: streamResult.value,
+                projectId: input.projectId ?? null,
+                worktreePath: input.workingDirectory,
+                threadId: input.threadId,
+            });
+
+            return Result.ok({ runId });
+        },
+
+        listAgentRuns(input?: { projectId?: string | null }) {
+            return runManager.list(input);
         },
 
         async listThreads() {

@@ -193,7 +193,6 @@ export function WorktreePanel({
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Accept: "text/event-stream",
             },
             body: JSON.stringify({
                 comment,
@@ -202,56 +201,14 @@ export function WorktreePanel({
                 threadId,
             }),
         });
+        const payload = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            const payload = await res.json().catch(() => ({}));
             throw new Error(payload?.error || "Failed to resume Codex thread.");
         }
-
-        if (!res.body) {
-            throw new Error("Server did not return a streaming response.");
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        const processEvent = (rawEvent: string) => {
-            const dataLines = rawEvent
-                .split("\n")
-                .map((line) => line.trim())
-                .filter((line) => line.startsWith("data:"))
-                .map((line) => line.replace(/^data:\s?/, ""))
-                .filter(Boolean);
-            if (!dataLines.length) return;
-
-            const payload = JSON.parse(dataLines.join("\n")) as { type?: string; error?: string };
-            if (payload.type === "error") {
-                throw new Error(payload.error || "Codex run failed.");
-            }
-        };
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            let boundaryIndex = buffer.indexOf("\n\n");
-            while (boundaryIndex !== -1) {
-                const rawEvent = buffer.slice(0, boundaryIndex);
-                buffer = buffer.slice(boundaryIndex + 2);
-                processEvent(rawEvent);
-                boundaryIndex = buffer.indexOf("\n\n");
-            }
-        }
-
-        buffer += decoder.decode();
-        let boundaryIndex = buffer.indexOf("\n\n");
-        while (boundaryIndex !== -1) {
-            const rawEvent = buffer.slice(0, boundaryIndex);
-            buffer = buffer.slice(boundaryIndex + 2);
-            processEvent(rawEvent);
-            boundaryIndex = buffer.indexOf("\n\n");
+        const runId = typeof payload?.data?.runId === "string" ? payload.data.runId : "";
+        if (!runId) {
+            throw new Error("Resume response did not include a run id.");
         }
 
         await onRefreshProject();

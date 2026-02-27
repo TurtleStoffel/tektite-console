@@ -3,6 +3,21 @@
 ## Purpose
 Owns coding agent integrations.
 
+## Detached Run Architecture
+```mermaid
+flowchart LR
+    C[Client UI] -->|POST /api/execute or /api/resume| R[agents/routes.ts]
+    R --> D[agents/domainApi.ts]
+    D --> Q[runManager.enqueue]
+    Q --> S[Background stream consumer]
+    S --> A[streamCodexRun / streamOpenCodeRun]
+    A --> X[Codex/OpenCode SDK stream events]
+    S --> E[executionState updates\nthreadId, lastEvent, lastMessage]
+    S --> G[git finalize]
+    C -->|poll /api/agents/worktree-thread-metadata| R
+    C -->|poll /api/agent-runs| R
+```
+
 ## Exported service functions
 - None. This domain does not currently expose `service.ts`.
 
@@ -23,8 +38,9 @@ sequenceDiagram
     DomainApi->>Projects: getProjectById(task.projectId)
     DomainApi->>Git: prepareWorktree(...)
     DomainApi->>Tasks: setTaskWorktreePath(taskId, worktreePath)
-    DomainApi-->>Route: stream response
-    Route-->>Client: execution stream
+    DomainApi->>DomainApi: enqueue detached run
+    DomainApi-->>Route: { runId }
+    Route-->>Client: 202 Accepted JSON
 ```
 
 ### `POST /api/resume`
@@ -35,8 +51,9 @@ sequenceDiagram
     participant DomainApi
     Client->>Route: POST /api/resume
     Route->>DomainApi: executeThreadComment(...)
-    DomainApi-->>Route: stream response
-    Route-->>Client: execution stream
+    DomainApi->>DomainApi: enqueue detached run
+    DomainApi-->>Route: { runId }
+    Route-->>Client: 202 Accepted JSON
 ```
 
 ### `GET /api/codex-threads`
@@ -78,5 +95,20 @@ sequenceDiagram
     Route->>DomainApi: getWorktreeThreadMetadata(...)
     DomainApi->>State: read thread map
     DomainApi-->>Route: metadata map
+    Route-->>Client: JSON
+```
+
+### `GET /api/agent-runs`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant DomainApi
+    participant RunManager
+    Client->>Route: GET /api/agent-runs?projectId=...
+    Route->>DomainApi: listAgentRuns(...)
+    DomainApi->>RunManager: list(...)
+    RunManager-->>DomainApi: run summaries
+    DomainApi-->>Route: run summaries
     Route-->>Client: JSON
 ```

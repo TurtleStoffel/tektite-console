@@ -54,7 +54,10 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                     });
                 }
 
-                return result.value;
+                return new Response(JSON.stringify({ data: result.value }), {
+                    status: 202,
+                    headers: jsonHeaders,
+                });
             },
         },
         "/api/resume": {
@@ -76,14 +79,32 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                     comment: parsed.data.comment,
                     workingDirectory: parsed.data.worktreePath,
                     threadId: parsed.data.threadId,
+                    projectId: parsed.data.projectId ?? null,
                 });
                 if (result.error) {
                     return new Response(JSON.stringify({ error: result.error.message }), {
                         status: 500,
+                        headers: jsonHeaders,
                     });
                 }
 
-                return result.value;
+                return new Response(JSON.stringify({ data: result.value }), {
+                    status: 202,
+                    headers: jsonHeaders,
+                });
+            },
+        },
+        "/api/agent-runs": {
+            async GET(req: Request) {
+                const url = new URL(req.url);
+                const projectIdParam = url.searchParams.get("projectId");
+                const projectId = projectIdParam?.trim() ? projectIdParam : null;
+                const data = service.listAgentRuns({ projectId });
+
+                return new Response(JSON.stringify({ data }), {
+                    status: 200,
+                    headers: jsonHeaders,
+                });
             },
         },
         "/api/codex-threads": {

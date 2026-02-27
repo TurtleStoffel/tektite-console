@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { executeTaskById } from "../utils/executeTaskById";
 
 type TaskItem = {
@@ -24,18 +24,7 @@ export function ProjectTasksCard({
 }: ProjectTasksCardProps) {
     const [taskDraft, setTaskDraft] = useState("");
     const [executeStatusMessage, setExecuteStatusMessage] = useState<string | null>(null);
-    const [activeRuns, setActiveRuns] = useState(0);
-    const abortControllersRef = useRef<Set<AbortController>>(new Set());
     const queryClient = useQueryClient();
-
-    useEffect(() => {
-        return () => {
-            for (const controller of abortControllersRef.current) {
-                controller.abort();
-            }
-            abortControllersRef.current.clear();
-        };
-    }, []);
 
     const {
         data: tasks = [],
@@ -117,27 +106,13 @@ export function ProjectTasksCard({
         error: executeTaskError,
     } = useMutation({
         mutationFn: async (taskId: string) => {
-            const abortController = new AbortController();
-            abortControllersRef.current.add(abortController);
-            setActiveRuns((count) => count + 1);
-            setExecuteStatusMessage("Codex is running. Logs appear under the created worktree.");
-            try {
-                const result = await executeTaskById({
-                    taskId,
-                    signal: abortController.signal,
-                    onStarted: () => {
-                        onTaskExecutionStarted();
-                    },
-                });
-                if (!result.completed) {
-                    setExecuteStatusMessage("Connection closed before Codex finished.");
-                    return;
-                }
-                setExecuteStatusMessage(null);
-            } finally {
-                abortControllersRef.current.delete(abortController);
-                setActiveRuns((count) => Math.max(0, count - 1));
-            }
+            const result = await executeTaskById({
+                taskId,
+                onQueued: () => {
+                    onTaskExecutionStarted();
+                },
+            });
+            setExecuteStatusMessage(`Run queued (${result.runId.slice(0, 8)}...).`);
         },
     });
     const executeTaskErrorMessage =
@@ -195,21 +170,6 @@ export function ProjectTasksCard({
                 )}
                 {executeStatusMessage && (
                     <p className="text-sm text-base-content/70">{executeStatusMessage}</p>
-                )}
-                {activeRuns > 0 && (
-                    <button
-                        type="button"
-                        className="btn btn-ghost btn-xs w-fit"
-                        onClick={() => {
-                            for (const controller of abortControllersRef.current) {
-                                controller.abort();
-                            }
-                            abortControllersRef.current.clear();
-                            setExecuteStatusMessage("Execution cancelled.");
-                        }}
-                    >
-                        Cancel
-                    </button>
                 )}
                 {tasksLoading ? (
                     <div className="flex items-center gap-2 text-sm text-base-content/70">
