@@ -245,6 +245,17 @@ export async function updateTaskProject(input: { taskId: string; projectId: stri
     });
 }
 
+export async function updateTaskDescription(input: { taskId: string; description: string }) {
+    const db = getDb();
+    await db
+        .update(tasks)
+        .set({
+            description: input.description,
+        })
+        .where(eq(tasks.id, input.taskId))
+        .execute();
+}
+
 export async function upsertTaskCanvasPosition(input: { taskId: string; x: number; y: number }) {
     const db = getDb();
     await db

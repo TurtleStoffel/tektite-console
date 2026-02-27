@@ -18,6 +18,7 @@ type TasksInfiniteCanvasProps = {
     onTaskMoved: (input: { taskId: string; x: number; y: number }) => void;
     onConnectionCreate: (input: { taskId: string; connectedTaskId: string }) => void;
     onConnectionDelete: (input: { taskId: string; connectedTaskId: string }) => void;
+    onTaskClick: (taskId: string) => void;
 };
 
 const NODE_WIDTH = 320;
@@ -96,6 +97,7 @@ export function TasksInfiniteCanvas({
     onTaskMoved,
     onConnectionCreate,
     onConnectionDelete,
+    onTaskClick,
 }: TasksInfiniteCanvasProps) {
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<{
@@ -301,6 +303,8 @@ export function TasksInfiniteCanvas({
                                 y: point.y,
                             });
                         }
+                    } else {
+                        onTaskClick(completedDrag.taskId);
                     }
                 }
             } finally {
@@ -309,7 +313,7 @@ export function TasksInfiniteCanvas({
                 }
             }
         },
-        [onConnectionCreate, onTaskMoved, positionOverrides, taskById],
+        [onConnectionCreate, onTaskClick, onTaskMoved, positionOverrides, taskById],
     );
 
     const handleTaskPointerDown = useCallback(

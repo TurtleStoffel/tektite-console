@@ -42,6 +42,8 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const [statusFilter, setStatusFilter] = useState<"all" | "open" | "done">("all");
     const [projectFilter, setProjectFilter] = useState<"all" | "assigned" | "unassigned">("all");
     const [viewMode, setViewMode] = useState<"list" | "canvas">("list");
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editingDescription, setEditingDescription] = useState("");
 
     const {
         data: tasks = [],
@@ -136,6 +138,28 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["tasks"] });
             console.info("[tasks] task project updated");
+        },
+    });
+
+    const { mutate: updateTaskDescription, isPending: isUpdatingDescription } = useMutation({
+        mutationFn: async (input: { taskId: string; description: string }) => {
+            const res = await fetch(`/api/tasks/${input.taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    description: input.description,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update task description.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            setEditingTaskId(null);
+            setEditingDescription("");
+            console.info("[tasks] task description updated");
         },
     });
 
@@ -249,6 +273,14 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
         [canReorderTasks, reorderTasksMutation, tasks],
     );
+
+    const editingTask = editingTaskId
+        ? (tasks.find((task) => task.id === editingTaskId) ?? null)
+        : null;
+    const canSaveTaskDescription =
+        editingTask !== null &&
+        editingDescription.trim().length > 0 &&
+        editingDescription.trim() !== editingTask.description;
 
     return (
         <div
@@ -374,6 +406,14 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         onTaskMoved={(input) => saveTaskCanvasPosition(input)}
                         onConnectionCreate={(input) => createTaskConnection(input)}
                         onConnectionDelete={(input) => deleteTaskConnection(input)}
+                        onTaskClick={(taskId) => {
+                            const task = tasks.find((item) => item.id === taskId);
+                            if (!task) {
+                                throw new Error("Cannot edit a task that is not present.");
+                            }
+                            setEditingTaskId(task.id);
+                            setEditingDescription(task.description);
+                        }}
                     />
                 </div>
             ) : (
@@ -393,6 +433,65 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     onDeleteConnection={deleteTaskConnection}
                     onMoveTask={handleMoveTask}
                 />
+            )}
+
+            {editingTask && (
+                <div className="modal modal-open">
+                    <div className="modal-box max-w-2xl">
+                        <h3 className="text-lg font-semibold">Edit task</h3>
+                        <p className="mt-1 text-sm text-base-content/70">
+                            Task ID: <span className="font-mono">{editingTask.id}</span>
+                        </p>
+                        <label className="form-control mt-4">
+                            <span className="label-text text-sm font-medium">Description</span>
+                            <textarea
+                                className="textarea textarea-bordered min-h-36"
+                                value={editingDescription}
+                                onChange={(event) => setEditingDescription(event.target.value)}
+                                disabled={isUpdatingDescription}
+                            />
+                        </label>
+                        <div className="modal-action">
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => {
+                                    setEditingTaskId(null);
+                                    setEditingDescription("");
+                                }}
+                                disabled={isUpdatingDescription}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={!canSaveTaskDescription || isUpdatingDescription}
+                                onClick={() =>
+                                    updateTaskDescription({
+                                        taskId: editingTask.id,
+                                        description: editingDescription.trim(),
+                                    })
+                                }
+                            >
+                                {isUpdatingDescription ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="modal-backdrop"
+                        onClick={() => {
+                            if (isUpdatingDescription) {
+                                return;
+                            }
+                            setEditingTaskId(null);
+                            setEditingDescription("");
+                        }}
+                    >
+                        Close
+                    </button>
+                </div>
             )}
         </div>
     );

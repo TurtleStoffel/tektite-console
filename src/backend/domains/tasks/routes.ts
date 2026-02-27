@@ -12,6 +12,7 @@ const createTaskSchema = z.object({
 const taskIdParamSchema = z.object({ id: z.string().trim().min(1) });
 const updateTaskBodySchema = z.object({
     projectId: z.string().trim().min(1).nullable().optional(),
+    description: z.string().trim().min(1).optional(),
 });
 const updateTaskCanvasPositionBodySchema = z.object({
     x: z.number().int(),
@@ -213,9 +214,10 @@ export function createTaskRoutes() {
                 });
                 if ("response" in parsedBody) return parsedBody.response;
 
-                const result = await tasksService.updateTaskProject({
+                const result = await tasksService.updateTask({
                     taskId: parsedParams.data.id,
-                    projectId: parsedBody.data.projectId ?? null,
+                    projectId: parsedBody.data.projectId,
+                    description: parsedBody.data.description,
                 });
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {

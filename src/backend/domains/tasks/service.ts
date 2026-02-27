@@ -220,26 +220,43 @@ export const tasksService = {
         };
     },
 
-    async updateTaskProject(input: { taskId: string; projectId?: string | null }) {
+    async updateTask(input: { taskId: string; projectId?: string | null; description?: string }) {
         const task = await repository.findTaskById(input.taskId);
         if (!task) return { error: "Task not found.", status: 404 as const };
 
-        const projectId = normalizeProjectId(input.projectId);
-        if (projectId) {
+        const projectId =
+            input.projectId === undefined ? undefined : normalizeProjectId(input.projectId);
+        if (projectId !== undefined && projectId) {
             const project = await repository.findProject(projectId);
-            if (!project) return { error: "Project not found.", status: 404 as const };
+            if (!project) {
+                return { error: "Project not found.", status: 404 as const };
+            }
         }
 
-        await repository.updateTaskProject({
+        if (projectId !== undefined) {
+            await repository.updateTaskProject({
+                taskId: input.taskId,
+                projectId,
+            });
+        }
+        if (input.description !== undefined) {
+            await repository.updateTaskDescription({
+                taskId: input.taskId,
+                description: input.description,
+            });
+        }
+
+        console.info("[tasks] updated task", {
             taskId: input.taskId,
             projectId,
+            hasDescriptionUpdate: input.description !== undefined,
         });
-        console.info("[tasks] updated task project", { taskId: input.taskId, projectId });
         const taskConnections = await repository.listTaskConnections();
         const taskConnectionMap = buildTaskConnectionMap([task.id], taskConnections);
         return {
             ...task,
-            projectId,
+            projectId: projectId === undefined ? task.projectId : projectId,
+            description: input.description ?? task.description,
             connectionTaskIds: taskConnectionMap.get(task.id) ?? [],
         };
     },
