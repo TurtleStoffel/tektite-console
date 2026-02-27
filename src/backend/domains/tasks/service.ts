@@ -20,7 +20,6 @@ function buildTaskConnectionMap(
     for (const pair of pairs) {
         if (taskIdSet.has(pair.sourceTaskId) && taskIdSet.has(pair.targetTaskId)) {
             map.get(pair.sourceTaskId)?.push(pair.targetTaskId);
-            map.get(pair.targetTaskId)?.push(pair.sourceTaskId);
         }
     }
 

@@ -1,11 +1,5 @@
 import * as repository from "./repository";
 
-function getCanonicalConnectionPair(taskId: string, connectedTaskId: string) {
-    return taskId < connectedTaskId
-        ? { sourceTaskId: taskId, targetTaskId: connectedTaskId }
-        : { sourceTaskId: connectedTaskId, targetTaskId: taskId };
-}
-
 export const tasksDomainApi = {
     async createTaskConnection(input: { taskId: string; connectedTaskId: string }) {
         if (input.taskId === input.connectedTaskId) {
@@ -20,7 +14,10 @@ export const tasksDomainApi = {
             return { error: "Task not found.", status: 404 as const };
         }
 
-        const pair = getCanonicalConnectionPair(input.taskId, input.connectedTaskId);
+        const pair = {
+            sourceTaskId: input.taskId,
+            targetTaskId: input.connectedTaskId,
+        };
         await repository.createTaskConnection(pair);
         console.info("[tasks] created task connection", pair);
         return pair;
@@ -39,7 +36,10 @@ export const tasksDomainApi = {
             return { error: "Task not found.", status: 404 as const };
         }
 
-        const pair = getCanonicalConnectionPair(input.taskId, input.connectedTaskId);
+        const pair = {
+            sourceTaskId: input.taskId,
+            targetTaskId: input.connectedTaskId,
+        };
         await repository.deleteTaskConnection(pair);
         console.info("[tasks] deleted task connection", pair);
         return pair;

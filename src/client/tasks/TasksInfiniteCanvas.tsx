@@ -57,6 +57,30 @@ function projectToNodeEdge(from: CanvasPoint, to: CanvasPoint): CanvasPoint {
     };
 }
 
+function getArrowheadPoints(from: CanvasPoint, to: CanvasPoint): string {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length === 0) {
+        return `${to.x},${to.y} ${to.x},${to.y} ${to.x},${to.y}`;
+    }
+
+    const ux = dx / length;
+    const uy = dy / length;
+    const arrowLength = 10;
+    const arrowWidth = 8;
+    const baseX = to.x - ux * arrowLength;
+    const baseY = to.y - uy * arrowLength;
+    const perpX = -uy;
+    const perpY = ux;
+    const leftX = baseX + perpX * (arrowWidth / 2);
+    const leftY = baseY + perpY * (arrowWidth / 2);
+    const rightX = baseX - perpX * (arrowWidth / 2);
+    const rightY = baseY - perpY * (arrowWidth / 2);
+
+    return `${to.x},${to.y} ${leftX},${leftY} ${rightX},${rightY}`;
+}
+
 export function TasksInfiniteCanvas({
     tasks,
     projects,
@@ -313,17 +337,8 @@ export function TasksInfiniteCanvas({
     );
 
     const canvasConnections: Array<{ fromTaskId: string; toTaskId: string }> = [];
-    const seenConnectionPairs = new Set<string>();
     for (const task of canvasTasks) {
         for (const connectedTaskId of task.connectionTaskIds) {
-            const pairKey =
-                task.id < connectedTaskId
-                    ? `${task.id}:${connectedTaskId}`
-                    : `${connectedTaskId}:${task.id}`;
-            if (seenConnectionPairs.has(pairKey)) {
-                continue;
-            }
-            seenConnectionPairs.add(pairKey);
             canvasConnections.push({ fromTaskId: task.id, toTaskId: connectedTaskId });
         }
     }
@@ -413,22 +428,6 @@ export function TasksInfiniteCanvas({
                             role="img"
                             aria-label="Task connection graph"
                         >
-                            <defs>
-                                <marker
-                                    id="task-connection-arrow"
-                                    markerWidth="8"
-                                    markerHeight="8"
-                                    refX="6"
-                                    refY="4"
-                                    orient="auto"
-                                    markerUnits="strokeWidth"
-                                >
-                                    <path
-                                        d="M0,0 L8,4 L0,8 z"
-                                        fill="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
-                                    />
-                                </marker>
-                            </defs>
                             {canvasConnections.map(({ fromTaskId, toTaskId }) => {
                                 const connectionKey = `${fromTaskId}:${toTaskId}`;
                                 const sourceTask = taskById.get(fromTaskId);
@@ -449,27 +448,36 @@ export function TasksInfiniteCanvas({
                                     { x: x2, y: y2 },
                                     { x: x1, y: y1 },
                                 );
+                                const arrowHeadPoints = getArrowheadPoints(
+                                    sourcePoint,
+                                    targetPoint,
+                                );
 
                                 return (
-                                    <line
-                                        key={connectionKey}
-                                        x1={sourcePoint.x}
-                                        y1={sourcePoint.y}
-                                        x2={targetPoint.x}
-                                        y2={targetPoint.y}
-                                        stroke="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
-                                        strokeWidth={2}
-                                        markerEnd="url(#task-connection-arrow)"
-                                        className="cursor-pointer"
-                                        pointerEvents="stroke"
-                                        aria-label={`Connection from ${sourceTask.description} to ${targetTask.description}`}
-                                        onPointerDown={(event) =>
-                                            handleConnectionLineClick(
-                                                { fromTaskId, toTaskId },
-                                                event,
-                                            )
-                                        }
-                                    />
+                                    <g key={connectionKey}>
+                                        <line
+                                            x1={sourcePoint.x}
+                                            y1={sourcePoint.y}
+                                            x2={targetPoint.x}
+                                            y2={targetPoint.y}
+                                            stroke="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
+                                            strokeWidth={2}
+                                            className="cursor-pointer"
+                                            pointerEvents="stroke"
+                                            aria-label={`Connection from ${sourceTask.description} to ${targetTask.description}`}
+                                            onPointerDown={(event) =>
+                                                handleConnectionLineClick(
+                                                    { fromTaskId, toTaskId },
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                        <polygon
+                                            points={arrowHeadPoints}
+                                            fill="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
+                                            pointerEvents="none"
+                                        />
+                                    </g>
                                 );
                             })}
                             {connectionDragPreview &&
