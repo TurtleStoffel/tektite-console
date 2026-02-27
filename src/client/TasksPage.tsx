@@ -188,6 +188,43 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
     });
 
+    const { mutate: createTaskAtCanvasPosition, isPending: isCreatingTask } = useMutation({
+        mutationFn: async (input: { description: string; x: number; y: number }) => {
+            const createResponse = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    description: input.description,
+                }),
+            });
+            const createPayload = await createResponse.json().catch(() => ({}));
+            if (!createResponse.ok) {
+                throw new Error(createPayload?.error || "Failed to create task.");
+            }
+            if (typeof createPayload?.id !== "string" || createPayload.id.length === 0) {
+                throw new Error("Task creation returned an invalid task id.");
+            }
+
+            const positionResponse = await fetch(`/api/tasks/${createPayload.id}/canvas-position`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ x: input.x, y: input.y }),
+            });
+            const positionPayload = await positionResponse.json().catch(() => ({}));
+            if (!positionResponse.ok) {
+                throw new Error(positionPayload?.error || "Failed to save task position.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
+            console.info("[tasks] created task from canvas context menu");
+        },
+        onError: (error) => {
+            console.error("[tasks] failed to create task from canvas context menu", error);
+        },
+    });
+
     const { mutate: createTaskConnection, isPending: isCreatingConnection } = useMutation({
         mutationFn: async (input: { taskId: string; connectedTaskId: string }) => {
             const res = await fetch("/api/tasks/connections", {
@@ -382,12 +419,12 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                 <div className="flex items-center justify-center py-16">
                     <span className="loading loading-spinner loading-lg" />
                 </div>
-            ) : tasks.length === 0 ? (
+            ) : tasks.length === 0 && !isCanvasView ? (
                 <div className="card bg-base-200 border border-base-300 shadow-md text-left">
                     <div className="card-body">
                         <h2 className="card-title">No tasks yet</h2>
                         <p className="text-base-content/70">
-                            Execute a task from a project page to see it appear here.
+                            Create a task from a project page to see it appear here.
                         </p>
                     </div>
                 </div>
@@ -399,12 +436,14 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         isMarkingDone={isMarkingDone}
                         isDeleting={isDeleting}
                         isUpdatingProject={isUpdatingProject}
+                        isCreatingTask={isCreatingTask}
                         isCreatingConnection={isCreatingConnection}
                         isDeletingConnection={isDeletingConnection}
                         onMarkDone={markDone}
                         onDeleteTask={deleteTask}
                         onUpdateTaskProject={updateTaskProject}
                         onTaskMoved={(input) => saveTaskCanvasPosition(input)}
+                        onCreateTaskAtPosition={(input) => createTaskAtCanvasPosition(input)}
                         onConnectionCreate={(input) => createTaskConnection(input)}
                         onConnectionDelete={(input) => deleteTaskConnection(input)}
                         onTaskClick={(taskId) => {
