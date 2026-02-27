@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CanvasPoint, ProjectOption, TaskItem, Viewport } from "./types";
 
@@ -169,7 +169,7 @@ export function TasksInfiniteCanvas({
         return { x, y };
     }, []);
 
-    const handleCanvasWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    const handleCanvasWheel = useCallback((event: WheelEvent) => {
         event.preventDefault();
         const surface = canvasRef.current;
         if (!surface) {
@@ -187,6 +187,18 @@ export function TasksInfiniteCanvas({
         const nextY = pointerY - worldY * nextScale;
         setViewport({ x: nextX, y: nextY, scale: nextScale });
     }, []);
+
+    useEffect(() => {
+        const surface = canvasRef.current;
+        if (!surface) {
+            return;
+        }
+
+        surface.addEventListener("wheel", handleCanvasWheel, { passive: false });
+        return () => {
+            surface.removeEventListener("wheel", handleCanvasWheel);
+        };
+    }, [handleCanvasWheel]);
 
     const handleCanvasPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
         if (event.button !== 0 || event.target !== event.currentTarget) {
@@ -398,7 +410,6 @@ export function TasksInfiniteCanvas({
                 <div
                     ref={canvasRef}
                     className="relative h-full min-h-0 overflow-hidden rounded-xl border border-base-300 bg-base-100"
-                    onWheel={handleCanvasWheel}
                     onPointerDown={handleCanvasPointerDown}
                     onPointerMove={handleCanvasPointerMove}
                     onPointerUp={handleCanvasPointerUp}
