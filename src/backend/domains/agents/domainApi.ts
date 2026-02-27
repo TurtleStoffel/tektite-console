@@ -9,7 +9,6 @@ import { tasksService } from "@/backend/domains/tasks/service";
 import { ensureDirectoryExists } from "@/backend/filesystem";
 import { summarizeWorktreePromptWithLmStudio } from "../../lmstudio";
 import { streamCodexRun } from "./codex";
-import { readThreadMap } from "./executionState";
 import { streamOpenCodeRun } from "./opencode";
 import * as repository from "./repository";
 import { createAgentRunManager } from "./runManager";
@@ -24,12 +23,6 @@ type CodexThreadSummary = {
 
 type CodexThreadAnalysis = {
     markdown: string;
-};
-
-type WorktreeThreadMetadata = {
-    threadId: string;
-    lastMessage?: string;
-    lastEvent?: string;
 };
 
 type ExecuteByTaskIdError =
@@ -242,7 +235,6 @@ function streamAgentRun(input: {
     prompt: string;
     workingDirectory: string;
     threadId?: string | null;
-    clonesDir: string;
 }) {
     const streamRun = process.env.NODE_ENV === "development" ? streamOpenCodeRun : streamCodexRun;
     return streamRun(input);
@@ -320,7 +312,6 @@ export function createAgentsService(options: { clonesDir: string }) {
                 streamAgentRun({
                     prompt: input.prompt,
                     workingDirectory: preparedResult.value.worktreePath,
-                    clonesDir,
                 }),
             (error) => {
                 console.warn("[execute] failed to initialize execution stream", {
@@ -390,27 +381,13 @@ export function createAgentsService(options: { clonesDir: string }) {
             return Result.ok({ runId });
         },
 
-        getWorktreeThreadMetadata(input: { worktreePaths: string[] }) {
-            const threadMap = readThreadMap(clonesDir);
-            const metadataByWorktreePath: Record<string, WorktreeThreadMetadata> = {};
-            for (const worktreePath of input.worktreePaths) {
-                const thread = threadMap[worktreePath];
-                if (!thread) {
-                    continue;
-                }
-                metadataByWorktreePath[worktreePath] = {
-                    threadId: thread.threadId,
-                    lastMessage: thread.lastMessage,
-                    lastEvent: thread.lastEvent,
-                };
-            }
-
-            console.info("[agents] resolved worktree thread metadata", {
-                requestedWorktrees: input.worktreePaths.length,
-                foundWorktrees: Object.keys(metadataByWorktreePath).length,
+        listActiveWorktreeStatuses(input?: { projectId?: string | null }) {
+            const statuses = runManager.listWorktreeStatuses(input);
+            console.info("[agents] listed active worktree statuses", {
+                projectId: input?.projectId ?? null,
+                count: Object.keys(statuses).length,
             });
-
-            return metadataByWorktreePath;
+            return statuses;
         },
 
         executeThreadComment(input: {
@@ -425,7 +402,6 @@ export function createAgentsService(options: { clonesDir: string }) {
                         prompt: input.comment,
                         workingDirectory: input.workingDirectory,
                         threadId: input.threadId,
-                        clonesDir,
                     }),
                 (error) => {
                     console.warn("[execute] failed to initialize thread comment stream", {

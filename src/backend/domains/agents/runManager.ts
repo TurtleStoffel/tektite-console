@@ -1,6 +1,9 @@
 type StreamMessage = {
     type?: string;
     error?: string;
+    threadId?: string | null;
+    text?: string;
+    eventType?: string;
 };
 
 type AgentRunStatus = "queued" | "running" | "succeeded" | "failed";
@@ -15,6 +18,8 @@ type AgentRunSummary = {
     projectId: string | null;
     worktreePath: string | null;
     threadId: string | null;
+    lastMessage: string | null;
+    lastEvent: string | null;
     error: string | null;
     createdAt: string;
     startedAt: string | null;
@@ -36,7 +41,7 @@ function parseStreamEvents(input: string) {
     return JSON.parse(dataLines.join("\n")) as StreamMessage;
 }
 
-async function consumeStream(response: Response) {
+async function consumeStream(response: Response, onMessage: (payload: StreamMessage) => void) {
     if (!response.body) {
         throw new Error("Server did not return a streaming response.");
     }
@@ -51,6 +56,9 @@ async function consumeStream(response: Response) {
             const rawEvent = buffer.slice(0, boundaryIndex);
             buffer = buffer.slice(boundaryIndex + 2);
             const payload = parseStreamEvents(rawEvent);
+            if (payload) {
+                onMessage(payload);
+            }
             if (payload?.type === "error") {
                 throw new Error(payload.error || "Codex run failed.");
             }
@@ -102,6 +110,8 @@ export function createAgentRunManager() {
             projectId: input.projectId ?? null,
             worktreePath: input.worktreePath ?? null,
             threadId: input.threadId ?? null,
+            lastMessage: null,
+            lastEvent: null,
             error: null,
             createdAt: nowIso(),
             startedAt: null,
@@ -124,7 +134,21 @@ export function createAgentRunManager() {
             console.info("[agent-runs] started", { runId });
 
             try {
-                await consumeStream(input.response);
+                await consumeStream(input.response, (payload) => {
+                    if (payload.type === "thread" && typeof payload.threadId === "string") {
+                        run.threadId = payload.threadId;
+                    }
+                    if (payload.type === "agent_message" && typeof payload.text === "string") {
+                        run.lastMessage = payload.text;
+                    }
+                    if (payload.type === "item" && typeof payload.eventType === "string") {
+                        run.lastEvent = payload.eventType;
+                    }
+                    if (payload.type === "error" && typeof payload.error === "string") {
+                        run.lastEvent = "error";
+                    }
+                    persist(run);
+                });
                 run.status = "succeeded";
                 run.finishedAt = nowIso();
                 persist(run);
@@ -151,8 +175,44 @@ export function createAgentRunManager() {
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     };
 
+    const listWorktreeStatuses = (input?: { projectId?: string | null }) => {
+        const projectId = input?.projectId ?? null;
+        const byWorktreePath: Record<
+            string,
+            {
+                runId: string;
+                status: "queued" | "running";
+                threadId: string | null;
+                lastMessage: string | null;
+                lastEvent: string | null;
+            }
+        > = {};
+
+        for (const run of runs.values()) {
+            if (!run.worktreePath) {
+                continue;
+            }
+            if (projectId && run.projectId !== projectId) {
+                continue;
+            }
+            if (run.status !== "queued" && run.status !== "running") {
+                continue;
+            }
+            byWorktreePath[run.worktreePath] = {
+                runId: run.id,
+                status: run.status,
+                threadId: run.threadId,
+                lastMessage: run.lastMessage,
+                lastEvent: run.lastEvent,
+            };
+        }
+
+        return byWorktreePath;
+    };
+
     return {
         enqueue,
         list,
+        listWorktreeStatuses,
     };
 }

@@ -17,10 +17,6 @@ const analyzePayloadSchema = z.object({
     threadPath: z.string().trim().min(1),
 });
 
-const worktreeThreadMetadataPayloadSchema = z.object({
-    worktreePaths: z.array(z.string().trim().min(1)),
-});
-
 export function createAgentsRoutes(options: { clonesDir: string }) {
     const service = createAgentsService({ clonesDir: options.clonesDir });
 
@@ -107,6 +103,19 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                 });
             },
         },
+        "/api/worktrees/status": {
+            async GET(req: Request) {
+                const url = new URL(req.url);
+                const projectIdParam = url.searchParams.get("projectId");
+                const projectId = projectIdParam?.trim() ? projectIdParam : null;
+                const data = service.listActiveWorktreeStatuses({ projectId });
+
+                return new Response(JSON.stringify({ data }), {
+                    status: 200,
+                    headers: jsonHeaders,
+                });
+            },
+        },
         "/api/codex-threads": {
             async GET() {
                 const result = await service.listThreads();
@@ -149,28 +158,6 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                 }
 
                 return new Response(JSON.stringify({ data: result.value }), {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Cache-Control": "no-store",
-                    },
-                });
-            },
-        },
-        "/api/agents/worktree-thread-metadata": {
-            async POST(req: Request) {
-                const parsed = await parseJsonBody({
-                    req,
-                    schema: worktreeThreadMetadataPayloadSchema,
-                    domain: "agents",
-                    context: "thread-metadata:list",
-                });
-                if ("response" in parsed) return parsed.response;
-
-                const data = service.getWorktreeThreadMetadata({
-                    worktreePaths: parsed.data.worktreePaths,
-                });
-                return new Response(JSON.stringify({ data }), {
                     status: 200,
                     headers: {
                         "Content-Type": "application/json",

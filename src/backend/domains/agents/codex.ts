@@ -10,13 +10,7 @@ import {
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
 } from "@/backend/domains/git/service";
-import {
-    appendCommitInstruction,
-    readThreadMap,
-    recordLastEvent,
-    recordLastMessage,
-    recordThreadId,
-} from "./executionState";
+import { appendCommitInstruction } from "./executionState";
 
 type StreamChunk =
     | { type: "thread"; threadId: string | null }
@@ -136,13 +130,10 @@ export function streamCodexRun(options: {
     prompt: string;
     workingDirectory: string;
     threadId?: string | null;
-    clonesDir: string;
 }) {
-    const { prompt, workingDirectory, threadId, clonesDir } = options;
+    const { prompt, workingDirectory, threadId } = options;
     const augmentedPrompt = appendCommitInstruction(prompt);
-    const threadMap = readThreadMap(clonesDir);
-    const mappedThreadId = threadId ?? threadMap[workingDirectory]?.threadId ?? null;
-    const thread = startThread(workingDirectory, mappedThreadId);
+    const thread = startThread(workingDirectory, threadId);
 
     let cancelled = false;
     let _controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
@@ -184,32 +175,6 @@ export function streamCodexRun(options: {
                         console.log(`[codex] threadId=${eventThreadId} | ${summary}`);
                     }
                     mapEventChunk(event, latest, send);
-
-                    if (event.type === "thread.started") {
-                        recordThreadId(clonesDir, workingDirectory, event.thread_id);
-                    }
-
-                    if (
-                        event.type === "item.started" ||
-                        event.type === "item.updated" ||
-                        event.type === "item.completed"
-                    ) {
-                        recordLastEvent(clonesDir, workingDirectory, summary);
-                        if (
-                            event.item?.type === "agent_message" &&
-                            typeof event.item.text === "string"
-                        ) {
-                            recordLastMessage(clonesDir, workingDirectory, event.item.text);
-                        }
-                    }
-
-                    if (
-                        event.type === "turn.completed" ||
-                        event.type === "turn.failed" ||
-                        event.type === "error"
-                    ) {
-                        recordLastEvent(clonesDir, workingDirectory, summary);
-                    }
                 }
 
                 if (!cancelled) {
@@ -219,8 +184,6 @@ export function streamCodexRun(options: {
                         response: latest.text,
                         usage: latest.usage,
                     });
-                    recordThreadId(clonesDir, workingDirectory, thread.id ?? null);
-                    recordLastMessage(clonesDir, workingDirectory, latest.text);
                     await finalizeGitState(workingDirectory);
                 }
             } catch (error) {

@@ -8,13 +8,7 @@ import {
     markAgentWorkspaceActive,
     markAgentWorkspaceInactive,
 } from "@/backend/domains/git/service";
-import {
-    appendCommitInstruction,
-    readThreadMap,
-    recordLastEvent,
-    recordLastMessage,
-    recordThreadId,
-} from "./executionState";
+import { appendCommitInstruction } from "./executionState";
 
 type StreamUsage = {
     input_tokens: number;
@@ -77,12 +71,9 @@ export function streamOpenCodeRun(options: {
     prompt: string;
     workingDirectory: string;
     threadId?: string | null;
-    clonesDir: string;
 }) {
-    const { prompt, workingDirectory, threadId, clonesDir } = options;
+    const { prompt, workingDirectory, threadId } = options;
     const augmentedPrompt = appendCommitInstruction(prompt);
-    const threadMap = readThreadMap(clonesDir);
-    const mappedThreadId = threadId ?? threadMap[workingDirectory]?.threadId ?? null;
 
     let cancelled = false;
     const stream = new ReadableStream({
@@ -110,7 +101,7 @@ export function streamOpenCodeRun(options: {
             try {
                 const { client, session } = await resolveOpenCodeSession(
                     workingDirectory,
-                    mappedThreadId,
+                    threadId,
                 );
                 const sessionId = session.id;
                 send({ type: "thread", threadId: sessionId });
@@ -145,13 +136,6 @@ export function streamOpenCodeRun(options: {
                     response: latest.text,
                     usage: latest.usage,
                 });
-                recordThreadId(clonesDir, workingDirectory, sessionId);
-                recordLastMessage(clonesDir, workingDirectory, latest.text);
-                recordLastEvent(
-                    clonesDir,
-                    workingDirectory,
-                    "type=turn.completed | provider=opencode",
-                );
                 await finalizeGitState(workingDirectory);
             } catch (error) {
                 const message =

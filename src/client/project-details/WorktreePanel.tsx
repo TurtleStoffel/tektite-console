@@ -30,32 +30,40 @@ export function WorktreePanel({
     );
     const [actionError, setActionError] = useState<string | null>(null);
     const [selectedWorktreePath, setSelectedWorktreePath] = useState<string | null>(null);
-    const worktreePaths = useMemo(
-        () => (project.clones ?? []).filter((clone) => clone.isWorktree).map((clone) => clone.path),
-        [project.clones],
-    );
-    const { data: worktreeThreadMetadataByPath = {} } = useQuery<
-        Record<string, { threadId: string; lastMessage?: string; lastEvent?: string }>
+    const { data: activeWorktreeStatusByPath = {} } = useQuery<
+        Record<
+            string,
+            {
+                runId: string;
+                status: "queued" | "running";
+                threadId: string | null;
+                lastMessage: string | null;
+                lastEvent: string | null;
+            }
+        >
     >({
-        queryKey: ["worktree-thread-metadata", ...worktreePaths],
-        enabled: worktreePaths.length > 0,
+        queryKey: ["worktree-status", project.id],
+        enabled: Boolean(project.id),
         refetchInterval: 15000,
         queryFn: async () => {
-            const res = await fetch("/api/agents/worktree-thread-metadata", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ worktreePaths }),
-            });
+            const params = new URLSearchParams({ projectId: project.id });
+            const res = await fetch(`/api/worktrees/status?${params.toString()}`);
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(payload?.error || "Failed to load worktree thread metadata.");
+                throw new Error(payload?.error || "Failed to load active worktree statuses.");
             }
             if (!payload?.data || typeof payload.data !== "object") {
                 return {};
             }
             return payload.data as Record<
                 string,
-                { threadId: string; lastMessage?: string; lastEvent?: string }
+                {
+                    runId: string;
+                    status: "queued" | "running";
+                    threadId: string | null;
+                    lastMessage: string | null;
+                    lastEvent: string | null;
+                }
             >;
         },
     });
@@ -64,15 +72,15 @@ export function WorktreePanel({
             if (!clone.isWorktree) {
                 return clone;
             }
-            const thread = worktreeThreadMetadataByPath[clone.path];
+            const runStatus = activeWorktreeStatusByPath[clone.path];
             return {
                 ...clone,
-                codexThreadId: thread?.threadId ?? null,
-                codexLastMessage: thread?.lastMessage ?? null,
-                codexLastEvent: thread?.lastEvent ?? null,
+                codexThreadId: runStatus?.threadId ?? null,
+                codexLastMessage: runStatus?.lastMessage ?? null,
+                codexLastEvent: runStatus?.lastEvent ?? null,
             };
         });
-    }, [project.clones, worktreeThreadMetadataByPath]);
+    }, [project.clones, activeWorktreeStatusByPath]);
 
     const previewTargets = useMemo<PreviewTarget[]>(() => {
         return buildPreviewTargets({ ...project, clones: clonesWithCodexMetadata });

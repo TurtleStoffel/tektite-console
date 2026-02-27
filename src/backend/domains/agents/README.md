@@ -12,9 +12,8 @@ flowchart LR
     Q --> S[Background stream consumer]
     S --> A[streamCodexRun / streamOpenCodeRun]
     A --> X[Codex/OpenCode SDK stream events]
-    S --> E[executionState updates\nthreadId, lastEvent, lastMessage]
     S --> G[git finalize]
-    C -->|poll /api/agents/worktree-thread-metadata| R
+    C -->|poll /api/worktrees/status| R
     C -->|poll /api/agent-runs| R
 ```
 
@@ -84,17 +83,18 @@ sequenceDiagram
     Route-->>Client: JSON
 ```
 
-### `POST /api/agents/worktree-thread-metadata`
+### `GET /api/worktrees/status`
 ```mermaid
 sequenceDiagram
     participant Client
     participant Route
     participant DomainApi
-    participant State
-    Client->>Route: POST /api/agents/worktree-thread-metadata
-    Route->>DomainApi: getWorktreeThreadMetadata(...)
-    DomainApi->>State: read thread map
-    DomainApi-->>Route: metadata map
+    participant RunManager
+    Client->>Route: GET /api/worktrees/status?projectId=...
+    Route->>DomainApi: listActiveWorktreeStatuses(...)
+    DomainApi->>RunManager: listWorktreeStatuses(...)
+    RunManager-->>DomainApi: active status map
+    DomainApi-->>Route: active status map
     Route-->>Client: JSON
 ```
 
