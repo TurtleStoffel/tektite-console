@@ -45,13 +45,15 @@ export async function summarizeWorktreePromptWithLmStudio(prompt: string): Promi
         messages: [
             {
                 role: "system",
-                content: "Summarize prompts for worktree naming. Keep output concise and factual.",
+                content:
+                    "Summarize prompts for worktree naming. Return plain text only, 6 to 12 words, concise and factual.",
             },
             {
                 role: "user",
-                content: `Summarize this coding prompt:\n\n${prompt}`,
+                content: `Summarize this coding prompt in 6 to 12 words:\n\n${prompt}`,
             },
         ],
+        max_tokens: 120,
         response_format: {
             type: "json_schema",
             json_schema: PROMPT_SUMMARY_RESPONSE_SCHEMA,
