@@ -367,11 +367,13 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         isDeleting={isDeleting}
                         isUpdatingProject={isUpdatingProject}
                         isCreatingConnection={isCreatingConnection}
+                        isDeletingConnection={isDeletingConnection}
                         onMarkDone={markDone}
                         onDeleteTask={deleteTask}
                         onUpdateTaskProject={updateTaskProject}
                         onTaskMoved={(input) => saveTaskCanvasPosition(input)}
                         onConnectionCreate={(input) => createTaskConnection(input)}
+                        onConnectionDelete={(input) => deleteTaskConnection(input)}
                     />
                 </div>
             ) : (

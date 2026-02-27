@@ -11,11 +11,13 @@ type TasksInfiniteCanvasProps = {
     isDeleting: boolean;
     isUpdatingProject: boolean;
     isCreatingConnection: boolean;
+    isDeletingConnection: boolean;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
     onTaskMoved: (input: { taskId: string; x: number; y: number }) => void;
     onConnectionCreate: (input: { taskId: string; connectedTaskId: string }) => void;
+    onConnectionDelete: (input: { taskId: string; connectedTaskId: string }) => void;
 };
 
 const NODE_WIDTH = 320;
@@ -62,11 +64,13 @@ export function TasksInfiniteCanvas({
     isDeleting,
     isUpdatingProject,
     isCreatingConnection,
+    isDeletingConnection,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
     onTaskMoved,
     onConnectionCreate,
+    onConnectionDelete,
 }: TasksInfiniteCanvasProps) {
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<{
@@ -324,12 +328,49 @@ export function TasksInfiniteCanvas({
         }
     }
 
+    const handleConnectionLineClick = useCallback(
+        (
+            connection: { fromTaskId: string; toTaskId: string },
+            event: ReactPointerEvent<SVGLineElement>,
+        ) => {
+            event.stopPropagation();
+            if (!event.altKey) {
+                return;
+            }
+            if (
+                isMarkingDone ||
+                isDeleting ||
+                isUpdatingProject ||
+                isCreatingConnection ||
+                isDeletingConnection
+            ) {
+                return;
+            }
+            if (!window.confirm("Delete this task connection?")) {
+                return;
+            }
+            onConnectionDelete({
+                taskId: connection.fromTaskId,
+                connectedTaskId: connection.toTaskId,
+            });
+        },
+        [
+            isCreatingConnection,
+            isDeleting,
+            isDeletingConnection,
+            isMarkingDone,
+            isUpdatingProject,
+            onConnectionDelete,
+        ],
+    );
+
     return (
         <div className="card bg-base-200 border border-base-300 shadow-md h-full">
             <div className="card-body p-3 flex h-full min-h-0 flex-col">
                 <div className="flex items-center justify-between px-1 pb-2">
                     <p className="text-xs text-base-content/70">
-                        Drag tasks to arrange, drag empty space to pan, and use the wheel to zoom.
+                        Drag tasks to arrange, drag empty space to pan, use the wheel to zoom, and
+                        Alt+click a connection line to delete it.
                     </p>
                     <button
                         type="button"
@@ -367,9 +408,10 @@ export function TasksInfiniteCanvas({
                         }}
                     >
                         <svg
-                            className="absolute overflow-visible pointer-events-none"
+                            className="absolute overflow-visible"
                             style={{ top: 0, left: 0 }}
-                            aria-hidden="true"
+                            role="img"
+                            aria-label="Task connection graph"
                         >
                             <defs>
                                 <marker
@@ -418,6 +460,15 @@ export function TasksInfiniteCanvas({
                                         stroke="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
                                         strokeWidth={2}
                                         markerEnd="url(#task-connection-arrow)"
+                                        className="cursor-pointer"
+                                        pointerEvents="stroke"
+                                        aria-label={`Connection from ${sourceTask.description} to ${targetTask.description}`}
+                                        onPointerDown={(event) =>
+                                            handleConnectionLineClick(
+                                                { fromTaskId, toTaskId },
+                                                event,
+                                            )
+                                        }
                                     />
                                 );
                             })}
