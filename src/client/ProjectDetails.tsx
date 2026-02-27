@@ -6,6 +6,7 @@ import { ProjectTasksCard } from "./project-details/ProjectTasksCard";
 import type { ProjectDetailsPayload } from "./project-details/types";
 import { WorktreePanel } from "./project-details/WorktreePanel";
 import TaskExecutionPanel from "./TaskExecutionPanel";
+import { TaskEditModal } from "./tasks/TaskEditModal";
 import type { RepositorySummary } from "./types/repositories";
 
 type ProjectDetailsProps = {
@@ -555,69 +556,27 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                     )}
                 </div>
             )}
-            {editingTaskId && (
-                <div className="modal modal-open">
-                    <div className="modal-box max-w-2xl">
-                        <h3 className="text-lg font-semibold">Edit task</h3>
-                        <p className="mt-1 text-sm text-base-content/70">
-                            Task ID: <span className="font-mono">{editingTaskId}</span>
-                        </p>
-                        {updateTaskDescriptionErrorMessage && (
-                            <div className="alert alert-error py-2 mt-4">
-                                <span className="text-sm">{updateTaskDescriptionErrorMessage}</span>
-                            </div>
-                        )}
-                        <label className="form-control mt-4">
-                            <span className="label-text text-sm font-medium">Description</span>
-                            <textarea
-                                className="textarea textarea-bordered min-h-36"
-                                value={editingDescription}
-                                onChange={(event) => setEditingDescription(event.target.value)}
-                                disabled={isUpdatingTaskDescription}
-                            />
-                        </label>
-                        <div className="modal-action">
-                            <button
-                                type="button"
-                                className="btn btn-ghost"
-                                onClick={() => {
-                                    setEditingTaskId(null);
-                                    setEditingDescription("");
-                                }}
-                                disabled={isUpdatingTaskDescription}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                disabled={!canSaveTaskDescription || isUpdatingTaskDescription}
-                                onClick={() =>
-                                    updateTaskDescription({
-                                        taskId: editingTaskId,
-                                        description: editingDescription.trim(),
-                                    })
-                                }
-                            >
-                                {isUpdatingTaskDescription ? "Saving..." : "Save"}
-                            </button>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        className="modal-backdrop"
-                        onClick={() => {
-                            if (isUpdatingTaskDescription) {
-                                return;
-                            }
-                            setEditingTaskId(null);
-                            setEditingDescription("");
-                        }}
-                    >
-                        Close
-                    </button>
-                </div>
-            )}
+            <TaskEditModal
+                taskId={editingTaskId}
+                description={editingDescription}
+                onDescriptionChange={setEditingDescription}
+                onClose={() => {
+                    setEditingTaskId(null);
+                    setEditingDescription("");
+                }}
+                onSave={() => {
+                    if (!editingTaskId) {
+                        throw new Error("Cannot save task description without an active task.");
+                    }
+                    updateTaskDescription({
+                        taskId: editingTaskId,
+                        description: editingDescription.trim(),
+                    });
+                }}
+                canSave={canSaveTaskDescription}
+                isSaving={isUpdatingTaskDescription}
+                errorMessage={updateTaskDescriptionErrorMessage}
+            />
         </div>
     );
 }

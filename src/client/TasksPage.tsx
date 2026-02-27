@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import { TaskEditModal } from "./tasks/TaskEditModal";
 import { TasksInfiniteCanvas } from "./tasks/TasksInfiniteCanvas";
 import { TasksListView } from "./tasks/TasksListView";
 import type { ProjectOption, TaskItem } from "./tasks/types";
@@ -432,64 +433,26 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                 />
             )}
 
-            {editingTask && (
-                <div className="modal modal-open">
-                    <div className="modal-box max-w-2xl">
-                        <h3 className="text-lg font-semibold">Edit task</h3>
-                        <p className="mt-1 text-sm text-base-content/70">
-                            Task ID: <span className="font-mono">{editingTask.id}</span>
-                        </p>
-                        <label className="form-control mt-4">
-                            <span className="label-text text-sm font-medium">Description</span>
-                            <textarea
-                                className="textarea textarea-bordered min-h-36"
-                                value={editingDescription}
-                                onChange={(event) => setEditingDescription(event.target.value)}
-                                disabled={isUpdatingDescription}
-                            />
-                        </label>
-                        <div className="modal-action">
-                            <button
-                                type="button"
-                                className="btn btn-ghost"
-                                onClick={() => {
-                                    setEditingTaskId(null);
-                                    setEditingDescription("");
-                                }}
-                                disabled={isUpdatingDescription}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                disabled={!canSaveTaskDescription || isUpdatingDescription}
-                                onClick={() =>
-                                    updateTaskDescription({
-                                        taskId: editingTask.id,
-                                        description: editingDescription.trim(),
-                                    })
-                                }
-                            >
-                                {isUpdatingDescription ? "Saving..." : "Save"}
-                            </button>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        className="modal-backdrop"
-                        onClick={() => {
-                            if (isUpdatingDescription) {
-                                return;
-                            }
-                            setEditingTaskId(null);
-                            setEditingDescription("");
-                        }}
-                    >
-                        Close
-                    </button>
-                </div>
-            )}
+            <TaskEditModal
+                taskId={editingTask?.id ?? null}
+                description={editingDescription}
+                onDescriptionChange={setEditingDescription}
+                onClose={() => {
+                    setEditingTaskId(null);
+                    setEditingDescription("");
+                }}
+                onSave={() => {
+                    if (!editingTask) {
+                        throw new Error("Cannot save task description without an active task.");
+                    }
+                    updateTaskDescription({
+                        taskId: editingTask.id,
+                        description: editingDescription.trim(),
+                    });
+                }}
+                canSave={canSaveTaskDescription}
+                isSaving={isUpdatingDescription}
+            />
         </div>
     );
 }
