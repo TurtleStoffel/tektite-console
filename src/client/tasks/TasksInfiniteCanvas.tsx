@@ -21,6 +21,9 @@ type TasksInfiniteCanvasProps = {
     onCreateTaskAtPosition: (input: { description: string; x: number; y: number }) => void;
     onConnectionCreate: (input: { taskId: string; connectedTaskId: string }) => void;
     onConnectionDelete: (input: { taskId: string; connectedTaskId: string }) => void;
+    onExecuteTask: (taskId: string) => void;
+    isExecutingTask: boolean;
+    executingTaskId: string | null;
     onTaskClick: (taskId: string) => void;
 };
 
@@ -102,6 +105,9 @@ export function TasksInfiniteCanvas({
     onCreateTaskAtPosition,
     onConnectionCreate,
     onConnectionDelete,
+    onExecuteTask,
+    isExecutingTask,
+    executingTaskId,
     onTaskClick,
 }: TasksInfiniteCanvasProps) {
     const getTaskStateBadge = (task: TaskItem): { className: string; label: string } => {
@@ -654,6 +660,16 @@ export function TasksInfiniteCanvas({
                                             }
                                         >
                                             Connect
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-xs btn-outline"
+                                            disabled={isExecutingTask || isMarkingDone || isDeleting}
+                                            onClick={() => onExecuteTask(task.id)}
+                                        >
+                                            {isExecutingTask && executingTaskId === task.id
+                                                ? "Executing..."
+                                                : "Execute"}
                                         </button>
                                         <button
                                             type="button"
