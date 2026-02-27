@@ -39,6 +39,10 @@ type ExecuteByTaskIdError =
           message: string;
       }
     | {
+          type: "task-state-invalid";
+          message: string;
+      }
+    | {
           type: "project-repository-missing";
           message: string;
       };
@@ -353,6 +357,13 @@ export function createAgentsService(options: { clonesDir: string }) {
             });
             if (!executeResult.ok) {
                 return Result.error(executeResult.error);
+            }
+            const stateResult = await tasksService.markTaskInProgress(input.taskId);
+            if ("error" in stateResult) {
+                return Result.error<ExecuteByTaskIdError>({
+                    type: "task-state-invalid",
+                    message: stateResult.error,
+                });
             }
 
             const runId = runManager.enqueue({

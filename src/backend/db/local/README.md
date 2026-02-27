@@ -38,6 +38,7 @@ erDiagram
         text description
         text created_at
         integer sort_order
+        text state
         boolean is_done
         text done_at
     }
@@ -89,3 +90,4 @@ erDiagram
 - Each task connection pair is unique by composite primary key, and the app writes rows in canonical order to prevent mirrored duplicates.
 - `projects.sort_order` stores the manual ordering shown in the Projects list.
 - `tasks.sort_order` stores the manual ordering shown in task list views and project task lists.
+- `tasks.state` stores workflow state (`todo`, `in_progress`, `done`) for task lifecycle tracking.

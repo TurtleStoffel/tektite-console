@@ -27,6 +27,7 @@ export function listTasks() {
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
+            state: tasks.state,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
             canvasPositionX: taskCanvasPositions.x,
@@ -55,7 +56,7 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
     const whereParts: SQL[] = [];
 
     if (filter.isDone !== undefined) {
-        whereParts.push(eq(tasks.isDone, filter.isDone));
+        whereParts.push(filter.isDone ? eq(tasks.state, "done") : sql`${tasks.state} != 'done'`);
     }
     if (filter.hasProject === true) {
         whereParts.push(isNotNull(projectTasks.taskId));
@@ -71,6 +72,7 @@ export function listTasksWithFilter(filter: { isDone?: boolean; hasProject?: boo
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
+            state: tasks.state,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
             canvasPositionX: taskCanvasPositions.x,
@@ -89,7 +91,10 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
     const whereClause =
         filter.isDone === undefined
             ? eq(projectTasks.projectId, projectId)
-            : and(eq(projectTasks.projectId, projectId), eq(tasks.isDone, filter.isDone));
+            : and(
+                  eq(projectTasks.projectId, projectId),
+                  filter.isDone ? eq(tasks.state, "done") : sql`${tasks.state} != 'done'`,
+              );
 
     return db
         .select({
@@ -98,6 +103,7 @@ export function listProjectTasks(projectId: string, filter: { isDone?: boolean }
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
+            state: tasks.state,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
             canvasPositionX: taskCanvasPositions.x,
@@ -120,6 +126,7 @@ export async function findTaskById(taskId: string) {
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
+            state: tasks.state,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
             canvasPositionX: taskCanvasPositions.x,
@@ -142,6 +149,7 @@ export function listTasksByWorktreePath(worktreePath: string) {
             projectId: projectTasks.projectId,
             description: tasks.description,
             createdAt: tasks.createdAt,
+            state: tasks.state,
             isDone: tasks.isDone,
             doneAt: tasks.doneAt,
             canvasPositionX: taskCanvasPositions.x,
@@ -161,6 +169,7 @@ export async function createTask(values: {
     description: string;
     createdAt: string;
     sortOrder: number;
+    state: "todo" | "in_progress" | "done";
     isDone: boolean;
     doneAt: string | null;
 }) {
@@ -173,6 +182,7 @@ export async function createTask(values: {
                 description: values.description,
                 createdAt: values.createdAt,
                 sortOrder: values.sortOrder,
+                state: values.state,
                 isDone: values.isDone,
                 doneAt: values.doneAt,
             })
@@ -205,8 +215,21 @@ export async function markTaskDone(taskId: string, doneAt: string) {
     await db
         .update(tasks)
         .set({
+            state: "done",
             isDone: true,
             doneAt,
+        })
+        .where(eq(tasks.id, taskId))
+        .execute();
+}
+
+export async function markTaskInProgress(taskId: string) {
+    const db = getDb();
+    await db
+        .update(tasks)
+        .set({
+            state: "in_progress",
+            isDone: false,
         })
         .where(eq(tasks.id, taskId))
         .execute();

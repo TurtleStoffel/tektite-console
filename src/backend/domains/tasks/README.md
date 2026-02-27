@@ -1,7 +1,7 @@
 # tasks domain
 
 ## Purpose
-Stores and updates tasks that are pending or completed.
+Stores and updates tasks across `todo`, `in_progress`, and `done` states.
 
 ## Exported service functions
 
@@ -73,6 +73,18 @@ sequenceDiagram
     TasksService->>Repo: findTaskById(taskId)
     TasksService->>Repo: markTaskDone(...)
     TasksService-->>Caller: updated task/404
+```
+
+### `tasksService.markTaskInProgress(taskId)`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant TasksService
+    participant Repo
+    Caller->>TasksService: markTaskInProgress(taskId)
+    TasksService->>Repo: findTaskById(taskId)
+    TasksService->>Repo: markTaskInProgress(taskId)
+    TasksService-->>Caller: updated task/404/400
 ```
 
 ### `tasksService.markTasksDoneByWorktreePath(worktreePath)`

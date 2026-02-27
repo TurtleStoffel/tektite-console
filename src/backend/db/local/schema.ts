@@ -28,6 +28,9 @@ export const tasks = sqliteTable("tasks", {
     description: text("description").notNull(),
     createdAt: text("created_at").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    state: text("state", { enum: ["todo", "in_progress", "done"] })
+        .notNull()
+        .default("todo"),
     isDone: integer("is_done", { mode: "boolean" }).notNull().default(false),
     doneAt: text("done_at"),
 });

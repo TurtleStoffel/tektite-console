@@ -41,6 +41,7 @@ export function createAgentsRoutes(options: { clonesDir: string }) {
                             : result.error.type === "project-not-found"
                               ? 404
                               : result.error.type === "task-project-missing" ||
+                                  result.error.type === "task-state-invalid" ||
                                   result.error.type === "project-repository-missing"
                                 ? 400
                                 : 500;
