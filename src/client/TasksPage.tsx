@@ -1,33 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { TasksInfiniteCanvas } from "./tasks/TasksInfiniteCanvas";
 import { TasksListView } from "./tasks/TasksListView";
-import type { CanvasPoint, ProjectOption, TaskItem, Viewport } from "./tasks/types";
+import type { ProjectOption, TaskItem } from "./tasks/types";
 import { getErrorMessage } from "./utils/errors";
 
 type TasksPageProps = {
     drawerToggleId: string;
 };
 
-const MIN_SCALE = 0.3;
-const MAX_SCALE = 2;
-const ZOOM_SENSITIVITY = 0.0015;
 const SORT_ORDER_GAP = 1024;
-
-function clamp(value: number, min: number, max: number) {
-    return Math.min(Math.max(value, min), max);
-}
-
-function getDefaultNodePosition(index: number): CanvasPoint {
-    const columns = 5;
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    return {
-        x: 120 + column * (320 + 24),
-        y: 120 + row * (170 + 24),
-    };
-}
 
 function getSortOrderForMove(options: {
     list: { sortOrder: number }[];
@@ -55,31 +38,10 @@ function getSortOrderForMove(options: {
 
 export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const queryClient = useQueryClient();
-    const canvasRef = useRef<HTMLDivElement | null>(null);
-    const dragRef = useRef<{
-        taskId: string;
-        offsetX: number;
-        offsetY: number;
-        moved: boolean;
-    } | null>(null);
-    const panRef = useRef<{
-        startX: number;
-        startY: number;
-        originX: number;
-        originY: number;
-    } | null>(null);
-    const connectionDragRef = useRef<{ fromTaskId: string } | null>(null);
-    const viewportRef = useRef<Viewport>({ x: 120, y: 120, scale: 1 });
 
     const [statusFilter, setStatusFilter] = useState<"all" | "open" | "done">("all");
     const [projectFilter, setProjectFilter] = useState<"all" | "assigned" | "unassigned">("all");
     const [viewMode, setViewMode] = useState<"list" | "canvas">("list");
-    const [viewport, setViewport] = useState<Viewport>({ x: 120, y: 120, scale: 1 });
-    const [positionOverrides, setPositionOverrides] = useState<Record<string, CanvasPoint>>({});
-    const [connectionDragPreview, setConnectionDragPreview] = useState<{
-        fromTaskId: string;
-        toPoint: CanvasPoint;
-    } | null>(null);
 
     const {
         data: tasks = [],
@@ -256,229 +218,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
     });
 
-    useEffect(() => {
-        viewportRef.current = viewport;
-    }, [viewport]);
-
-    useEffect(() => {
-        setPositionOverrides((previous) => {
-            const next: Record<string, CanvasPoint> = {};
-            for (const [index, task] of tasks.entries()) {
-                const previousPosition = previous[task.id];
-                if (previousPosition) {
-                    next[task.id] = previousPosition;
-                    continue;
-                }
-                if (task.canvasPosition) {
-                    next[task.id] = task.canvasPosition;
-                    continue;
-                }
-                next[task.id] = getDefaultNodePosition(index);
-            }
-            return next;
-        });
-    }, [tasks]);
-
     const tasksError = getErrorMessage(tasksErrorRaw);
-
-    const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
-
-    const canvasTasks = useMemo(
-        () =>
-            tasks.map((task, index) => ({
-                ...task,
-                canvasPosition:
-                    positionOverrides[task.id] ??
-                    task.canvasPosition ??
-                    getDefaultNodePosition(index),
-            })),
-        [positionOverrides, tasks],
-    );
-
-    const screenToWorld = useCallback((clientX: number, clientY: number) => {
-        const surface = canvasRef.current;
-        if (!surface) {
-            throw new Error("Canvas surface not mounted.");
-        }
-        const rect = surface.getBoundingClientRect();
-        const x = (clientX - rect.left - viewportRef.current.x) / viewportRef.current.scale;
-        const y = (clientY - rect.top - viewportRef.current.y) / viewportRef.current.scale;
-        return { x, y };
-    }, []);
-
-    const handleCanvasWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        const surface = canvasRef.current;
-        if (!surface) {
-            throw new Error("Canvas surface not mounted.");
-        }
-        const rect = surface.getBoundingClientRect();
-        const pointerX = event.clientX - rect.left;
-        const pointerY = event.clientY - rect.top;
-        const current = viewportRef.current;
-        const zoomFactor = Math.exp(-event.deltaY * ZOOM_SENSITIVITY);
-        const nextScale = clamp(current.scale * zoomFactor, MIN_SCALE, MAX_SCALE);
-        const worldX = (pointerX - current.x) / current.scale;
-        const worldY = (pointerY - current.y) / current.scale;
-        const nextX = pointerX - worldX * nextScale;
-        const nextY = pointerY - worldY * nextScale;
-        setViewport({ x: nextX, y: nextY, scale: nextScale });
-    }, []);
-
-    const handleCanvasPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0 || event.target !== event.currentTarget) {
-            return;
-        }
-
-        panRef.current = {
-            startX: event.clientX,
-            startY: event.clientY,
-            originX: viewportRef.current.x,
-            originY: viewportRef.current.y,
-        };
-
-        (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
-    }, []);
-
-    const handleCanvasPointerMove = useCallback(
-        (event: React.PointerEvent<HTMLDivElement>) => {
-            if (connectionDragRef.current) {
-                const world = screenToWorld(event.clientX, event.clientY);
-                setConnectionDragPreview({
-                    fromTaskId: connectionDragRef.current.fromTaskId,
-                    toPoint: world,
-                });
-                return;
-            }
-
-            if (panRef.current) {
-                const dx = event.clientX - panRef.current.startX;
-                const dy = event.clientY - panRef.current.startY;
-                setViewport((previous) => ({
-                    ...previous,
-                    x: panRef.current ? panRef.current.originX + dx : previous.x,
-                    y: panRef.current ? panRef.current.originY + dy : previous.y,
-                }));
-                return;
-            }
-
-            if (!dragRef.current) {
-                return;
-            }
-
-            dragRef.current.moved = true;
-            const world = screenToWorld(event.clientX, event.clientY);
-            const nextPoint = {
-                x: Math.round(world.x - dragRef.current.offsetX),
-                y: Math.round(world.y - dragRef.current.offsetY),
-            };
-
-            setPositionOverrides((previous) => ({
-                ...previous,
-                [dragRef.current?.taskId ?? ""]: nextPoint,
-            }));
-        },
-        [screenToWorld],
-    );
-
-    const handleCanvasPointerUp = useCallback(
-        (event: React.PointerEvent<HTMLDivElement>) => {
-            try {
-                if (connectionDragRef.current) {
-                    const fromTaskId = connectionDragRef.current.fromTaskId;
-                    connectionDragRef.current = null;
-                    setConnectionDragPreview(null);
-
-                    const targetElement = document
-                        .elementFromPoint(event.clientX, event.clientY)
-                        ?.closest<HTMLElement>("[data-task-id]");
-                    const connectedTaskId = targetElement?.dataset.taskId;
-                    if (!connectedTaskId || connectedTaskId === fromTaskId) {
-                        return;
-                    }
-
-                    const sourceTask = tasksById.get(fromTaskId);
-                    if (!sourceTask) {
-                        throw new Error("Source task was not found while creating a connection.");
-                    }
-                    if (sourceTask.connectionTaskIds.includes(connectedTaskId)) {
-                        return;
-                    }
-
-                    createTaskConnection({ taskId: fromTaskId, connectedTaskId });
-                    return;
-                }
-
-                if (panRef.current) {
-                    panRef.current = null;
-                }
-
-                if (dragRef.current) {
-                    const completedDrag = dragRef.current;
-                    dragRef.current = null;
-                    if (completedDrag.moved) {
-                        const task = tasksById.get(completedDrag.taskId);
-                        const point = positionOverrides[completedDrag.taskId];
-                        if (task && point) {
-                            saveTaskCanvasPosition({
-                                taskId: task.id,
-                                x: point.x,
-                                y: point.y,
-                            });
-                        }
-                    }
-                }
-            } finally {
-                if ((event.currentTarget as HTMLDivElement).hasPointerCapture(event.pointerId)) {
-                    (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
-                }
-            }
-        },
-        [createTaskConnection, positionOverrides, saveTaskCanvasPosition, tasksById],
-    );
-
-    const handleTaskPointerDown = useCallback(
-        (
-            task: TaskItem & { canvasPosition: CanvasPoint },
-            event: React.PointerEvent<HTMLElement>,
-        ) => {
-            event.stopPropagation();
-            const world = screenToWorld(event.clientX, event.clientY);
-            dragRef.current = {
-                taskId: task.id,
-                offsetX: world.x - task.canvasPosition.x,
-                offsetY: world.y - task.canvasPosition.y,
-                moved: false,
-            };
-            const surface = canvasRef.current;
-            if (!surface) {
-                throw new Error("Canvas surface not mounted.");
-            }
-            surface.setPointerCapture(event.pointerId);
-        },
-        [screenToWorld],
-    );
-
-    const handleConnectionPointerDown = useCallback(
-        (
-            task: TaskItem & { canvasPosition: CanvasPoint },
-            event: React.PointerEvent<HTMLElement>,
-        ) => {
-            event.stopPropagation();
-            const surface = canvasRef.current;
-            if (!surface) {
-                throw new Error("Canvas surface not mounted.");
-            }
-
-            connectionDragRef.current = { fromTaskId: task.id };
-            setConnectionDragPreview({
-                fromTaskId: task.id,
-                toPoint: screenToWorld(event.clientX, event.clientY),
-            });
-            surface.setPointerCapture(event.pointerId);
-        },
-        [screenToWorld],
-    );
 
     const isCanvasView = viewMode === "canvas";
     const canReorderTasks = statusFilter === "all" && projectFilter === "all";
@@ -621,25 +361,17 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             ) : isCanvasView ? (
                 <div className="h-full min-h-0 flex-1">
                     <TasksInfiniteCanvas
-                        canvasRef={canvasRef}
-                        canvasTasks={canvasTasks}
+                        tasks={tasks}
                         projects={projects}
-                        viewport={viewport}
                         isMarkingDone={isMarkingDone}
                         isDeleting={isDeleting}
                         isUpdatingProject={isUpdatingProject}
                         isCreatingConnection={isCreatingConnection}
-                        connectionDragPreview={connectionDragPreview}
-                        onResetView={() => setViewport({ x: 120, y: 120, scale: 1 })}
-                        onWheel={handleCanvasWheel}
-                        onPointerDown={handleCanvasPointerDown}
-                        onPointerMove={handleCanvasPointerMove}
-                        onPointerUp={handleCanvasPointerUp}
-                        onTaskPointerDown={handleTaskPointerDown}
-                        onConnectionPointerDown={handleConnectionPointerDown}
                         onMarkDone={markDone}
                         onDeleteTask={deleteTask}
                         onUpdateTaskProject={updateTaskProject}
+                        onTaskMoved={(input) => saveTaskCanvasPosition(input)}
+                        onConnectionCreate={(input) => createTaskConnection(input)}
                     />
                 </div>
             ) : (

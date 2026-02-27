@@ -18,6 +18,7 @@
 - Style with Tailwind utility classes and DaisyUI components.
 - Prefer explicit failures over hidden defaults.
 - Add logs that help trace important UI/runtime behavior.
+- If the user gives architecture/process feedback during a client task, update the relevant `AGENTS.md` file in the same change to persist that preference.
 
 ## Design patterns that scale in React
 1. `Data down, events up`
