@@ -14,7 +14,6 @@ export default function TaskExecutionPanel({
     const [taskPrompt, setTaskPrompt] = useState("");
     const [validationMessage, setValidationMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
-    const [creatingTask, setCreatingTask] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const abortControllersRef = useRef<Set<AbortController>>(new Set());
 
@@ -55,45 +54,10 @@ export default function TaskExecutionPanel({
         return { id: createTaskPayload.id };
     };
 
-    const handleCreateTask = async () => {
-        const trimmedPrompt = taskPrompt.trim();
-        if (!trimmedPrompt) {
-            setValidationMessage("Enter a task before creating or executing.");
-            return;
-        }
-
-        setValidationMessage(null);
-        setCreatingTask(true);
-        setStatusMessage("Creating task...");
-
-        const abortController = new AbortController();
-        abortControllersRef.current.add(abortController);
-        console.log("[task-execution-panel] creating task without execution");
-
-        try {
-            await createTask(trimmedPrompt, abortController.signal);
-            setTaskPrompt("");
-            onTaskStarted();
-            setStatusMessage("Task created.");
-        } catch (error) {
-            if (abortController.signal.aborted) {
-                setStatusMessage("Task creation cancelled.");
-                return;
-            }
-            const message =
-                error instanceof Error ? error.message : "Unexpected error creating task.";
-            setStatusMessage(`Error: ${message}`);
-            console.warn("[task-execution-panel] task creation failed", error);
-        } finally {
-            abortControllersRef.current.delete(abortController);
-            setCreatingTask(false);
-        }
-    };
-
     const handleExecuteTask = async () => {
         const trimmedPrompt = taskPrompt.trim();
         if (!trimmedPrompt) {
-            setValidationMessage("Enter a task before creating or executing.");
+            setValidationMessage("Enter a task before executing.");
             return;
         }
 
@@ -224,16 +188,16 @@ export default function TaskExecutionPanel({
         }
     };
 
-    // Keep task submission enabled even while runs are active so users can queue/create
-    // another task or start another execution without waiting for the current run to finish.
-    const canSubmitTask = Boolean(taskPrompt.trim()) && !creatingTask;
+    // Keep task submission enabled even while runs are active so users can start another
+    // execution without waiting for the current run to finish.
+    const canSubmitTask = Boolean(taskPrompt.trim());
 
     return (
         <>
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">Task execution</h2>
                 <p className="text-sm text-base-content/70">
-                    Enter a task and either create it for later or execute it in a new worktree now.
+                    Enter a task and execute it in a new worktree now.
                 </p>
             </div>
             <div className="form-control gap-2">
@@ -244,14 +208,6 @@ export default function TaskExecutionPanel({
                     onChange={(event) => setTaskPrompt(event.target.value)}
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
-                    <button
-                        className="btn btn-outline"
-                        type="button"
-                        onClick={() => void handleCreateTask()}
-                        disabled={!canSubmitTask}
-                    >
-                        {creatingTask ? "Creating..." : "Create task"}
-                    </button>
                     <button
                         className="btn btn-primary"
                         type="button"
