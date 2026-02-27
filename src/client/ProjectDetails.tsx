@@ -37,6 +37,8 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documentActionError, setDocumentActionError] = useState<string | null>(null);
     const [projectActionError, setProjectActionError] = useState<string | null>(null);
     const [isWorktreeDetailsOpen, setIsWorktreeDetailsOpen] = useState(false);
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editingDescription, setEditingDescription] = useState("");
     const queryClient = useQueryClient();
     const shouldHideRightSidebar = isWorktreeDetailsOpen;
 
@@ -165,6 +167,33 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     });
     const createProjectDocumentErrorMessage =
         createProjectDocumentError instanceof Error ? createProjectDocumentError.message : null;
+    const {
+        mutate: updateTaskDescription,
+        isPending: isUpdatingTaskDescription,
+        error: updateTaskDescriptionError,
+    } = useMutation({
+        mutationFn: async (input: { taskId: string; description: string }) => {
+            const res = await fetch(`/api/tasks/${input.taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    description: input.description,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to update task description.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks", id] });
+            setEditingTaskId(null);
+            setEditingDescription("");
+            console.info("[project-details] task description updated");
+        },
+    });
+    const updateTaskDescriptionErrorMessage =
+        updateTaskDescriptionError instanceof Error ? updateTaskDescriptionError.message : null;
 
     const updateRepository = async (nextRepositoryId: string | null) => {
         if (!id) return;
@@ -245,6 +274,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
 
     const currentRepositoryId = project?.repositoryId ?? "";
     const repositoryChanged = repositorySelection !== currentRepositoryId;
+    const canSaveTaskDescription = editingDescription.trim().length > 0;
 
     return (
         <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 relative z-10">
@@ -427,6 +457,10 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                         queryKey: ["project-tasks", project.id],
                                     });
                                 }}
+                                onTaskClick={(task) => {
+                                    setEditingTaskId(task.id);
+                                    setEditingDescription(task.description);
+                                }}
                             />
 
                             <div className="card bg-base-200 border border-base-300 shadow-sm">
@@ -519,6 +553,69 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+            {editingTaskId && (
+                <div className="modal modal-open">
+                    <div className="modal-box max-w-2xl">
+                        <h3 className="text-lg font-semibold">Edit task</h3>
+                        <p className="mt-1 text-sm text-base-content/70">
+                            Task ID: <span className="font-mono">{editingTaskId}</span>
+                        </p>
+                        {updateTaskDescriptionErrorMessage && (
+                            <div className="alert alert-error py-2 mt-4">
+                                <span className="text-sm">{updateTaskDescriptionErrorMessage}</span>
+                            </div>
+                        )}
+                        <label className="form-control mt-4">
+                            <span className="label-text text-sm font-medium">Description</span>
+                            <textarea
+                                className="textarea textarea-bordered min-h-36"
+                                value={editingDescription}
+                                onChange={(event) => setEditingDescription(event.target.value)}
+                                disabled={isUpdatingTaskDescription}
+                            />
+                        </label>
+                        <div className="modal-action">
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => {
+                                    setEditingTaskId(null);
+                                    setEditingDescription("");
+                                }}
+                                disabled={isUpdatingTaskDescription}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                disabled={!canSaveTaskDescription || isUpdatingTaskDescription}
+                                onClick={() =>
+                                    updateTaskDescription({
+                                        taskId: editingTaskId,
+                                        description: editingDescription.trim(),
+                                    })
+                                }
+                            >
+                                {isUpdatingTaskDescription ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="modal-backdrop"
+                        onClick={() => {
+                            if (isUpdatingTaskDescription) {
+                                return;
+                            }
+                            setEditingTaskId(null);
+                            setEditingDescription("");
+                        }}
+                    >
+                        Close
+                    </button>
                 </div>
             )}
         </div>

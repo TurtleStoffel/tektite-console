@@ -14,9 +14,14 @@ type TaskItem = {
 type ProjectTasksCardProps = {
     projectId: string;
     onTaskExecutionStarted: () => void;
+    onTaskClick: (task: TaskItem) => void;
 };
 
-export function ProjectTasksCard({ projectId, onTaskExecutionStarted }: ProjectTasksCardProps) {
+export function ProjectTasksCard({
+    projectId,
+    onTaskExecutionStarted,
+    onTaskClick,
+}: ProjectTasksCardProps) {
     const [taskDraft, setTaskDraft] = useState("");
     const [executeStatusMessage, setExecuteStatusMessage] = useState<string | null>(null);
     const [activeRuns, setActiveRuns] = useState(0);
@@ -223,9 +228,13 @@ export function ProjectTasksCard({ projectId, onTaskExecutionStarted }: ProjectT
                                 className="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2"
                             >
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="text-xs text-base-content/60">
+                                    <button
+                                        type="button"
+                                        className="text-left text-xs text-base-content/60 hover:underline"
+                                        onClick={() => onTaskClick(task)}
+                                    >
                                         {new Date(task.createdAt).toLocaleString()}
-                                    </div>
+                                    </button>
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
@@ -252,9 +261,13 @@ export function ProjectTasksCard({ projectId, onTaskExecutionStarted }: ProjectT
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-sm whitespace-pre-wrap break-words">
+                                <button
+                                    type="button"
+                                    className="w-full text-left text-sm whitespace-pre-wrap break-words"
+                                    onClick={() => onTaskClick(task)}
+                                >
                                     {task.description}
-                                </p>
+                                </button>
                             </div>
                         ))}
                     </div>
