@@ -45,6 +45,11 @@ export function WorktreeSelector({
                                         <div className="font-mono text-xs break-all">
                                             {worktree.path}
                                         </div>
+                                        {worktree.promptSummary && (
+                                            <div className="mt-1 text-xs text-base-content/80 break-words">
+                                                Task summary: {worktree.promptSummary}
+                                            </div>
+                                        )}
                                         <div className="mt-2 flex flex-wrap items-center gap-2">
                                             <div
                                                 className={`badge badge-outline ${
