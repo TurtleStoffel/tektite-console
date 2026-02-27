@@ -68,6 +68,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         originX: number;
         originY: number;
     } | null>(null);
+    const connectionDragRef = useRef<{ fromTaskId: string } | null>(null);
     const viewportRef = useRef<Viewport>({ x: 120, y: 120, scale: 1 });
 
     const [statusFilter, setStatusFilter] = useState<"all" | "open" | "done">("all");
@@ -75,6 +76,10 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const [viewMode, setViewMode] = useState<"list" | "canvas">("list");
     const [viewport, setViewport] = useState<Viewport>({ x: 120, y: 120, scale: 1 });
     const [positionOverrides, setPositionOverrides] = useState<Record<string, CanvasPoint>>({});
+    const [connectionDragPreview, setConnectionDragPreview] = useState<{
+        fromTaskId: string;
+        toPoint: CanvasPoint;
+    } | null>(null);
 
     const {
         data: tasks = [],
@@ -337,6 +342,15 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
 
     const handleCanvasPointerMove = useCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
+            if (connectionDragRef.current) {
+                const world = screenToWorld(event.clientX, event.clientY);
+                setConnectionDragPreview({
+                    fromTaskId: connectionDragRef.current.fromTaskId,
+                    toPoint: world,
+                });
+                return;
+            }
+
             if (panRef.current) {
                 const dx = event.clientX - panRef.current.startX;
                 const dy = event.clientY - panRef.current.startY;
@@ -369,31 +383,58 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
 
     const handleCanvasPointerUp = useCallback(
         (event: React.PointerEvent<HTMLDivElement>) => {
-            if (panRef.current) {
-                panRef.current = null;
-            }
+            try {
+                if (connectionDragRef.current) {
+                    const fromTaskId = connectionDragRef.current.fromTaskId;
+                    connectionDragRef.current = null;
+                    setConnectionDragPreview(null);
 
-            if (dragRef.current) {
-                const completedDrag = dragRef.current;
-                dragRef.current = null;
-                if (completedDrag.moved) {
-                    const task = tasksById.get(completedDrag.taskId);
-                    const point = positionOverrides[completedDrag.taskId];
-                    if (task && point) {
-                        saveTaskCanvasPosition({
-                            taskId: task.id,
-                            x: point.x,
-                            y: point.y,
-                        });
+                    const targetElement = document
+                        .elementFromPoint(event.clientX, event.clientY)
+                        ?.closest<HTMLElement>("[data-task-id]");
+                    const connectedTaskId = targetElement?.dataset.taskId;
+                    if (!connectedTaskId || connectedTaskId === fromTaskId) {
+                        return;
+                    }
+
+                    const sourceTask = tasksById.get(fromTaskId);
+                    if (!sourceTask) {
+                        throw new Error("Source task was not found while creating a connection.");
+                    }
+                    if (sourceTask.connectionTaskIds.includes(connectedTaskId)) {
+                        return;
+                    }
+
+                    createTaskConnection({ taskId: fromTaskId, connectedTaskId });
+                    return;
+                }
+
+                if (panRef.current) {
+                    panRef.current = null;
+                }
+
+                if (dragRef.current) {
+                    const completedDrag = dragRef.current;
+                    dragRef.current = null;
+                    if (completedDrag.moved) {
+                        const task = tasksById.get(completedDrag.taskId);
+                        const point = positionOverrides[completedDrag.taskId];
+                        if (task && point) {
+                            saveTaskCanvasPosition({
+                                taskId: task.id,
+                                x: point.x,
+                                y: point.y,
+                            });
+                        }
                     }
                 }
-            }
-
-            if ((event.currentTarget as HTMLDivElement).hasPointerCapture(event.pointerId)) {
-                (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
+            } finally {
+                if ((event.currentTarget as HTMLDivElement).hasPointerCapture(event.pointerId)) {
+                    (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
+                }
             }
         },
-        [positionOverrides, saveTaskCanvasPosition, tasksById],
+        [createTaskConnection, positionOverrides, saveTaskCanvasPosition, tasksById],
     );
 
     const handleTaskPointerDown = useCallback(
@@ -413,6 +454,27 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
             if (!surface) {
                 throw new Error("Canvas surface not mounted.");
             }
+            surface.setPointerCapture(event.pointerId);
+        },
+        [screenToWorld],
+    );
+
+    const handleConnectionPointerDown = useCallback(
+        (
+            task: TaskItem & { canvasPosition: CanvasPoint },
+            event: React.PointerEvent<HTMLElement>,
+        ) => {
+            event.stopPropagation();
+            const surface = canvasRef.current;
+            if (!surface) {
+                throw new Error("Canvas surface not mounted.");
+            }
+
+            connectionDragRef.current = { fromTaskId: task.id };
+            setConnectionDragPreview({
+                fromTaskId: task.id,
+                toPoint: screenToWorld(event.clientX, event.clientY),
+            });
             surface.setPointerCapture(event.pointerId);
         },
         [screenToWorld],
@@ -566,12 +628,15 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                         isMarkingDone={isMarkingDone}
                         isDeleting={isDeleting}
                         isUpdatingProject={isUpdatingProject}
+                        isCreatingConnection={isCreatingConnection}
+                        connectionDragPreview={connectionDragPreview}
                         onResetView={() => setViewport({ x: 120, y: 120, scale: 1 })}
                         onWheel={handleCanvasWheel}
                         onPointerDown={handleCanvasPointerDown}
                         onPointerMove={handleCanvasPointerMove}
                         onPointerUp={handleCanvasPointerUp}
                         onTaskPointerDown={handleTaskPointerDown}
+                        onConnectionPointerDown={handleConnectionPointerDown}
                         onMarkDone={markDone}
                         onDeleteTask={deleteTask}
                         onUpdateTaskProject={updateTaskProject}

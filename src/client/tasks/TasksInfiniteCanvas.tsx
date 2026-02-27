@@ -11,12 +11,18 @@ type TasksInfiniteCanvasProps = {
     isMarkingDone: boolean;
     isDeleting: boolean;
     isUpdatingProject: boolean;
+    isCreatingConnection: boolean;
+    connectionDragPreview: {
+        fromTaskId: string;
+        toPoint: CanvasPoint;
+    } | null;
     onResetView: () => void;
     onWheel: (event: ReactWheelEvent<HTMLDivElement>) => void;
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onTaskPointerDown: (task: CanvasTask, event: ReactPointerEvent<HTMLElement>) => void;
+    onConnectionPointerDown: (task: CanvasTask, event: ReactPointerEvent<HTMLElement>) => void;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
@@ -33,16 +39,30 @@ export function TasksInfiniteCanvas({
     isMarkingDone,
     isDeleting,
     isUpdatingProject,
+    isCreatingConnection,
+    connectionDragPreview,
     onResetView,
     onWheel,
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onTaskPointerDown,
+    onConnectionPointerDown,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
 }: TasksInfiniteCanvasProps) {
+    const canvasConnections = new Set<string>();
+    for (const task of canvasTasks) {
+        for (const connectedTaskId of task.connectionTaskIds) {
+            if (task.id < connectedTaskId) {
+                canvasConnections.add(`${task.id}:${connectedTaskId}`);
+            }
+        }
+    }
+
+    const taskById = new Map(canvasTasks.map((task) => [task.id, task]));
+
     return (
         <div className="card bg-base-200 border border-base-300 shadow-md h-full">
             <div className="card-body p-3 flex h-full min-h-0 flex-col">
@@ -81,9 +101,64 @@ export function TasksInfiniteCanvas({
                             height: 1,
                         }}
                     >
+                        <svg
+                            className="absolute overflow-visible pointer-events-none"
+                            style={{ top: 0, left: 0 }}
+                            aria-hidden="true"
+                        >
+                            {[...canvasConnections].map((connectionKey) => {
+                                const [sourceTaskId, targetTaskId] = connectionKey.split(":");
+                                if (!sourceTaskId || !targetTaskId) {
+                                    return null;
+                                }
+                                const sourceTask = taskById.get(sourceTaskId);
+                                const targetTask = taskById.get(targetTaskId);
+                                if (!sourceTask || !targetTask) {
+                                    return null;
+                                }
+
+                                const x1 = sourceTask.canvasPosition.x + NODE_WIDTH / 2;
+                                const y1 = sourceTask.canvasPosition.y + NODE_HEIGHT / 2;
+                                const x2 = targetTask.canvasPosition.x + NODE_WIDTH / 2;
+                                const y2 = targetTask.canvasPosition.y + NODE_HEIGHT / 2;
+
+                                return (
+                                    <line
+                                        key={connectionKey}
+                                        x1={x1}
+                                        y1={y1}
+                                        x2={x2}
+                                        y2={y2}
+                                        stroke="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
+                                        strokeWidth={2}
+                                    />
+                                );
+                            })}
+                            {connectionDragPreview &&
+                                taskById.get(connectionDragPreview.fromTaskId) && (
+                                    <line
+                                        x1={
+                                            (taskById.get(connectionDragPreview.fromTaskId)
+                                                ?.canvasPosition.x ?? 0) +
+                                            NODE_WIDTH / 2
+                                        }
+                                        y1={
+                                            (taskById.get(connectionDragPreview.fromTaskId)
+                                                ?.canvasPosition.y ?? 0) +
+                                            NODE_HEIGHT / 2
+                                        }
+                                        x2={connectionDragPreview.toPoint.x}
+                                        y2={connectionDragPreview.toPoint.y}
+                                        stroke="var(--color-primary)"
+                                        strokeWidth={2}
+                                        strokeDasharray="6 5"
+                                    />
+                                )}
+                        </svg>
                         {canvasTasks.map((task) => (
                             <article
                                 key={task.id}
+                                data-task-id={task.id}
                                 className="absolute bg-base-200 border border-base-300 rounded-lg shadow-md p-3 select-none"
                                 style={{
                                     width: NODE_WIDTH,
@@ -126,6 +201,21 @@ export function TasksInfiniteCanvas({
                                     </select>
                                 </div>
                                 <div className="mt-3 flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-outline"
+                                        disabled={
+                                            isMarkingDone ||
+                                            isDeleting ||
+                                            isUpdatingProject ||
+                                            isCreatingConnection
+                                        }
+                                        onPointerDown={(event) =>
+                                            onConnectionPointerDown(task, event)
+                                        }
+                                    >
+                                        Connect
+                                    </button>
                                     <button
                                         type="button"
                                         className="btn btn-xs btn-success"
