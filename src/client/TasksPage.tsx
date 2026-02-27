@@ -416,7 +416,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         <div
             className={`relative z-10 w-full p-6 ${
                 isCanvasView
-                    ? "flex min-h-[calc(100vh-73px)] flex-col gap-4"
+                    ? "flex h-[calc(100vh-73px)] flex-col gap-4"
                     : "mx-auto max-w-6xl space-y-6"
             }`}
         >
@@ -521,7 +521,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     </div>
                 </div>
             ) : isCanvasView ? (
-                <div className="min-h-0 flex-1">
+                <div className="h-full min-h-0 flex-1">
                     <TasksInfiniteCanvas
                         canvasRef={canvasRef}
                         canvasTasks={canvasTasks}
