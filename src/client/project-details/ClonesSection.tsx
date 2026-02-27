@@ -254,7 +254,7 @@ export function CloneCard({
                         <div className="text-xs font-semibold text-base-content/70">Codex log</div>
                         {clone.codexThreadId && (
                             <div className="font-mono text-xs text-base-content/70 break-all">
-                                thread: {clone.codexThreadId}
+                                Worktree Thread ID: {clone.codexThreadId}
                             </div>
                         )}
                         {clone.codexLastEvent && (

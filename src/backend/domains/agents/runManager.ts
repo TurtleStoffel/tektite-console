@@ -84,6 +84,10 @@ function nowIso() {
     return new Date().toISOString();
 }
 
+function sortByNewestCreatedAt(a: AgentRunRecord, b: AgentRunRecord) {
+    return b.createdAt.localeCompare(a.createdAt);
+}
+
 export function createAgentRunManager() {
     // Keep run state in memory for now: active agent runs are process-bound today,
     // so persisting metadata without durable/recoverable execution would be misleading.
@@ -172,7 +176,7 @@ export function createAgentRunManager() {
         const projectId = input?.projectId ?? null;
         return [...runs.values()]
             .filter((run) => (projectId ? run.projectId === projectId : true))
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+            .sort(sortByNewestCreatedAt);
     };
 
     const listWorktreeStatuses = (input?: { projectId?: string | null }) => {
@@ -181,30 +185,45 @@ export function createAgentRunManager() {
             string,
             {
                 runId: string;
-                status: "queued" | "running";
+                status: AgentRunStatus;
                 threadId: string | null;
                 lastMessage: string | null;
                 lastEvent: string | null;
             }
         > = {};
 
-        for (const run of runs.values()) {
+        const sortedRuns = [...runs.values()].sort(sortByNewestCreatedAt);
+
+        for (const run of sortedRuns) {
             if (!run.worktreePath) {
                 continue;
             }
             if (projectId && run.projectId !== projectId) {
                 continue;
             }
-            if (run.status !== "queued" && run.status !== "running") {
+
+            const existing = byWorktreePath[run.worktreePath];
+            if (!existing) {
+                byWorktreePath[run.worktreePath] = {
+                    runId: run.id,
+                    status: run.status,
+                    threadId: run.threadId,
+                    lastMessage: run.lastMessage,
+                    lastEvent: run.lastEvent,
+                };
                 continue;
             }
-            byWorktreePath[run.worktreePath] = {
-                runId: run.id,
-                status: run.status,
-                threadId: run.threadId,
-                lastMessage: run.lastMessage,
-                lastEvent: run.lastEvent,
-            };
+
+            // Keep the latest run status, but backfill missing thread metadata from prior runs.
+            if (!existing.threadId && run.threadId) {
+                existing.threadId = run.threadId;
+            }
+            if (!existing.lastMessage && run.lastMessage) {
+                existing.lastMessage = run.lastMessage;
+            }
+            if (!existing.lastEvent && run.lastEvent) {
+                existing.lastEvent = run.lastEvent;
+            }
         }
 
         return byWorktreePath;

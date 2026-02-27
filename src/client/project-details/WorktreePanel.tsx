@@ -35,7 +35,7 @@ export function WorktreePanel({
             string,
             {
                 runId: string;
-                status: "queued" | "running";
+                status: "queued" | "running" | "succeeded" | "failed";
                 threadId: string | null;
                 lastMessage: string | null;
                 lastEvent: string | null;
@@ -59,7 +59,7 @@ export function WorktreePanel({
                 string,
                 {
                     runId: string;
-                    status: "queued" | "running";
+                    status: "queued" | "running" | "succeeded" | "failed";
                     threadId: string | null;
                     lastMessage: string | null;
                     lastEvent: string | null;
