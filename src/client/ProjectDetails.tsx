@@ -44,6 +44,7 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     const [documentsError, setDocumentsError] = useState<string | null>(null);
     const [documentActionError, setDocumentActionError] = useState<string | null>(null);
     const [projectActionError, setProjectActionError] = useState<string | null>(null);
+    const [taskDraft, setTaskDraft] = useState("");
     const [isWorktreeDetailsOpen, setIsWorktreeDetailsOpen] = useState(false);
     const queryClient = useQueryClient();
     const shouldHideRightSidebar = isWorktreeDetailsOpen;
@@ -185,6 +186,39 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
     });
     const markTaskDoneErrorMessage =
         markTaskDoneError instanceof Error ? markTaskDoneError.message : null;
+    const {
+        mutate: createTask,
+        isPending: creatingTask,
+        error: createTaskError,
+    } = useMutation({
+        mutationFn: async (description: string) => {
+            if (!id) throw new Error("Project id is missing.");
+            const res = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    description,
+                    projectId: id,
+                }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to create task.");
+            }
+            if (typeof payload?.id !== "string" || payload.id.length === 0) {
+                throw new Error("Task creation returned an invalid task id.");
+            }
+            console.info("[project-details] task created", { projectId: id, taskId: payload.id });
+            return payload.id as string;
+        },
+        onSuccess: async () => {
+            if (!id) return;
+            setTaskDraft("");
+            await queryClient.invalidateQueries({ queryKey: ["project-tasks", id] });
+        },
+    });
+    const createTaskErrorMessage =
+        createTaskError instanceof Error ? createTaskError.message : null;
     const {
         mutate: createProjectDocument,
         isPending: creatingProjectDocument,
@@ -484,9 +518,32 @@ export function ProjectDetails({ drawerToggleId }: ProjectDetailsProps) {
                                                 : "Refresh"}
                                         </button>
                                     </div>
+                                    <div className="space-y-2">
+                                        <textarea
+                                            placeholder="Create a task for this project"
+                                            className="textarea textarea-bordered w-full min-h-[90px]"
+                                            value={taskDraft}
+                                            onChange={(event) => setTaskDraft(event.target.value)}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline btn-sm"
+                                            onClick={() => createTask(taskDraft.trim())}
+                                            disabled={!taskDraft.trim() || creatingTask}
+                                        >
+                                            {creatingTask ? "Creating..." : "Create task"}
+                                        </button>
+                                    </div>
                                     {tasksError && (
                                         <div className="alert alert-error py-2">
                                             <span className="text-sm">{tasksError}</span>
+                                        </div>
+                                    )}
+                                    {createTaskErrorMessage && (
+                                        <div className="alert alert-error py-2">
+                                            <span className="text-sm">
+                                                {createTaskErrorMessage}
+                                            </span>
                                         </div>
                                     )}
                                     {markTaskDoneErrorMessage && (
