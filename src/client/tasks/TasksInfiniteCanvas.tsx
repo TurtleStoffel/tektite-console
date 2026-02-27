@@ -664,7 +664,9 @@ export function TasksInfiniteCanvas({
                                         <button
                                             type="button"
                                             className="btn btn-xs btn-outline"
-                                            disabled={isExecutingTask || isMarkingDone || isDeleting}
+                                            disabled={
+                                                isExecutingTask || isMarkingDone || isDeleting
+                                            }
                                             onClick={() => onExecuteTask(task.id)}
                                         >
                                             {isExecutingTask && executingTaskId === task.id

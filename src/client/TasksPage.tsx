@@ -13,6 +13,23 @@ type TasksPageProps = {
 };
 
 const SORT_ORDER_GAP = 1024;
+const TASKS_VIEW_MODE_STORAGE_KEY = "tasks:view-mode";
+
+function readInitialViewMode(): "list" | "canvas" {
+    if (typeof window === "undefined") {
+        return "list";
+    }
+    try {
+        const persisted = window.localStorage.getItem(TASKS_VIEW_MODE_STORAGE_KEY);
+        if (persisted === "canvas" || persisted === "list") {
+            return persisted;
+        }
+    } catch (error) {
+        console.error("[tasks] failed to read view mode from localStorage", error);
+    }
+
+    return "list";
+}
 
 function getSortOrderForMove(options: {
     list: { sortOrder: number }[];
@@ -43,7 +60,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
 
     const [statusFilter, setStatusFilter] = useState<"all" | "open" | "done">("all");
     const [projectFilter, setProjectFilter] = useState<"all" | "assigned" | "unassigned">("all");
-    const [viewMode, setViewMode] = useState<"list" | "canvas">("list");
+    const [viewMode, setViewMode] = useState<"list" | "canvas">(readInitialViewMode);
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editingDescription, setEditingDescription] = useState("");
     const [executeStatusMessage, setExecuteStatusMessage] = useState<string | null>(null);
@@ -300,6 +317,14 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
     const canReorderTasks = statusFilter === "all" && projectFilter === "all";
     const reorderTasksError = getErrorMessage(reorderTasksMutation.error);
     const executeTaskError = getErrorMessage(executeTaskErrorRaw);
+    const setAndPersistViewMode = useCallback((nextViewMode: "list" | "canvas") => {
+        setViewMode(nextViewMode);
+        try {
+            window.localStorage.setItem(TASKS_VIEW_MODE_STORAGE_KEY, nextViewMode);
+        } catch (error) {
+            console.error("[tasks] failed to persist view mode to localStorage", error);
+        }
+    }, []);
 
     const handleMoveTask = useCallback(
         (taskId: string, direction: "up" | "down") => {
@@ -428,7 +453,7 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                             className="toggle toggle-primary"
                             checked={isCanvasView}
                             onChange={(event) =>
-                                setViewMode(event.target.checked ? "canvas" : "list")
+                                setAndPersistViewMode(event.target.checked ? "canvas" : "list")
                             }
                         />
                     </label>
