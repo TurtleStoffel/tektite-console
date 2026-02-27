@@ -34,6 +34,7 @@ const MAX_SCALE = 2;
 const ZOOM_SENSITIVITY = 0.0015;
 const DEFAULT_VIEWPORT: Viewport = { x: 120, y: 120, scale: 1 };
 const INTERACTIVE_SELECTOR = "button, select, input, textarea, a, [role='button']";
+const MULTI_SELECT_KEY_HINT = "Shift";
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
@@ -121,9 +122,11 @@ export function TasksInfiniteCanvas({
     };
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<{
-        taskId: string;
-        offsetX: number;
-        offsetY: number;
+        taskIds: string[];
+        anchorTaskId: string;
+        startWorldX: number;
+        startWorldY: number;
+        initialPositions: Record<string, CanvasPoint>;
         moved: boolean;
     } | null>(null);
     const panRef = useRef<{
@@ -133,9 +136,18 @@ export function TasksInfiniteCanvas({
         originY: number;
     } | null>(null);
     const connectionDragRef = useRef<{ fromTaskId: string } | null>(null);
+    const selectionBoxRef = useRef<{
+        start: CanvasPoint;
+        initialSelection: Set<string>;
+    } | null>(null);
     const viewportRef = useRef<Viewport>(DEFAULT_VIEWPORT);
     const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
     const [positionOverrides, setPositionOverrides] = useState<Record<string, CanvasPoint>>({});
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [selectionBox, setSelectionBox] = useState<{
+        start: CanvasPoint;
+        end: CanvasPoint;
+    } | null>(null);
     const [connectionDragPreview, setConnectionDragPreview] = useState<{
         fromTaskId: string;
         toPoint: CanvasPoint;
@@ -182,6 +194,11 @@ export function TasksInfiniteCanvas({
         () => new Map(canvasTasks.map((task) => [task.id, task])),
         [canvasTasks],
     );
+    const selectedTaskIdSet = useMemo(() => new Set(selectedTaskIds), [selectedTaskIds]);
+
+    useEffect(() => {
+        setSelectedTaskIds((previous) => previous.filter((taskId) => taskById.has(taskId)));
+    }, [taskById]);
 
     const screenToWorld = useCallback((clientX: number, clientY: number) => {
         const surface = canvasRef.current;
@@ -225,20 +242,34 @@ export function TasksInfiniteCanvas({
         };
     }, [handleCanvasWheel]);
 
-    const handleCanvasPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0 || event.target !== event.currentTarget) {
-            return;
-        }
+    const handleCanvasPointerDown = useCallback(
+        (event: ReactPointerEvent<HTMLDivElement>) => {
+            if (event.button !== 0 || event.target !== event.currentTarget) {
+                return;
+            }
 
-        panRef.current = {
-            startX: event.clientX,
-            startY: event.clientY,
-            originX: viewportRef.current.x,
-            originY: viewportRef.current.y,
-        };
+            if (event.shiftKey) {
+                const start = screenToWorld(event.clientX, event.clientY);
+                selectionBoxRef.current = {
+                    start,
+                    initialSelection: new Set(selectedTaskIds),
+                };
+                setSelectionBox({ start, end: start });
+                event.currentTarget.setPointerCapture(event.pointerId);
+                return;
+            }
 
-        event.currentTarget.setPointerCapture(event.pointerId);
-    }, []);
+            panRef.current = {
+                startX: event.clientX,
+                startY: event.clientY,
+                originX: viewportRef.current.x,
+                originY: viewportRef.current.y,
+            };
+
+            event.currentTarget.setPointerCapture(event.pointerId);
+        },
+        [screenToWorld, selectedTaskIds],
+    );
 
     const handleCanvasContextMenu = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
@@ -310,23 +341,62 @@ export function TasksInfiniteCanvas({
                 return;
             }
 
+            if (selectionBoxRef.current) {
+                const world = screenToWorld(event.clientX, event.clientY);
+                const start = selectionBoxRef.current.start;
+                const minX = Math.min(start.x, world.x);
+                const maxX = Math.max(start.x, world.x);
+                const minY = Math.min(start.y, world.y);
+                const maxY = Math.max(start.y, world.y);
+                setSelectionBox({ start, end: world });
+
+                const selectedByDrag = new Set<string>();
+                for (const task of canvasTasks) {
+                    const taskLeft = task.canvasPosition.x;
+                    const taskRight = task.canvasPosition.x + NODE_WIDTH;
+                    const taskTop = task.canvasPosition.y;
+                    const taskBottom = task.canvasPosition.y + NODE_HEIGHT;
+                    const intersects =
+                        taskLeft <= maxX &&
+                        taskRight >= minX &&
+                        taskTop <= maxY &&
+                        taskBottom >= minY;
+                    if (intersects) {
+                        selectedByDrag.add(task.id);
+                    }
+                }
+                for (const taskId of selectionBoxRef.current.initialSelection) {
+                    selectedByDrag.add(taskId);
+                }
+                setSelectedTaskIds(Array.from(selectedByDrag));
+                return;
+            }
+
             if (!dragRef.current) {
                 return;
             }
 
             dragRef.current.moved = true;
             const world = screenToWorld(event.clientX, event.clientY);
-            const nextPoint = {
-                x: Math.round(world.x - dragRef.current.offsetX),
-                y: Math.round(world.y - dragRef.current.offsetY),
-            };
+            const dx = world.x - dragRef.current.startWorldX;
+            const dy = world.y - dragRef.current.startWorldY;
 
-            setPositionOverrides((previous) => ({
-                ...previous,
-                [dragRef.current?.taskId ?? ""]: nextPoint,
-            }));
+            setPositionOverrides((previous) => {
+                const next = { ...previous };
+                for (const taskId of dragRef.current?.taskIds ?? []) {
+                    const initialPosition = dragRef.current?.initialPositions[taskId];
+                    if (!initialPosition) {
+                        continue;
+                    }
+                    next[taskId] = {
+                        x: Math.round(initialPosition.x + dx),
+                        y: Math.round(initialPosition.y + dy),
+                    };
+                }
+                return next;
+            });
         },
-        [screenToWorld],
+        [canvasTasks, screenToWorld],
     );
 
     const handleCanvasPointerUp = useCallback(
@@ -360,21 +430,28 @@ export function TasksInfiniteCanvas({
                 if (panRef.current) {
                     panRef.current = null;
                 }
+                if (selectionBoxRef.current) {
+                    selectionBoxRef.current = null;
+                    setSelectionBox(null);
+                }
 
                 if (dragRef.current) {
                     const completedDrag = dragRef.current;
                     dragRef.current = null;
                     if (completedDrag.moved) {
-                        const point = positionOverrides[completedDrag.taskId];
-                        if (point) {
+                        for (const taskId of completedDrag.taskIds) {
+                            const point = positionOverrides[taskId];
+                            if (!point) {
+                                continue;
+                            }
                             onTaskMoved({
-                                taskId: completedDrag.taskId,
+                                taskId,
                                 x: point.x,
                                 y: point.y,
                             });
                         }
                     } else {
-                        onTaskClick(completedDrag.taskId);
+                        onTaskClick(completedDrag.anchorTaskId);
                     }
                 }
             } finally {
@@ -395,11 +472,36 @@ export function TasksInfiniteCanvas({
                 return;
             }
             event.stopPropagation();
+            if (event.shiftKey) {
+                setSelectedTaskIds((previous) =>
+                    previous.includes(task.id)
+                        ? previous.filter((taskId) => taskId !== task.id)
+                        : [...previous, task.id],
+                );
+                return;
+            }
+
             const world = screenToWorld(event.clientX, event.clientY);
+            const dragTaskIds =
+                selectedTaskIdSet.has(task.id) && selectedTaskIds.length > 0
+                    ? selectedTaskIds
+                    : [task.id];
+            setSelectedTaskIds(dragTaskIds);
+            const initialPositions: Record<string, CanvasPoint> = {};
+            for (const taskId of dragTaskIds) {
+                const canvasTask = taskById.get(taskId);
+                if (!canvasTask) {
+                    continue;
+                }
+                initialPositions[taskId] = canvasTask.canvasPosition;
+            }
+
             dragRef.current = {
-                taskId: task.id,
-                offsetX: world.x - task.canvasPosition.x,
-                offsetY: world.y - task.canvasPosition.y,
+                taskIds: dragTaskIds,
+                anchorTaskId: task.id,
+                startWorldX: world.x,
+                startWorldY: world.y,
+                initialPositions,
                 moved: false,
             };
             const surface = canvasRef.current;
@@ -408,7 +510,7 @@ export function TasksInfiniteCanvas({
             }
             surface.setPointerCapture(event.pointerId);
         },
-        [screenToWorld],
+        [screenToWorld, selectedTaskIdSet, selectedTaskIds, taskById],
     );
 
     const handleConnectionPointerDown = useCallback(
@@ -478,8 +580,10 @@ export function TasksInfiniteCanvas({
                 <div className="flex items-center justify-between px-1 pb-2">
                     <p className="text-xs text-base-content/70">
                         Drag tasks to arrange, drag empty space to pan, use the wheel to zoom, and
-                        right-click empty canvas space to create a task. Alt+click a connection line
-                        to delete it.
+                        right-click empty canvas space to create a task. Hold{" "}
+                        {MULTI_SELECT_KEY_HINT}
+                        and drag to multi-select, then drag any selected card to move the group.
+                        Alt+click a connection line to delete it.
                     </p>
                     <button
                         type="button"
@@ -599,11 +703,16 @@ export function TasksInfiniteCanvas({
                         </svg>
                         {canvasTasks.map((task) => {
                             const stateBadge = getTaskStateBadge(task);
+                            const isSelected = selectedTaskIdSet.has(task.id);
                             return (
                                 <article
                                     key={task.id}
                                     data-task-id={task.id}
-                                    className="absolute bg-base-200 border border-base-300 rounded-lg shadow-md p-3 select-none"
+                                    className={`absolute bg-base-200 border rounded-lg shadow-md p-3 select-none ${
+                                        isSelected
+                                            ? "border-primary ring-2 ring-primary/35"
+                                            : "border-base-300"
+                                    }`}
                                     style={{
                                         width: NODE_WIDTH,
                                         minHeight: NODE_HEIGHT,
@@ -664,7 +773,9 @@ export function TasksInfiniteCanvas({
                                         <button
                                             type="button"
                                             className="btn btn-xs btn-outline"
-                                            disabled={isExecutingTask || isMarkingDone || isDeleting}
+                                            disabled={
+                                                isExecutingTask || isMarkingDone || isDeleting
+                                            }
                                             onClick={() => onExecuteTask(task.id)}
                                         >
                                             {isExecutingTask && executingTaskId === task.id
@@ -694,6 +805,17 @@ export function TasksInfiniteCanvas({
                                 </article>
                             );
                         })}
+                        {selectionBox && (
+                            <div
+                                className="absolute border border-primary/70 bg-primary/10 pointer-events-none"
+                                style={{
+                                    left: Math.min(selectionBox.start.x, selectionBox.end.x),
+                                    top: Math.min(selectionBox.start.y, selectionBox.end.y),
+                                    width: Math.abs(selectionBox.end.x - selectionBox.start.x),
+                                    height: Math.abs(selectionBox.end.y - selectionBox.start.y),
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
