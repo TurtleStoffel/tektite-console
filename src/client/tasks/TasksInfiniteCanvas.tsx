@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TaskCreateAtPositionModal } from "./TaskCreateAtPositionModal";
 import type { CanvasPoint, ProjectOption, TaskItem, Viewport } from "./types";
 
 type CanvasTask = TaskItem & { canvasPosition: CanvasPoint };
@@ -10,12 +11,14 @@ type TasksInfiniteCanvasProps = {
     isMarkingDone: boolean;
     isDeleting: boolean;
     isUpdatingProject: boolean;
+    isCreatingTask: boolean;
     isCreatingConnection: boolean;
     isDeletingConnection: boolean;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
     onTaskMoved: (input: { taskId: string; x: number; y: number }) => void;
+    onCreateTaskAtPosition: (input: { description: string; x: number; y: number }) => void;
     onConnectionCreate: (input: { taskId: string; connectedTaskId: string }) => void;
     onConnectionDelete: (input: { taskId: string; connectedTaskId: string }) => void;
     onTaskClick: (taskId: string) => void;
@@ -89,12 +92,14 @@ export function TasksInfiniteCanvas({
     isMarkingDone,
     isDeleting,
     isUpdatingProject,
+    isCreatingTask,
     isCreatingConnection,
     isDeletingConnection,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
     onTaskMoved,
+    onCreateTaskAtPosition,
     onConnectionCreate,
     onConnectionDelete,
     onTaskClick,
@@ -120,6 +125,8 @@ export function TasksInfiniteCanvas({
         fromTaskId: string;
         toPoint: CanvasPoint;
     } | null>(null);
+    const [createModalTargetPoint, setCreateModalTargetPoint] = useState<CanvasPoint | null>(null);
+    const [createModalDescription, setCreateModalDescription] = useState("");
 
     useEffect(() => {
         viewportRef.current = viewport;
@@ -217,6 +224,54 @@ export function TasksInfiniteCanvas({
 
         event.currentTarget.setPointerCapture(event.pointerId);
     }, []);
+
+    const handleCanvasContextMenu = useCallback(
+        (event: React.MouseEvent<HTMLDivElement>) => {
+            if (event.target !== event.currentTarget || isCreatingTask) {
+                return;
+            }
+
+            event.preventDefault();
+            const world = screenToWorld(event.clientX, event.clientY);
+            const x = Math.round(world.x);
+            const y = Math.round(world.y);
+            setCreateModalDescription("");
+            setCreateModalTargetPoint({ x, y });
+            console.info("[tasks-canvas] opened create task modal from context menu", { x, y });
+        },
+        [isCreatingTask, screenToWorld],
+    );
+
+    const handleCreateModalClose = useCallback(() => {
+        if (isCreatingTask) {
+            return;
+        }
+        setCreateModalTargetPoint(null);
+        setCreateModalDescription("");
+    }, [isCreatingTask]);
+
+    const handleCreateModalSubmit = useCallback(() => {
+        if (!createModalTargetPoint) {
+            throw new Error("Create task modal is missing target point.");
+        }
+
+        const description = createModalDescription.trim();
+        if (description.length === 0) {
+            return;
+        }
+
+        console.info("[tasks-canvas] creating task from modal", {
+            x: createModalTargetPoint.x,
+            y: createModalTargetPoint.y,
+        });
+        onCreateTaskAtPosition({
+            description,
+            x: createModalTargetPoint.x,
+            y: createModalTargetPoint.y,
+        });
+        setCreateModalTargetPoint(null);
+        setCreateModalDescription("");
+    }, [createModalDescription, createModalTargetPoint, onCreateTaskAtPosition]);
 
     const handleCanvasPointerMove = useCallback(
         (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -408,7 +463,8 @@ export function TasksInfiniteCanvas({
                 <div className="flex items-center justify-between px-1 pb-2">
                     <p className="text-xs text-base-content/70">
                         Drag tasks to arrange, drag empty space to pan, use the wheel to zoom, and
-                        Alt+click a connection line to delete it.
+                        right-click empty canvas space to create a task. Alt+click a connection line
+                        to delete it.
                     </p>
                     <button
                         type="button"
@@ -421,10 +477,13 @@ export function TasksInfiniteCanvas({
                 <div
                     ref={canvasRef}
                     className="relative h-full min-h-0 overflow-hidden rounded-xl border border-base-300 bg-base-100"
+                    role="application"
+                    aria-label="Tasks infinite canvas"
                     onPointerDown={handleCanvasPointerDown}
                     onPointerMove={handleCanvasPointerMove}
                     onPointerUp={handleCanvasPointerUp}
                     onPointerCancel={handleCanvasPointerUp}
+                    onContextMenu={handleCanvasContextMenu}
                 >
                     <div
                         className="absolute inset-0 pointer-events-none"
@@ -609,6 +668,16 @@ export function TasksInfiniteCanvas({
                     </div>
                 </div>
             </div>
+            <TaskCreateAtPositionModal
+                isOpen={createModalTargetPoint !== null}
+                description={createModalDescription}
+                isCreating={isCreatingTask}
+                x={createModalTargetPoint?.x ?? null}
+                y={createModalTargetPoint?.y ?? null}
+                onDescriptionChange={setCreateModalDescription}
+                onClose={handleCreateModalClose}
+                onSubmit={handleCreateModalSubmit}
+            />
         </div>
     );
 }
