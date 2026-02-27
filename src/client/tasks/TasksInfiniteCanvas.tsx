@@ -26,6 +26,7 @@ const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const ZOOM_SENSITIVITY = 0.0015;
 const DEFAULT_VIEWPORT: Viewport = { x: 120, y: 120, scale: 1 };
+const INTERACTIVE_SELECTOR = "button, select, input, textarea, a, [role='button']";
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
@@ -313,6 +314,12 @@ export function TasksInfiniteCanvas({
 
     const handleTaskPointerDown = useCallback(
         (task: CanvasTask, event: ReactPointerEvent<HTMLElement>) => {
+            const interactiveTarget = (event.target as HTMLElement | null)?.closest(
+                INTERACTIVE_SELECTOR,
+            );
+            if (interactiveTarget) {
+                return;
+            }
             event.stopPropagation();
             const world = screenToWorld(event.clientX, event.clientY);
             dragRef.current = {
