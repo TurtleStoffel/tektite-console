@@ -233,3 +233,27 @@ sequenceDiagram
     TasksService-->>Route: updated/404
     Route-->>Client: JSON
 ```
+
+### `POST /api/tasks/connections`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: POST /api/tasks/connections
+    Route->>TasksService: createTaskConnection(...)
+    TasksService-->>Route: created/error
+    Route-->>Client: JSON
+```
+
+### `DELETE /api/tasks/connections`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant TasksService
+    Client->>Route: DELETE /api/tasks/connections
+    Route->>TasksService: deleteTaskConnection(...)
+    TasksService-->>Route: deleted/error
+    Route-->>Client: JSON
+```

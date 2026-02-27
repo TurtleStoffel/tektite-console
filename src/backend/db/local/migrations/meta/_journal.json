@@ -50,6 +50,13 @@
             "when": 1771876035815,
             "tag": "0006_add_project_and_task_sort_order",
             "breakpoints": true
+        },
+        {
+            "idx": 7,
+            "version": "6",
+            "when": 1772206179622,
+            "tag": "0007_add_task_connections_table",
+            "breakpoints": true
         }
     ]
 }

@@ -6,11 +6,15 @@ type TasksListViewProps = {
     isMarkingDone: boolean;
     isDeleting: boolean;
     isUpdatingProject: boolean;
+    isCreatingConnection: boolean;
+    isDeletingConnection: boolean;
     isReordering: boolean;
     canReorder: boolean;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
+    onCreateConnection: (input: { taskId: string; connectedTaskId: string }) => void;
+    onDeleteConnection: (input: { taskId: string; connectedTaskId: string }) => void;
     onMoveTask: (taskId: string, direction: "up" | "down") => void;
 };
 
@@ -20,11 +24,15 @@ export function TasksListView({
     isMarkingDone,
     isDeleting,
     isUpdatingProject,
+    isCreatingConnection,
+    isDeletingConnection,
     isReordering,
     canReorder,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
+    onCreateConnection,
+    onDeleteConnection,
     onMoveTask,
 }: TasksListViewProps) {
     return (
@@ -35,6 +43,7 @@ export function TasksListView({
                         <th>State</th>
                         <th>Project</th>
                         <th>Description</th>
+                        <th>Connections</th>
                         <th>Order</th>
                         <th>Actions</th>
                     </tr>
@@ -73,6 +82,62 @@ export function TasksListView({
                                 </label>
                             </td>
                             <td className="text-sm">{task.description}</td>
+                            <td className="min-w-72 text-sm">
+                                <div className="flex flex-wrap gap-1">
+                                    {task.connectionTaskIds.map((connectedTaskId) => (
+                                        <button
+                                            key={connectedTaskId}
+                                            type="button"
+                                            className="badge badge-outline"
+                                            disabled={isCreatingConnection || isDeletingConnection}
+                                            onClick={() =>
+                                                onDeleteConnection({
+                                                    taskId: task.id,
+                                                    connectedTaskId,
+                                                })
+                                            }
+                                            title="Remove connection"
+                                        >
+                                            {connectedTaskId.slice(0, 8)} x
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="mt-2">
+                                    <label className="form-control">
+                                        <select
+                                            className="select select-bordered select-xs"
+                                            defaultValue=""
+                                            disabled={isCreatingConnection || isDeletingConnection}
+                                            onChange={(event) => {
+                                                const connectedTaskId = event.target.value.trim();
+                                                if (connectedTaskId.length === 0) {
+                                                    return;
+                                                }
+                                                onCreateConnection({
+                                                    taskId: task.id,
+                                                    connectedTaskId,
+                                                });
+                                                event.target.value = "";
+                                            }}
+                                        >
+                                            <option value="">Connect to task...</option>
+                                            {tasks
+                                                .filter(
+                                                    (candidate) =>
+                                                        candidate.id !== task.id &&
+                                                        !task.connectionTaskIds.includes(
+                                                            candidate.id,
+                                                        ),
+                                                )
+                                                .map((candidate) => (
+                                                    <option key={candidate.id} value={candidate.id}>
+                                                        {candidate.description}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </label>
+                                </div>
+                            </td>
                             <td className="whitespace-nowrap">
                                 <div className="flex items-center gap-1">
                                     <button

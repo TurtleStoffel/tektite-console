@@ -1,5 +1,11 @@
 import { and, asc, eq, isNotNull, isNull, type SQL, sql } from "drizzle-orm";
-import { projects, projectTasks, taskCanvasPositions, tasks } from "../../db/local/schema";
+import {
+    projects,
+    projectTasks,
+    taskCanvasPositions,
+    taskConnections,
+    tasks,
+} from "../../db/local/schema";
 import { getDb } from "../../db/provider";
 
 export async function findProject(projectId: string) {
@@ -257,5 +263,42 @@ export async function upsertTaskCanvasPosition(input: { taskId: string; x: numbe
                 updatedAt: new Date().toISOString(),
             },
         })
+        .execute();
+}
+
+export function listTaskConnections() {
+    const db = getDb();
+    return db
+        .select({
+            sourceTaskId: taskConnections.sourceTaskId,
+            targetTaskId: taskConnections.targetTaskId,
+        })
+        .from(taskConnections)
+        .orderBy(asc(taskConnections.sourceTaskId), asc(taskConnections.targetTaskId))
+        .execute();
+}
+
+export async function createTaskConnection(input: { sourceTaskId: string; targetTaskId: string }) {
+    const db = getDb();
+    await db
+        .insert(taskConnections)
+        .values({
+            sourceTaskId: input.sourceTaskId,
+            targetTaskId: input.targetTaskId,
+        })
+        .onConflictDoNothing()
+        .execute();
+}
+
+export async function deleteTaskConnection(input: { sourceTaskId: string; targetTaskId: string }) {
+    const db = getDb();
+    await db
+        .delete(taskConnections)
+        .where(
+            and(
+                eq(taskConnections.sourceTaskId, input.sourceTaskId),
+                eq(taskConnections.targetTaskId, input.targetTaskId),
+            ),
+        )
         .execute();
 }

@@ -5,6 +5,7 @@ export type TaskItem = {
     description: string;
     isDone: boolean;
     doneAt: string | null;
+    connectionTaskIds: string[];
     canvasPosition: {
         x: number;
         y: number;

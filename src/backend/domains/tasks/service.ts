@@ -7,24 +7,71 @@ function normalizeProjectId(projectId: string | null | undefined) {
     return raw.length > 0 ? raw : null;
 }
 
+function buildTaskConnectionMap(
+    taskIds: string[],
+    pairs: { sourceTaskId: string; targetTaskId: string }[],
+) {
+    const taskIdSet = new Set(taskIds);
+    const map = new Map<string, string[]>();
+    for (const taskId of taskIdSet) {
+        map.set(taskId, []);
+    }
+
+    for (const pair of pairs) {
+        if (taskIdSet.has(pair.sourceTaskId) && taskIdSet.has(pair.targetTaskId)) {
+            map.get(pair.sourceTaskId)?.push(pair.targetTaskId);
+            map.get(pair.targetTaskId)?.push(pair.sourceTaskId);
+        }
+    }
+
+    for (const connectedTaskIds of map.values()) {
+        connectedTaskIds.sort((a, b) => a.localeCompare(b));
+    }
+
+    return map;
+}
+
+function mapTaskRows(
+    rows: Array<{
+        id: string;
+        sortOrder: number;
+        projectId: string | null;
+        description: string;
+        createdAt: string;
+        isDone: boolean;
+        doneAt: string | null;
+        canvasPositionX: number | null;
+        canvasPositionY: number | null;
+    }>,
+    taskConnectionMap: Map<string, string[]>,
+) {
+    return rows.map((row) => ({
+        id: row.id,
+        sortOrder: row.sortOrder,
+        projectId: row.projectId,
+        description: row.description,
+        createdAt: row.createdAt,
+        isDone: row.isDone,
+        doneAt: row.doneAt,
+        connectionTaskIds: taskConnectionMap.get(row.id) ?? [],
+        canvasPosition:
+            row.canvasPositionX !== null && row.canvasPositionY !== null
+                ? { x: row.canvasPositionX, y: row.canvasPositionY }
+                : null,
+    }));
+}
+
 export const tasksService = {
     async listTasks(filter?: { isDone?: boolean; hasProject?: boolean }) {
         const rows = filter
             ? await repository.listTasksWithFilter(filter)
             : await repository.listTasks();
-        return rows.map((row) => ({
-            id: row.id,
-            sortOrder: row.sortOrder,
-            projectId: row.projectId,
-            description: row.description,
-            createdAt: row.createdAt,
-            isDone: row.isDone,
-            doneAt: row.doneAt,
-            canvasPosition:
-                row.canvasPositionX !== null && row.canvasPositionY !== null
-                    ? { x: row.canvasPositionX, y: row.canvasPositionY }
-                    : null,
-        }));
+        const taskConnections = await repository.listTaskConnections();
+        const taskConnectionMap = buildTaskConnectionMap(
+            rows.map((row) => row.id),
+            taskConnections,
+        );
+        return mapTaskRows(rows, taskConnectionMap);
     },
 
     async listProjectTasks(projectId: string, filter?: { isDone?: boolean }) {
@@ -32,19 +79,12 @@ export const tasksService = {
         if (!project) return { error: "Project not found.", status: 404 as const };
 
         const rows = await repository.listProjectTasks(projectId, filter);
-        return rows.map((row) => ({
-            id: row.id,
-            sortOrder: row.sortOrder,
-            projectId: row.projectId,
-            description: row.description,
-            createdAt: row.createdAt,
-            isDone: row.isDone,
-            doneAt: row.doneAt,
-            canvasPosition:
-                row.canvasPositionX !== null && row.canvasPositionY !== null
-                    ? { x: row.canvasPositionX, y: row.canvasPositionY }
-                    : null,
-        }));
+        const taskConnections = await repository.listTaskConnections();
+        const taskConnectionMap = buildTaskConnectionMap(
+            rows.map((row) => row.id),
+            taskConnections,
+        );
+        return mapTaskRows(rows, taskConnectionMap);
     },
 
     async createTask(input: { projectId?: string | null; description: string }) {
@@ -75,6 +115,7 @@ export const tasksService = {
             createdAt,
             isDone: false,
             doneAt: null,
+            connectionTaskIds: [],
         };
     },
 
@@ -107,7 +148,14 @@ export const tasksService = {
         const doneAt = new Date().toISOString();
         await repository.markTaskDone(taskId, doneAt);
         console.info("[tasks] marked task done", { taskId, doneAt });
-        return { ...task, isDone: true, doneAt };
+        const taskConnections = await repository.listTaskConnections();
+        const taskConnectionMap = buildTaskConnectionMap([task.id], taskConnections);
+        return {
+            ...task,
+            isDone: true,
+            doneAt,
+            connectionTaskIds: taskConnectionMap.get(task.id) ?? [],
+        };
     },
 
     async markTasksDoneByWorktreePath(worktreePath: string) {
@@ -165,7 +213,12 @@ export const tasksService = {
 
         await repository.deleteTask(taskId);
         console.info("[tasks] deleted task", { taskId });
-        return task;
+        const taskConnections = await repository.listTaskConnections();
+        const taskConnectionMap = buildTaskConnectionMap([task.id], taskConnections);
+        return {
+            ...task,
+            connectionTaskIds: taskConnectionMap.get(task.id) ?? [],
+        };
     },
 
     async updateTaskProject(input: { taskId: string; projectId?: string | null }) {
@@ -183,9 +236,12 @@ export const tasksService = {
             projectId,
         });
         console.info("[tasks] updated task project", { taskId: input.taskId, projectId });
+        const taskConnections = await repository.listTaskConnections();
+        const taskConnectionMap = buildTaskConnectionMap([task.id], taskConnections);
         return {
             ...task,
             projectId,
+            connectionTaskIds: taskConnectionMap.get(task.id) ?? [],
         };
     },
 

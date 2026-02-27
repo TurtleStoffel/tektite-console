@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jsonHeaders, parseInput, parseJsonBody } from "../../http/validation";
+import { tasksDomainApi } from "./domainApi";
 import { tasksService } from "./service";
 
 type RouteRequest = Request & { params: Record<string, string> };
@@ -27,6 +28,10 @@ const projectTasksQuerySchema = z.object({
 const reorderTasksBodySchema = z.object({
     taskId: z.string().trim().min(1),
     sortOrder: z.number().int(),
+});
+const taskConnectionBodySchema = z.object({
+    taskId: z.string().trim().min(1),
+    connectedTaskId: z.string().trim().min(1),
 });
 
 export function createTaskRoutes() {
@@ -121,6 +126,44 @@ export function createTaskRoutes() {
                 if ("response" in parsedBody) return parsedBody.response;
 
                 const result = await tasksService.reorderTasks(parsedBody.data);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+        },
+        "/api/tasks/connections": {
+            async POST(req: Request) {
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: taskConnectionBodySchema,
+                    domain: "tasks",
+                    context: "tasks:create-connection",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await tasksDomainApi.createTaskConnection(parsedBody.data);
+                if ("error" in result) {
+                    return new Response(JSON.stringify({ error: result.error }), {
+                        status: result.status,
+                        headers: jsonHeaders,
+                    });
+                }
+                return Response.json({ data: result });
+            },
+            async DELETE(req: Request) {
+                const parsedBody = await parseJsonBody({
+                    req,
+                    schema: taskConnectionBodySchema,
+                    domain: "tasks",
+                    context: "tasks:delete-connection",
+                });
+                if ("response" in parsedBody) return parsedBody.response;
+
+                const result = await tasksDomainApi.deleteTaskConnection(parsedBody.data);
                 if ("error" in result) {
                     return new Response(JSON.stringify({ error: result.error }), {
                         status: result.status,

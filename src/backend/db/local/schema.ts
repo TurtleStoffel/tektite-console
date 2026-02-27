@@ -43,6 +43,23 @@ export const taskCanvasPositions = sqliteTable("task_canvas_positions", {
     updatedAt: text("updated_at").notNull(),
 });
 
+export const taskConnections = sqliteTable(
+    "task_connections",
+    {
+        sourceTaskId: text("source_task_id")
+            .notNull()
+            .references(() => tasks.id, {
+                onDelete: "cascade",
+            }),
+        targetTaskId: text("target_task_id")
+            .notNull()
+            .references(() => tasks.id, {
+                onDelete: "cascade",
+            }),
+    },
+    (table) => [primaryKey({ columns: [table.sourceTaskId, table.targetTaskId] })],
+);
+
 export const projectTasks = sqliteTable(
     "project_tasks",
     {

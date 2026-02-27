@@ -196,6 +196,42 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
         },
     });
 
+    const { mutate: createTaskConnection, isPending: isCreatingConnection } = useMutation({
+        mutationFn: async (input: { taskId: string; connectedTaskId: string }) => {
+            const res = await fetch("/api/tasks/connections", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(input),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to create task connection.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            console.info("[tasks] task connection created");
+        },
+    });
+
+    const { mutate: deleteTaskConnection, isPending: isDeletingConnection } = useMutation({
+        mutationFn: async (input: { taskId: string; connectedTaskId: string }) => {
+            const res = await fetch("/api/tasks/connections", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(input),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload?.error || "Failed to delete task connection.");
+            }
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            console.info("[tasks] task connection deleted");
+        },
+    });
+
     const reorderTasksMutation = useMutation({
         mutationFn: async (input: { taskId: string; sortOrder: number }) => {
             const res = await fetch("/api/tasks/order", {
@@ -548,11 +584,15 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     isMarkingDone={isMarkingDone}
                     isDeleting={isDeleting}
                     isUpdatingProject={isUpdatingProject}
+                    isCreatingConnection={isCreatingConnection}
+                    isDeletingConnection={isDeletingConnection}
                     isReordering={reorderTasksMutation.isPending}
                     canReorder={canReorderTasks}
                     onMarkDone={markDone}
                     onDeleteTask={deleteTask}
                     onUpdateTaskProject={updateTaskProject}
+                    onCreateConnection={createTaskConnection}
+                    onDeleteConnection={deleteTaskConnection}
                     onMoveTask={handleMoveTask}
                 />
             )}

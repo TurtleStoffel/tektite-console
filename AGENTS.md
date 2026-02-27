@@ -38,12 +38,13 @@
 - Before making any code changes, do a constraints check:
   - Read every `AGENTS.md` file that applies to directories you will modify.
   - List those files and the key constraints you will follow for this task.
-- If the change introduces significant new functionality or adds/changes environment variables, update `README.md` to reflect the new behavior and setup requirements.
+- If the change introduces major user-facing functionality, operational workflow changes, or adds/changes environment variables, update `README.md` to reflect the new behavior and setup requirements.
 - When you are finished, run `bun run format`.
 - Then run `bun run lint`.
 - Then run `TMPDIR=/tmp XDG_CACHE_HOME=/tmp/.cache BUN_INSTALL_CACHE_DIR=/tmp/.bun bun install`.
 - Then run `bun run typecheck`.
 - Then run `bun run knip`.
 - If removing an API from client usage, check whether it is still used in backend code paths; if not, remove the backend API route/service logic too.
+- If the user gives process or architecture feedback, update the relevant `AGENTS.md` file(s) in the same change so the preference is captured for future tasks.
 - Do not run `format` and `lint` in parallel; run them sequentially to avoid stale-file race conditions.
 - Fix any issues reported by these commands before considering the task complete.

@@ -11,6 +11,8 @@ erDiagram
     projects ||--o{ project_tasks : "project_id -> id (CASCADE)"
     tasks ||--o{ project_tasks : "task_id -> id (CASCADE)"
     tasks ||--o| task_canvas_positions : "task_id -> id (CASCADE)"
+    tasks ||--o{ task_connections : "source_task_id -> id (CASCADE)"
+    tasks ||--o{ task_connections : "target_task_id -> id (CASCADE)"
 
     repositories {
         text id PK
@@ -47,6 +49,11 @@ erDiagram
         text updated_at
     }
 
+    task_connections {
+        text source_task_id PK, FK
+        text target_task_id PK, FK
+    }
+
     project_tasks {
         text project_id PK, FK
         text task_id PK, FK
@@ -78,5 +85,7 @@ erDiagram
 - `project_tasks.worktree_path` stores the task execution worktree path when an assigned task is executed.
 - `task_canvas_positions` stores persisted x/y coordinates for each task's infinite canvas card.
 - `task_canvas_positions.task_id` is both PK and FK, so each task has at most one persisted position row.
+- `task_connections` stores normalized task-to-task links (`source_task_id`, `target_task_id`) with `ON DELETE CASCADE` on both sides.
+- Each task connection pair is unique by composite primary key, and the app writes rows in canonical order to prevent mirrored duplicates.
 - `projects.sort_order` stores the manual ordering shown in the Projects list.
 - `tasks.sort_order` stores the manual ordering shown in task list views and project task lists.
