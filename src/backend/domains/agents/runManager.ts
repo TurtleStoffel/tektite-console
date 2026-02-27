@@ -105,6 +105,17 @@ export function createAgentRunManager() {
         worktreePath?: string | null;
         threadId?: string | null;
     }) => {
+        if (input.worktreePath) {
+            const duplicateRun = [...runs.values()].find(
+                (run) => run.worktreePath === input.worktreePath,
+            );
+            if (duplicateRun) {
+                throw new Error(
+                    `Invariant violated: expected at most one run for worktree path ${input.worktreePath}; existing run ${duplicateRun.id}`,
+                );
+            }
+        }
+
         const runId = crypto.randomUUID();
         const run: AgentRunRecord = {
             id: runId,
@@ -192,38 +203,26 @@ export function createAgentRunManager() {
             }
         > = {};
 
-        const sortedRuns = [...runs.values()].sort(sortByNewestCreatedAt);
-
-        for (const run of sortedRuns) {
+        for (const run of runs.values()) {
             if (!run.worktreePath) {
                 continue;
             }
             if (projectId && run.projectId !== projectId) {
                 continue;
             }
-
-            const existing = byWorktreePath[run.worktreePath];
-            if (!existing) {
-                byWorktreePath[run.worktreePath] = {
-                    runId: run.id,
-                    status: run.status,
-                    threadId: run.threadId,
-                    lastMessage: run.lastMessage,
-                    lastEvent: run.lastEvent,
-                };
-                continue;
+            if (byWorktreePath[run.worktreePath]) {
+                throw new Error(
+                    `Invariant violated: expected at most one run for worktree path ${run.worktreePath}`,
+                );
             }
 
-            // Keep the latest run status, but backfill missing thread metadata from prior runs.
-            if (!existing.threadId && run.threadId) {
-                existing.threadId = run.threadId;
-            }
-            if (!existing.lastMessage && run.lastMessage) {
-                existing.lastMessage = run.lastMessage;
-            }
-            if (!existing.lastEvent && run.lastEvent) {
-                existing.lastEvent = run.lastEvent;
-            }
+            byWorktreePath[run.worktreePath] = {
+                runId: run.id,
+                status: run.status,
+                threadId: run.threadId,
+                lastMessage: run.lastMessage,
+                lastEvent: run.lastEvent,
+            };
         }
 
         return byWorktreePath;
