@@ -6,14 +6,11 @@ type TasksListViewProps = {
     isMarkingDone: boolean;
     isDeleting: boolean;
     isUpdatingProject: boolean;
-    isCreatingConnection: boolean;
-    isDeletingConnection: boolean;
     isReordering: boolean;
     canReorder: boolean;
     onMarkDone: (taskId: string) => void;
     onDeleteTask: (taskId: string) => void;
     onUpdateTaskProject: (input: { taskId: string; projectId: string | null }) => void;
-    onDeleteConnection: (input: { taskId: string; connectedTaskId: string }) => void;
     onMoveTask: (taskId: string, direction: "up" | "down") => void;
 };
 
@@ -23,14 +20,11 @@ export function TasksListView({
     isMarkingDone,
     isDeleting,
     isUpdatingProject,
-    isCreatingConnection,
-    isDeletingConnection,
     isReordering,
     canReorder,
     onMarkDone,
     onDeleteTask,
     onUpdateTaskProject,
-    onDeleteConnection,
     onMoveTask,
 }: TasksListViewProps) {
     return (
@@ -41,7 +35,6 @@ export function TasksListView({
                         <th>State</th>
                         <th>Project</th>
                         <th>Description</th>
-                        <th>Connections</th>
                         <th>Order</th>
                         <th>Actions</th>
                     </tr>
@@ -80,27 +73,6 @@ export function TasksListView({
                                 </label>
                             </td>
                             <td className="text-sm">{task.description}</td>
-                            <td className="min-w-72 text-sm">
-                                <div className="flex flex-wrap gap-1">
-                                    {task.connectionTaskIds.map((connectedTaskId) => (
-                                        <button
-                                            key={connectedTaskId}
-                                            type="button"
-                                            className="badge badge-outline"
-                                            disabled={isCreatingConnection || isDeletingConnection}
-                                            onClick={() =>
-                                                onDeleteConnection({
-                                                    taskId: task.id,
-                                                    connectedTaskId,
-                                                })
-                                            }
-                                            title="Remove connection"
-                                        >
-                                            {connectedTaskId.slice(0, 8)} x
-                                        </button>
-                                    ))}
-                                </div>
-                            </td>
                             <td className="whitespace-nowrap">
                                 <div className="flex items-center gap-1">
                                     <button
