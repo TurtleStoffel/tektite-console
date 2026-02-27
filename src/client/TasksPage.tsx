@@ -383,14 +383,11 @@ export function TasksPage({ drawerToggleId }: TasksPageProps) {
                     isMarkingDone={isMarkingDone}
                     isDeleting={isDeleting}
                     isUpdatingProject={isUpdatingProject}
-                    isCreatingConnection={isCreatingConnection}
-                    isDeletingConnection={isDeletingConnection}
                     isReordering={reorderTasksMutation.isPending}
                     canReorder={canReorderTasks}
                     onMarkDone={markDone}
                     onDeleteTask={deleteTask}
                     onUpdateTaskProject={updateTaskProject}
-                    onDeleteConnection={deleteTaskConnection}
                     onMoveTask={handleMoveTask}
                 />
             )}
