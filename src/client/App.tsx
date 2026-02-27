@@ -1,5 +1,4 @@
 import { Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
-import { CanvasPage } from "./CanvasPage";
 import { CodexThreadsPage } from "./CodexThreadsPage";
 import { DependenciesPage } from "./DependenciesPage";
 import { DocumentsPage } from "./DocumentsPage";
@@ -23,7 +22,6 @@ export function App() {
         { to: "/documents", label: "Documents" },
         { to: "/notes", label: "Notes" },
         { to: "/tasks", label: "Tasks" },
-        { to: "/canvas", label: "Canvas" },
         { to: "/feature-flags", label: "Feature Flags" },
         { to: "/dependencies", label: "Dependencies" },
         { to: "/codex-threads", label: "Codex Threads" },
@@ -70,10 +68,6 @@ export function App() {
                     />
                     <Route path="/notes" element={<NotesPage drawerToggleId={entityDrawerId} />} />
                     <Route path="/tasks" element={<TasksPage drawerToggleId={entityDrawerId} />} />
-                    <Route
-                        path="/canvas"
-                        element={<CanvasPage drawerToggleId={entityDrawerId} />}
-                    />
                     <Route
                         path="/dependencies"
                         element={<DependenciesPage drawerToggleId={entityDrawerId} />}
