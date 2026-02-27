@@ -39,6 +39,22 @@ function getDefaultNodePosition(index: number): CanvasPoint {
     };
 }
 
+function projectToNodeEdge(from: CanvasPoint, to: CanvasPoint): CanvasPoint {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (dx === 0 && dy === 0) {
+        return from;
+    }
+
+    const halfWidth = NODE_WIDTH / 2;
+    const halfHeight = NODE_HEIGHT / 2;
+    const scale = 1 / Math.max(Math.abs(dx) / halfWidth, Math.abs(dy) / halfHeight);
+    return {
+        x: from.x + dx * scale,
+        y: from.y + dy * scale,
+    };
+}
+
 export function TasksInfiniteCanvas({
     tasks,
     projects,
@@ -292,12 +308,19 @@ export function TasksInfiniteCanvas({
         [screenToWorld],
     );
 
-    const canvasConnections = new Set<string>();
+    const canvasConnections: Array<{ fromTaskId: string; toTaskId: string }> = [];
+    const seenConnectionPairs = new Set<string>();
     for (const task of canvasTasks) {
         for (const connectedTaskId of task.connectionTaskIds) {
-            if (task.id < connectedTaskId) {
-                canvasConnections.add(`${task.id}:${connectedTaskId}`);
+            const pairKey =
+                task.id < connectedTaskId
+                    ? `${task.id}:${connectedTaskId}`
+                    : `${connectedTaskId}:${task.id}`;
+            if (seenConnectionPairs.has(pairKey)) {
+                continue;
             }
+            seenConnectionPairs.add(pairKey);
+            canvasConnections.push({ fromTaskId: task.id, toTaskId: connectedTaskId });
         }
     }
 
@@ -348,13 +371,26 @@ export function TasksInfiniteCanvas({
                             style={{ top: 0, left: 0 }}
                             aria-hidden="true"
                         >
-                            {[...canvasConnections].map((connectionKey) => {
-                                const [sourceTaskId, targetTaskId] = connectionKey.split(":");
-                                if (!sourceTaskId || !targetTaskId) {
-                                    return null;
-                                }
-                                const sourceTask = taskById.get(sourceTaskId);
-                                const targetTask = taskById.get(targetTaskId);
+                            <defs>
+                                <marker
+                                    id="task-connection-arrow"
+                                    markerWidth="8"
+                                    markerHeight="8"
+                                    refX="6"
+                                    refY="4"
+                                    orient="auto"
+                                    markerUnits="strokeWidth"
+                                >
+                                    <path
+                                        d="M0,0 L8,4 L0,8 z"
+                                        fill="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
+                                    />
+                                </marker>
+                            </defs>
+                            {canvasConnections.map(({ fromTaskId, toTaskId }) => {
+                                const connectionKey = `${fromTaskId}:${toTaskId}`;
+                                const sourceTask = taskById.get(fromTaskId);
+                                const targetTask = taskById.get(toTaskId);
                                 if (!sourceTask || !targetTask) {
                                     return null;
                                 }
@@ -363,16 +399,25 @@ export function TasksInfiniteCanvas({
                                 const y1 = sourceTask.canvasPosition.y + NODE_HEIGHT / 2;
                                 const x2 = targetTask.canvasPosition.x + NODE_WIDTH / 2;
                                 const y2 = targetTask.canvasPosition.y + NODE_HEIGHT / 2;
+                                const sourcePoint = projectToNodeEdge(
+                                    { x: x1, y: y1 },
+                                    { x: x2, y: y2 },
+                                );
+                                const targetPoint = projectToNodeEdge(
+                                    { x: x2, y: y2 },
+                                    { x: x1, y: y1 },
+                                );
 
                                 return (
                                     <line
                                         key={connectionKey}
-                                        x1={x1}
-                                        y1={y1}
-                                        x2={x2}
-                                        y2={y2}
+                                        x1={sourcePoint.x}
+                                        y1={sourcePoint.y}
+                                        x2={targetPoint.x}
+                                        y2={targetPoint.y}
                                         stroke="color-mix(in oklab, var(--color-base-content) 30%, transparent)"
                                         strokeWidth={2}
+                                        markerEnd="url(#task-connection-arrow)"
                                     />
                                 );
                             })}
