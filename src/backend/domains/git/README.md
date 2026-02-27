@@ -60,6 +60,17 @@ sequenceDiagram
     GitService-->>Caller: hasChanges
 ```
 
+### `listGithubRepos()`
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant GitService
+    participant GitHubAPI
+    Caller->>GitService: listGithubRepos()
+    GitService->>GitHubAPI: GET /user/repos
+    GitService-->>Caller: repos
+```
+
 ### `getPullRequestStatus(dir)`
 ```mermaid
 sequenceDiagram
@@ -154,6 +165,20 @@ sequenceDiagram
 ```
 
 ## HTTP APIs (routes)
+
+### `GET /api/github/repos`
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Route
+    participant GitService
+    participant GitHubAPI
+    Client->>Route: GET /api/github/repos
+    Route->>GitService: listGithubRepos()
+    GitService->>GitHubAPI: GET /user/repos
+    GitService-->>Route: repos
+    Route-->>Client: JSON
+```
 
 ### `POST /api/worktrees/dev-terminal/start`
 ```mermaid

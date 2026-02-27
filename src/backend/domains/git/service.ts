@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import type { GithubRepo } from "@/shared/github";
 import { execAsync, isExecTimeoutError } from "../../exec";
 import {
     isWorktreeInUse,
@@ -34,6 +35,14 @@ type GithubPullRequest = {
     state?: string;
     draft?: boolean;
     merged_at?: string | null;
+};
+
+type GithubListRepo = {
+    name?: string;
+    html_url?: string;
+    description?: string | null;
+    visibility?: string;
+    owner?: { login?: string };
 };
 
 export function sanitizeRepoName(name: string) {
@@ -437,6 +446,32 @@ async function fetchGithubApi<T>(url: string, init: RequestInit = {}): Promise<T
     } finally {
         clearTimeout(timeout);
     }
+}
+
+export async function listGithubRepos(): Promise<GithubRepo[]> {
+    const repos = await fetchGithubApi<Array<GithubListRepo>>(
+        "https://api.github.com/user/repos?per_page=100&sort=updated",
+    );
+
+    const parsedRepos: GithubRepo[] = [];
+
+    for (const repo of repos) {
+        const name = typeof repo.name === "string" ? repo.name.trim() : "";
+        const url = typeof repo.html_url === "string" ? repo.html_url.trim() : "";
+        if (!name || !url) {
+            continue;
+        }
+
+        parsedRepos.push({
+            name,
+            url,
+            description: typeof repo.description === "string" ? repo.description : undefined,
+            visibility: typeof repo.visibility === "string" ? repo.visibility : undefined,
+            owner: repo.owner?.login ? { login: repo.owner.login } : undefined,
+        });
+    }
+
+    return parsedRepos;
 }
 
 async function fetchPullRequestsByHead(

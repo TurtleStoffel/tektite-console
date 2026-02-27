@@ -28,11 +28,11 @@ sequenceDiagram
     participant Client
     participant Route
     participant DomainApi
-    participant GithubService
+    participant GitService
     participant Repo
     Client->>Route: POST /api/repositories/sync
     Route->>DomainApi: syncRepositories()
-    DomainApi->>GithubService: listRepos()
+    DomainApi->>GitService: listGithubRepos()
     DomainApi->>Repo: insert missing repos
     DomainApi-->>Route: sync summary
     Route-->>Client: JSON

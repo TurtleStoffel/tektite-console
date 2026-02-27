@@ -17,7 +17,6 @@ import {
     type TerminalSocketData,
 } from "./backend/domains/git/terminal";
 import { startPullRequestCleanup } from "./backend/domains/git/worktreesService";
-import { createGithubRoutes } from "./backend/domains/github/routes";
 import { createNotesRoutes } from "./backend/domains/notes/routes";
 import { createProjectRoutes } from "./backend/domains/projects/routes";
 import { createRepositoryRoutes } from "./backend/domains/repositories/routes";
@@ -166,7 +165,6 @@ const server = serve<TerminalSocketData>({
 
     routes: withCorsRoutes({
         ...envRoutes,
-        ...createGithubRoutes(),
         ...createDocumentRoutes(),
         ...createNotesRoutes(),
         ...createDependencyRoutes(),

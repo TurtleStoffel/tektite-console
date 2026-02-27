@@ -1,7 +1,5 @@
-import { createGithubService } from "../github/service";
+import { listGithubRepos } from "@/backend/domains/git/service";
 import * as repository from "./repository";
-
-const githubService = createGithubService();
 
 export const repositoriesService = {
     async listRepositories() {
@@ -16,7 +14,7 @@ export const repositoriesService = {
 
     async syncRepositories() {
         console.info("[repositories] syncing from GitHub");
-        const repos = await githubService.listRepos();
+        const repos = await listGithubRepos();
         const existingUrls = await repository.listExistingRepositoryUrls();
 
         let insertedCount = 0;
