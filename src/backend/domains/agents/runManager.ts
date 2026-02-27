@@ -84,6 +84,10 @@ function nowIso() {
     return new Date().toISOString();
 }
 
+function sortByNewestCreatedAt(a: AgentRunRecord, b: AgentRunRecord) {
+    return b.createdAt.localeCompare(a.createdAt);
+}
+
 export function createAgentRunManager() {
     // Keep run state in memory for now: active agent runs are process-bound today,
     // so persisting metadata without durable/recoverable execution would be misleading.
@@ -101,6 +105,17 @@ export function createAgentRunManager() {
         worktreePath?: string | null;
         threadId?: string | null;
     }) => {
+        if (input.worktreePath) {
+            const duplicateRun = [...runs.values()].find(
+                (run) => run.worktreePath === input.worktreePath,
+            );
+            if (duplicateRun) {
+                throw new Error(
+                    `Invariant violated: expected at most one run for worktree path ${input.worktreePath}; existing run ${duplicateRun.id}`,
+                );
+            }
+        }
+
         const runId = crypto.randomUUID();
         const run: AgentRunRecord = {
             id: runId,
@@ -172,7 +187,7 @@ export function createAgentRunManager() {
         const projectId = input?.projectId ?? null;
         return [...runs.values()]
             .filter((run) => (projectId ? run.projectId === projectId : true))
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+            .sort(sortByNewestCreatedAt);
     };
 
     const listWorktreeStatuses = (input?: { projectId?: string | null }) => {
@@ -181,7 +196,7 @@ export function createAgentRunManager() {
             string,
             {
                 runId: string;
-                status: "queued" | "running";
+                status: AgentRunStatus;
                 threadId: string | null;
                 lastMessage: string | null;
                 lastEvent: string | null;
@@ -195,9 +210,12 @@ export function createAgentRunManager() {
             if (projectId && run.projectId !== projectId) {
                 continue;
             }
-            if (run.status !== "queued" && run.status !== "running") {
-                continue;
+            if (byWorktreePath[run.worktreePath]) {
+                throw new Error(
+                    `Invariant violated: expected at most one run for worktree path ${run.worktreePath}`,
+                );
             }
+
             byWorktreePath[run.worktreePath] = {
                 runId: run.id,
                 status: run.status,
