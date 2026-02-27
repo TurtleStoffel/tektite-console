@@ -16,6 +16,7 @@
 - Language: TypeScript + React function components
 - Styling: favor Tailwind utility classes with DaisyUI components
 - Keep imports organized/sorted according to Biome's `organizeImports` rule before finishing edits.
+- If you are making code changes in a file longer than 500 lines, try to split the code into smaller modules/components in a meaningful way.
 - Prefer failing hard over catching errors and setting defaults, only catch exceptions if you can meaningfully recover from the error
 - Keep the surface area of `try/catch` blocks as small as possible.
 - Use `try/catch` only at boundaries calling external libraries or platform APIs that throw exceptions.
